@@ -1,0 +1,50 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gallery — Modals & Dialogs</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: system-ui, -apple-system, sans-serif; background: #0F1117; color: #F4F6F8; padding: 24px; }
+h1 { font-size: 32px; font-weight: 600; margin-bottom: 8px; }
+p { font-size: 16px; color: #A9B0BD; margin-bottom: 24px; }
+.btn { height: 44px; padding: 0 24px; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; border: none; background: #5E81F4; color: #fff; transition: all 200ms ease-out; }
+.btn:hover { background: #7296FF; transform: translateY(-1px); }
+.modal-overlay { position: fixed; inset: 0; background: rgba(0,0,0,0.6); display: flex; align-items: center; justify-content: center; z-index: 1000; display: none; }
+.modal-overlay.open { display: flex; }
+.modal { width: 480px; max-width: 90vw; background: rgba(32,37,47,0.95); backdrop-filter: blur(16px); border: 1px solid rgba(255,255,255,0.06); border-radius: 24px; padding: 0; box-shadow: 0 8px 32px rgba(0,0,0,0.4); animation: modalIn 300ms ease-out; }
+@keyframes modalIn { from { transform: scale(0.95); opacity: 0; } to { transform: scale(1); opacity: 1; } }
+.modal-header { display: flex; align-items: center; justify-content: space-between; padding: 20px 24px 0; }
+.modal-header h2 { font-size: 24px; font-weight: 600; }
+.modal-close { width: 32px; height: 32px; border-radius: 8px; border: none; background: transparent; color: #A9B0BD; cursor: pointer; font-size: 18px; display: flex; align-items: center; justify-content: center; transition: background 150ms; }
+.modal-close:hover { background: rgba(255,255,255,0.06); color: #F4F6F8; }
+.modal-body { padding: 20px 24px; font-size: 16px; line-height: 1.6; color: #A9B0BD; }
+.modal-footer { display: flex; gap: 12px; justify-content: flex-end; padding: 16px 24px; border-top: 1px solid rgba(255,255,255,0.06); }
+.btn-ghost { height: 44px; padding: 0 24px; border-radius: 12px; font-size: 16px; font-weight: 600; cursor: pointer; border: 1px solid rgba(255,255,255,0.06); background: transparent; color: #F4F6F8; transition: all 200ms; }
+.btn-ghost:hover { background: rgba(255,255,255,0.04); }
+</style>
+</head>
+<body>
+<h1>Modals & Dialogs</h1>
+<p>Radius: 24px. Blur: 16px. Animation: 300ms ease-out.</p>
+<button class="btn" onclick="document.getElementById('modal1').classList.add('open')">Open Modal</button>
+<button class="btn" onclick="document.getElementById('modal2').classList.add('open')" style="margin-left:12px">Open Confirm</button>
+
+<div id="modal1" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('open')">
+<div class="modal">
+<div class="modal-header"><h2>Settings</h2><button class="modal-close" onclick="this.closest('.modal-overlay').classList.remove('open')">&times;</button></div>
+<div class="modal-body">Configure your AI companion. Changes take effect immediately.<br><br>Personality, voice, memory, and knowledge settings are all available here.</div>
+<div class="modal-footer"><button class="btn-ghost">Cancel</button><button class="btn">Save</button></div>
+</div>
+</div>
+
+<div id="modal2" class="modal-overlay" onclick="if(event.target===this)this.classList.remove('open')">
+<div class="modal">
+<div class="modal-header"><h2>Delete Memory</h2><button class="modal-close" onclick="this.closest('.modal-overlay').classList.remove('open')">&times;</button></div>
+<div class="modal-body">Are you sure you want to delete this memory? This action cannot be undone.</div>
+<div class="modal-footer"><button class="btn-ghost">Cancel</button><button class="btn" style="background:#F45D5D">Delete</button></div>
+</div>
+</div>
+</body>
+</html>

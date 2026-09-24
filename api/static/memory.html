@@ -1,0 +1,60 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script src="js/page-redirect.js" data-page="memory"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mai OS — Library</title>
+<link rel="shortcut icon" href="img/ChatGPT Image Jul 22, 2026, 07_27_22 AM.png" type="image/x-icon">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/orb.css">
+<link rel="stylesheet" href="css/animations.css">
+</head>
+<body>
+<div class="page">
+  <div id="wallpaper" style="position:fixed;inset:0;z-index:0;background:url('img/Memory.png') center/cover no-repeat"></div>
+  <div id="wallpaper-overlay"></div>
+  <div class="page-content" style="position:relative;z-index:1">
+    <div class="page-header">
+      <a class="back-btn" href="index.html">← Desktop</a>
+      <h1>Library</h1><div class="page-header-sub">Memory</div>
+      <div class="mai-illustration"></div>
+    </div>
+    <div id="memory-stats"><div class="no-data"><span>Loading stats...</span></div></div>
+    <div class="memory-search-bar">
+      <input id="memory-search" type="text" placeholder="Search memories..." />
+      <button id="memory-search-btn">Search</button>
+    </div>
+    <div id="memory-timeline"><div class="no-data"><span>Loading timeline...</span></div></div>
+  </div>
+
+  <div id="status-bar">
+    <div class="status-indicator">
+      <span class="status-dot online" id="status-dot"></span>
+      <span id="status-text">Connecting...</span>
+    </div>
+    <div class="status-divider"></div>
+    <div class="status-indicator"><span id="status-emotion">—</span></div>
+    <div class="status-divider"></div>
+    <div class="status-indicator"><span id="status-voice">🎤 —</span></div>
+    <div class="status-divider"></div>
+    <div class="status-indicator"><span id="status-memory">🧠 —</span></div>
+  </div>
+
+  <div id="taskbar">
+    <button id="start-btn"><span class="dot"></span><span>Mai</span></button>
+    <div id="taskbar-apps"></div>
+    <span id="taskbar-clock">00:00</span>
+  </div>
+
+  <div id="start-menu">
+    <div id="start-menu-header">Applications</div>
+    <div id="start-menu-list"></div>
+  </div>
+</div>
+<script src="js/os.js"></script>
+<script src="js/memory.js"></script>
+<script src="js/motion.js"></script>
+<script src="js/orb.js"></script>
+</body>
+</html>

@@ -1,0 +1,23 @@
+{
+  "name": "web_scraper",
+  "version": "1.0.0",
+  "description": "Fetches and extracts text content from URLs",
+  "author": "Mai AI Team",
+  "entry_point": "web_scraper:WebScraperPlugin",
+  "api_version": "1.0",
+  "permissions": {
+    "filesystem": "none",
+    "network": "outbound",
+    "execution": "none",
+    "api_access": ["web"],
+    "config": "none"
+  },
+  "dependencies": [],
+  "hooks": ["pre_chat"],
+  "min_mai_version": "1.0.0",
+  "max_mai_version": null,
+  "homepage": "https://github.com/mai-ai/plugins/tree/main/web_scraper",
+  "repository": "https://github.com/mai-ai/plugins",
+  "license": "MIT",
+  "tags": ["web", "scraper", "utility", "extraction"]
+}

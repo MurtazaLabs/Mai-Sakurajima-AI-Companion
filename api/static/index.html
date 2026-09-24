@@ -1,0 +1,117 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mai OS — Spaces</title>
+<link rel="shortcut icon" href="img/ChatGPT Image Jul 22, 2026, 07_27_22 AM.png" type="image/x-icon">
+<link rel="manifest" href="manifest.json">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/orb.css">
+<link rel="stylesheet" href="css/animations.css">
+<link rel="stylesheet" href="css/mobile.css">
+<meta name="apple-mobile-web-app-capable" content="yes">
+<meta name="apple-mobile-web-app-status-bar-style" content="black-translucent">
+</head>
+<body>
+<div id="wallpaper" class="animate-wallpaper" style="background:linear-gradient(135deg,#0a0c14 0%,#131620 30%,#1a1e2e 60%,#0f111a 100%)"></div>
+<div id="wallpaper-overlay"></div>
+
+<div id="app-layout">
+  <nav id="sidebar">
+    <div id="sidebar-list"></div>
+  </nav>
+  <main id="space-content">
+    <div id="desktop-dashboard">
+      <!-- Hero status row -->
+      <div id="desktop-hero">
+        <div id="desktop-status-dot" class="status-dot offline"></div>
+        <div>
+          <div id="desktop-greeting">Mai OS</div>
+          <div id="desktop-subtitle">AI Companion · Online</div>
+        </div>
+      </div>
+
+      <!-- Quick status cards -->
+      <div id="desktop-cards">
+        <div class="desk-card" data-nav="consciousness">
+          <div class="desk-card-icon">💭</div>
+          <div class="desk-card-label">Emotion</div>
+          <div class="desk-card-value" id="desk-val-emotion">—</div>
+        </div>
+        <div class="desk-card" data-nav="voice">
+          <div class="desk-card-icon">🎤</div>
+          <div class="desk-card-label">Voice</div>
+          <div class="desk-card-value" id="desk-val-voice">—</div>
+        </div>
+        <div class="desk-card" data-nav="memory">
+          <div class="desk-card-icon">🧠</div>
+          <div class="desk-card-label">Memory</div>
+          <div class="desk-card-value" id="desk-val-memory">—</div>
+        </div>
+        <div class="desk-card" data-nav="agency">
+          <div class="desk-card-icon">🎯</div>
+          <div class="desk-card-label">Goals</div>
+          <div class="desk-card-value" id="desk-val-goals">—</div>
+        </div>
+      </div>
+
+      <!-- Quick launch grid -->
+      <div id="desktop-launch-header">Spaces</div>
+      <div id="desktop-launch"></div>
+
+      <!-- Recent thought -->
+      <div id="desktop-thought-card">
+        <div class="desk-thought-label">Current thought</div>
+        <div class="desk-thought-text" id="desk-thought-text">Waiting for Mai...</div>
+      </div>
+    </div>
+  </main>
+</div>
+
+<div id="status-bar">
+  <div class="status-indicator">
+    <span class="status-dot online" id="status-dot"></span>
+    <span id="status-text">Connecting...</span>
+  </div>
+  <div class="status-divider"></div>
+  <div class="status-indicator"><span id="status-emotion">—</span></div>
+  <div class="status-divider"></div>
+  <div class="status-indicator"><span id="status-voice">🎤 —</span></div>
+  <div class="status-divider"></div>
+  <div class="status-indicator"><span id="status-memory">🧠 —</span></div>
+</div>
+
+<div id="taskbar">
+  <button id="start-btn"><span class="dot"></span><span>Mai</span></button>
+  <div id="taskbar-apps"></div>
+  <span id="taskbar-clock">00:00</span>
+</div>
+
+<div id="start-menu">
+  <div id="start-menu-header">Applications</div>
+  <div id="start-menu-list"></div>
+</div>
+
+<script src="js/os.js"></script>
+<script src="js/motion.js"></script>
+<script src="js/orb.js"></script>
+<script src="js/router.js"></script>
+<script src="js/search.js"></script>
+<script src="js/notifications.js"></script>
+<script src="js/consciousness.js"></script>
+<script src="js/chat.js"></script>
+<script src="js/memory.js"></script>
+<script src="js/graph.js"></script>
+<script src="js/reasoning.js"></script>
+<script src="js/agency.js"></script>
+<script src="js/voice.js"></script>
+<script src="js/tasks.js"></script>
+<script src="js/permissions.js"></script>
+<script src="js/system.js"></script>
+<script src="js/inspector.js"></script>
+<script src="js/desktop.js"></script>
+<script src="js/desktop-nav.js"></script>
+<script>if("serviceWorker"in navigator){navigator.serviceWorker.register("sw.js")}</script>
+</body>
+</html>

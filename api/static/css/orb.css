@@ -1,0 +1,43 @@
+/* ---- Mai Presence Orb ---- */
+#mai-orb-menu {
+  position: fixed;
+  bottom: calc(var(--taskbar-height, 64px) + 110px);
+  right: 24px;
+  min-width: 180px;
+  max-width: 260px;
+  background: rgba(18,21,28,0.92);
+  backdrop-filter: blur(20px);
+  -webkit-backdrop-filter: blur(20px);
+  border: 1px solid var(--glass-border);
+  border-radius: 14px;
+  padding: 14px 16px;
+  z-index: 9998;
+  display: none;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.5);
+  font-size: 12px;
+  line-height: 1.5;
+  pointer-events: auto;
+}
+
+#mai-orb-menu.open { display: block; }
+
+.orb-menu-mood {
+  color: var(--accent-highlight);
+  font-weight: 600;
+  margin-bottom: 4px;
+}
+
+.orb-menu-thought {
+  color: var(--text-secondary);
+  font-style: italic;
+  margin-bottom: 4px;
+}
+
+.orb-menu-goal {
+  color: var(--accent-secondary);
+  font-size: 11px;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  #mai-orb-menu { transition: none; }
+}

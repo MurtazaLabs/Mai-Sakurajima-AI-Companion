@@ -1,0 +1,23 @@
+{
+  "name": "weather",
+  "version": "1.1.0",
+  "description": "Fetches current weather via OpenWeatherMap API",
+  "author": "Mai AI Team",
+  "entry_point": "weather:WeatherPlugin",
+  "api_version": "1.0",
+  "permissions": {
+    "filesystem": "none",
+    "network": "outbound",
+    "execution": "none",
+    "api_access": ["weather"],
+    "config": "read"
+  },
+  "dependencies": [],
+  "hooks": ["pre_chat"],
+  "min_mai_version": "1.0.0",
+  "max_mai_version": null,
+  "homepage": "https://github.com/mai-ai/plugins/tree/main/weather",
+  "repository": "https://github.com/mai-ai/plugins",
+  "license": "MIT",
+  "tags": ["weather", "utility", "api"]
+}

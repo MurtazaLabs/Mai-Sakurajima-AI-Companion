@@ -1,0 +1,110 @@
+/* ── Responsive / Mobile styles ───────────────────────────────────── */
+
+@media (max-width: 768px) {
+  #app-layout {
+    grid-template-columns: 1fr !important;
+  }
+
+  #sidebar {
+    display: none;
+    position: fixed;
+    z-index: 100;
+    width: 75vw;
+    max-width: 300px;
+    height: 100vh;
+    left: 0;
+    top: 0;
+  }
+
+  #sidebar.open {
+    display: flex;
+  }
+
+  #space-content {
+    padding: 8px;
+  }
+
+  #message-input {
+    font-size: 16px;
+  }
+
+  .message {
+    max-width: 90%;
+    font-size: 14px;
+  }
+
+  #taskbar {
+    padding: 0 8px;
+  }
+
+  #start-menu {
+    width: 90vw;
+    left: 5vw;
+    bottom: 60px;
+  }
+
+  #notification-area {
+    width: 90vw;
+    right: 5vw;
+    top: 8px;
+  }
+
+  .settings-panel {
+    width: 95vw;
+    left: 2.5vw;
+  }
+
+  #desktop-icons {
+    gap: 8px;
+    padding: 8px;
+  }
+
+  .desktop-icon {
+    width: 64px;
+    height: 80px;
+  }
+
+  .desktop-icon span {
+    font-size: 11px;
+  }
+
+  .modal {
+    width: 95vw;
+    max-height: 80vh;
+  }
+}
+
+@media (max-width: 480px) {
+  #wallpaper {
+    background: linear-gradient(135deg, #0a0c14 0%, #131620 100%) !important;
+  }
+
+  .message {
+    max-width: 95%;
+    padding: 8px 12px;
+  }
+
+  #message-input {
+    padding: 10px 14px;
+  }
+
+  .connection-indicator {
+    font-size: 10px;
+    padding: 2px 8px;
+  }
+
+  #taskbar .taskbar-item {
+    width: 36px;
+    height: 36px;
+    font-size: 16px;
+  }
+
+  .desktop-icon {
+    width: 56px;
+    height: 72px;
+  }
+
+  .desktop-icon span {
+    font-size: 10px;
+  }
+}

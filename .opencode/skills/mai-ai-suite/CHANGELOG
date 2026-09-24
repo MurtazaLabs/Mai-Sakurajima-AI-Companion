@@ -1,0 +1,178 @@
+﻿# Changelog
+
+## 3.1.0 - 2026-07-24
+
+- Created 14 missing reference files for 4 incomplete specialists:
+  - character-narrative-designer: character-framework.md, narrative-arcs.md, relationship-stages.md, consistency-audit.md
+  - data-analytics-specialist: metrics-framework.md, analytics-queries.md, experiment-design.md
+  - integration-api-ecosystem-specialist: api-design-patterns.md, integration-patterns.md, plugin-sdk-design.md, testing-strategy.md
+  - llm-model-specialist: provider-strategy.md, context-window-management.md, model-evaluation.md
+- Fixed stale ui-designer references → ui-ux-designer in data-analytics and integration READMEs (post-merge cleanup)
+- Fixed stale ui-designer → ui-ux-designer and devops-infrastructure-specialist → devops-engineer in desktop-os-expert README
+- Added cross-awareness: data-analytics → performance-engineer, ai-infrastructure → performance-engineer
+- Desktop OS Expert marked as ⚠️ aspirational/future vision (Electron/Tauri not yet built)
+- Added "performance" to task type list
+- Version bumped to 3.1.0
+
+## 3.0.0 - 2026-07-24
+
+- Created unified Mai AI Suite
+- Added automatic routing
+- Added engineering workflow
+- Added modular references
+
+## 2.1.0 - 2026-07-21
+
+- SKILL.md rewritten as full cross-aware orchestrator v2
+- Added cross-specialist awareness table
+- Added complete reference file index (48 files)
+- Added Confidence Scoring framework
+- Added Conflict Resolution rules
+- Added Efficiency Rules
+
+## 2.2.0 - 2026-07-21
+
+- Added 6 new specialists (total: 10 -> 16)
+- Created LLM/Model Specialist with 3 reference files
+- Created DevOps/Infrastructure Specialist with 4 reference files
+- Created Character/Narrative Designer with 4 reference files
+- Created Security Specialist with 3 reference files
+- Created Data/Analytics Specialist with 3 reference files
+- Created Integration/API Ecosystem Specialist with 4 reference files
+- Updated SKILL.md: specialist table, cross-awareness matrix, routing rules, reference index, efficiency rules
+- Cross-wired all new specialists into existing specialist awareness tables
+
+## 2.3.0 - 2026-07-21
+
+- Added Knowledge Engineering Expert specialist (total: 16 -> 17)
+- Created README.md with companion skills, core mission, 6 modes, engineering principles
+- Created 6 reference files: knowledge-graphs, entity-extraction, memory-state, vault-compilation, entity-resolution, knowledge-evolution
+- Updated SKILL.md: specialist table row 17, cross-awareness entries, reference index, routing rule, efficiency rule, activation workflow
+- Updated "The 16 Specialists" to "The 17 Specialists"
+
+## 2.4.0 - 2026-07-21
+
+- Promoted Knowledge Engineering Expert from specialist to standalone skill (via skill-creator pipeline)
+- Removed Knowledge Engineering Expert from specialist table, cross-awareness matrix, reference index, routing rules, and efficiency rules
+- Updated specialist count: 17 -> 16
+- Removed "knowledge" from activation workflow task types (now handled by standalone skill)
+- Created standalone skill at `E:\.opencode\skills\knowledge-engineering-expert\SKILL.md` with proper YAML frontmatter
+- Created 6 reference files for standalone skill
+- Created 3 test prompts in evals/evals.json
+- Validated via quick_validate and packaged as `.skill` file
+
+## 2.5.0 - 2026-07-21
+
+- Re-integrated Knowledge Engineering Expert as specialist #17 per skill-creator workflow (create standalone -> validate -> eval -> clean scripts/evals/assets -> rename SKILL.md -> README.md -> move to mai-ai-suite/reference/)
+- Restored specialist table row 17, cross-awareness entries, reference index, routing rule, efficiency rule, "knowledge" task type
+- Updated "The 16 Specialists" back to "The 17 Specialists"
+- Removed standalone skill directory and .skill file after move
+
+## 2.6.0 - 2026-07-21
+
+- Added AI Infrastructure Expert specialist (total: 17 -> 18)
+- Created via skill-creator pipeline: standalone -> validate -> eval -> clean -> rename -> move
+- Created README.md with companion skills, 9 modes, engineering principles, core pipeline
+- Created 9 reference files: runtime-architecture, model-lifecycle, gpu-vram-management, cpu-scheduler, streaming-infrastructure, model-selection, caching, error-recovery, performance-monitoring
+- Updated SKILL.md: specialist table row 18, cross-awareness entries, reference index, routing rule, efficiency rule, "infrastructure" task type
+- Updated "The 17 Specialists" to "The 18 Specialists"
+
+## 2.7.0 - 2026-07-21
+
+- Added Desktop OS Expert specialist (total: 18 -> 19)
+- Created via skill-creator pipeline: standalone -> validate -> eval -> clean -> rename -> move
+- Created README.md with companion skills, 9 modes, engineering principles, core architecture layers
+- Created 9 reference files: desktop-shell, window-manager, ipc-architecture, application-framework, command-palette, notifications, theming-animations, security-sandboxing, performance
+- Updated SKILL.md: specialist table row 19, cross-awareness entries, reference index, routing rule, efficiency rule, "desktop" task type
+- Updated "The 18 Specialists" to "The 19 Specialists"
+
+## 2.8.0 - 2026-07-21
+
+- Added Reasoning Architecture Expert specialist (total: 19 -> 20)
+- Created via skill-creator pipeline: standalone -> validate -> eval -> clean -> rename -> move
+- Created README.md with companion skills, 10 modes, engineering principles, full reasoning pipeline
+- Created 10 reference files: reasoning-pipeline, planning-system, tool-calling, memory-aware-reasoning, context-management, self-reflection, error-recovery, world-model, prompt-engineering, decision-making
+- Updated SKILL.md: specialist table row 20, cross-awareness entries, reference index, routing rule, efficiency rule, "reasoning" task type
+- Updated "The 19 Specialists" to "The 20 Specialists"
+
+## 2.9.0 - 2026-07-21
+
+- Added Memory Architecture Expert specialist (total: 20 -> 21)
+- Created via skill-creator pipeline: standalone -> validate -> eval -> clean -> rename -> move
+- Created README.md with companion skills, 10 modes, engineering principles, 10 cognitive memory systems
+- Created 10 reference files: cognitive-architecture, memory-state, knowledge-graph, dreaming-engine, reflection-engine, memory-retrieval, consolidation, vault-compilation, data-integrity, memory-review
+- Updated SKILL.md: specialist table row 21, cross-awareness entries, reference index, routing rule, efficiency rule, "cognition" task type
+- Updated "The 20 Specialists" to "The 21 Specialists"
+
+## 2.10.0 - 2026-07-21
+
+- Added Voice Architecture Expert specialist (total: 21 -> 22)
+- Created via skill-creator pipeline: standalone -> validate -> eval -> clean -> rename -> move
+- Created README.md with companion skills, 10 modes, latency targets, engineering principles
+- Created 10 reference files: voice-pipeline, audio-capture-vad, speech-recognition, speaker-recognition, speech-synthesis, interruptions, conversation-management, voice-memory, idle-behaviour, performance-observability
+- Updated SKILL.md: specialist table row 22, cross-awareness entries, reference index, routing rule, efficiency rule, "voice" task type
+- Updated "The 21 Specialists" to "The 22 Specialists"
+
+## 2.14.0 - 2026-07-24
+
+- Added DevOps Engineer specialist (total: 20 -> 21)
+- Created reference/devops-engineer/ with README.md and 3 eval-verified test cases
+- DevOps Engineer covers Docker, multi-stage builds, Docker Compose, CI/CD (GitHub Actions), environment separation, secrets injection, health checks, monitoring, documentation site deployment (MkDocs), and deployment runbooks
+- Updated specialist table 1-21
+- Added cross-awareness entries: devops-engineer <-> security-engineer, devops-engineer -> mai-ai-systems-auditor, devops-engineer -> python-master-engineer, devops-engineer -> python-codebase-architect, python-master-engineer -> devops-engineer
+- version bumped to 2.14.0
+
+## 2.15.0 - 2026-07-24
+
+- Added Performance Engineer specialist (total: 21 -> 22)
+- Created standalone skill at skills/performance-engineer/SKILL.md with complete profiling workflow
+- Created 3 eval test cases (profile-slow-endpoint, async-io-audit, retrieval-optimization) — all passed 3/3 assertions in both with/without-skill configurations
+- Created reference/performance-engineer/ with SKILL.md
+- Performance Engineer covers profiling (cProfile, py-spy, memory_profiler), latency optimization, async I/O auditing, event-loop blocking detection, caching strategy, connection pooling, batching, retrieval optimization, startup/boot optimization, API latency, CPU/memory profiling, and benchmarking
+- Updated specialist table 1-22
+- Added cross-awareness entries: performance-engineer <-> python-master-engineer, python-codebase-architect, mai-ai-systems-auditor, devops-engineer, ai-infrastructure-expert, memory-architecture-expert
+- Added routing rule and efficiency rule for performance queries
+- Added reference file index entry for performance-engineer
+- version bumped to 2.15.0
+
+## 3.0.0 - 2026-07-24
+
+- **Specialist consolidation audit**: 22 -> 20 specialists
+- **Merged UI Designer (#8) into UI/UX Designer (#18)** — Moved 8 reference files (design_system.md, components.md, layout.md, animations.md, accessibility.md, prompts.md, references.md) and gallery/ with 8 HTML examples into ui-ux-designer/references/. Updated ui-ux-designer's README with reference file table. Deleted reference/ui-designer/.
+- **Merged DevOps/Infrastructure Specialist (#10) into DevOps Engineer (#19)** — Absorbed mode detection (Deployment Review, CI/CD Audit, Infrastructure Review, Disaster Recovery Plan) and companion skills table into devops-engineer's README. Deleted reference/devops-infrastructure-specialist/.
+- **Renumbered** specialist table 1-20 (was 1-22)
+- **Updated all cross-awareness entries**: devops-infrastructure-specialist -> devops-engineer throughout
+- **Updated routing rules**: Docker/deployment routes to devops-engineer; UI/frontend routes to ui-ux-designer
+- **Updated efficiency rules**: deployment question -> devops-engineer
+- **Updated reference file index**: removed UI Designer and DevOps/Infrastructure Specialist sections; added UI/UX Designer section with full reference file listing; updated DevOps Engineer section with reference file listing
+- Removed "ui" from tags (unnecessary - "design" already covers it)
+- version bumped to 3.0.0
+
+## 2.13.0 - 2026-07-24
+
+- Added UI/UX Designer specialist (total: 19 -> 20)
+- Created reference/ui-ux-designer/ with README.md and 3 eval-verified test cases
+- UI/UX Designer covers HTML/CSS/JS, responsive mobile-first, accessibility (WCAG), PWA, chat interfaces, micro-interactions, and frontend architecture
+- Updated specialist table 1-20
+- Added cross-awareness entries: ui-ux-designer <-> python-master-engineer, ui-ux-designer -> python-codebase-architect, ui-ux-designer -> mai-ai-systems-auditor, python-master-engineer -> ui-ux-designer, python-codebase-architect -> ui-ux-designer
+- version bumped to 2.13.0
+
+## 2.12.0 - 2026-07-24
+
+- Added Security Engineer specialist (total: 18 -> 19)
+- Created reference/security-engineer/ with README.md and 3 reference files (api-auth.py, rate-limiter.py, security-headers.py)
+- Security Engineer covers JWT auth, rate limiting, CORS, security headers, input validation, secrets management, and defense-in-depth hardening
+- Updated specialist table 1-19
+- Added cross-awareness entries: security-engineer <-> mai-ai-systems-auditor, security-engineer <-> devops-infrastructure-specialist, python-master-engineer -> security-engineer
+- version bumped to 2.12.0
+
+## 2.11.0 - 2026-07-21
+
+- Removed 4 redundant specialists (22 -> 18): Principal Software Advisor (overlap with Master Engineer + Systems Auditor), AI Memory Architect (superseded by Memory Architecture Expert), Security Specialist (subset of Systems Auditor), Knowledge Engineering Expert (overlap with Memory Architecture Expert + KB Builder)
+- Deleted reference directories: principal-software-advisor, ai-memory-architect, security-specialist, knowledge-engineering-expert
+- Removed all cross-awareness entries and references to removed specialists from remaining rows
+- Removed reference file index sections for all 4 removed specialists
+- Removed routing rules for security-specialist and knowledge-engineering-expert
+- Removed efficiency rules for all 4 removed specialists
+- Re-numbered specialist table 1-18
+- Updated "The 22 Specialists" to "The 18 Specialists"

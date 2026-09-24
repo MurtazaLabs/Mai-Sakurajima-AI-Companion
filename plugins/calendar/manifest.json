@@ -1,0 +1,23 @@
+{
+  "name": "calendar",
+  "version": "1.1.0",
+  "description": "Local event/reminder manager with recurring events and timezones",
+  "author": "Mai AI Team",
+  "entry_point": "calendar:CalendarPlugin",
+  "api_version": "1.0",
+  "permissions": {
+    "filesystem": "write",
+    "network": "none",
+    "execution": "none",
+    "api_access": ["calendar"],
+    "config": "read"
+  },
+  "dependencies": [],
+  "hooks": ["pre_chat"],
+  "min_mai_version": "1.0.0",
+  "max_mai_version": null,
+  "homepage": "https://github.com/mai-ai/plugins/tree/main/calendar",
+  "repository": "https://github.com/mai-ai/plugins",
+  "license": "MIT",
+  "tags": ["calendar", "utility", "reminders"]
+}

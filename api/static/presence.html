@@ -1,0 +1,259 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mai OS — Presence</title>
+<link rel="shortcut icon" href="img/ChatGPT Image Jul 22, 2026, 07_27_22 AM.png" type="image/x-icon">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/orb.css">
+<link rel="stylesheet" href="css/presence.css">
+<link rel="stylesheet" href="css/animations.css">
+</head>
+<body>
+<div id="desktop">
+  <div id="wallpaper"></div>
+  <div id="wallpaper-overlay"></div>
+
+  <div id="thought-bubble">
+    <div class="thought-bubble-icon">💭</div>
+    <div class="thought-bubble-content">
+      <div class="thought-bubble-label">Currently thinking...</div>
+      <div class="thought-bubble-text" id="bubble-thought">I'm organizing yesterday's memories.</div>
+    </div>
+  </div>
+
+  <div id="presence-container">
+    <!-- Hero Section -->
+    <div class="hero-section">
+      <div class="hero-greeting" id="hero-greeting">Good morning</div>
+      <div class="hero-name">Mai</div>
+      <div class="hero-status-row" id="hero-status-row">
+        <span class="hero-status-badge emotion" data-status="happy">😊 <span>Happy</span></span>
+        <span class="hero-status-badge thinking">🧠 <span>Thinking</span></span>
+        <span class="hero-status-badge listening">👂 <span>Listening</span></span>
+      </div>
+      <div class="hero-quote" id="hero-quote">"I've been organizing memories while you were away."</div>
+    </div>
+
+    <!-- Current Goal + Thought split -->
+    <div class="split-row">
+      <div class="card card-goal">
+        <div class="card-header">
+          <span class="card-label">Current Focus</span>
+          <span class="card-sub" id="goal-sub">Building semantic relationships</span>
+        </div>
+        <div class="focus-bar-bg">
+          <div class="focus-bar-fill" id="focus-bar" style="width:84%"></div>
+        </div>
+        <div class="focus-pct" id="focus-pct">84%</div>
+      </div>
+      <div class="card card-thought">
+        <div class="card-header">
+          <span class="card-label">Current Thought</span>
+        </div>
+        <div class="thought-text" id="current-thought">"I'm trying to connect your AI architecture with our previous conversation."</div>
+        <div class="thought-mono" id="internal-monologue">"I wonder whether semantic layers would improve retrieval..."</div>
+      </div>
+    </div>
+
+    <!-- Confidence radial + Working Memory -->
+    <div class="split-row">
+      <div class="card card-confidence">
+        <div class="card-header">
+          <span class="card-label">Confidence</span>
+        </div>
+        <div class="radial-gauge-wrap">
+          <svg class="radial-gauge" viewBox="0 0 120 120" id="confidence-gauge">
+            <circle class="gauge-track" cx="60" cy="60" r="50"/>
+            <circle class="gauge-fill" cx="60" cy="60" r="50" id="gauge-fill"/>
+            <text class="gauge-text" x="60" y="56" id="gauge-pct">84%</text>
+            <text class="gauge-label" x="60" y="74">Confidence</text>
+          </svg>
+        </div>
+        <div class="gauge-extras" id="gauge-extras">
+          <span>Attention <span id="gauge-attention" class="gauge-stat">███████░</span></span>
+        </div>
+      </div>
+      <div class="card card-wmemory">
+        <div class="card-header">
+          <span class="card-label">Working Memory</span>
+          <span class="card-sub" id="wm-count">4 active thoughts</span>
+        </div>
+        <div class="wm-chunks" id="wm-chunks">
+          <span class="wm-chunk" style="background:var(--accent)">Architecture</span>
+          <span class="wm-chunk" style="background:var(--accent-secondary)">Voice</span>
+          <span class="wm-chunk" style="background:var(--accent-highlight)">Memory</span>
+          <span class="wm-chunk" style="background:var(--success)">UI</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Memory Hierarchy -->
+    <div class="card card-memory">
+      <div class="card-header">
+        <span class="card-label">Memory</span>
+      </div>
+      <div class="memory-flow" id="memory-flow">
+        <div class="mem-layer" data-layer="working">
+          <span class="mem-label">Working</span>
+          <div class="mem-bar-bg"><div class="mem-bar-fill working" style="width:0%"></div></div>
+          <span class="mem-count" id="mem-working">0</span>
+        </div>
+        <div class="mem-layer" data-layer="short">
+          <span class="mem-label">Short-term</span>
+          <div class="mem-bar-bg"><div class="mem-bar-fill short" style="width:0%"></div></div>
+          <span class="mem-count" id="mem-short">0</span>
+        </div>
+        <div class="mem-layer" data-layer="long">
+          <span class="mem-label">Long-term</span>
+          <div class="mem-bar-bg"><div class="mem-bar-fill long" style="width:0%"></div></div>
+          <span class="mem-count" id="mem-long">0</span>
+        </div>
+        <div class="mem-layer" data-layer="archive">
+          <span class="mem-label">Archive</span>
+          <div class="mem-bar-bg"><div class="mem-bar-fill archive" style="width:0%"></div></div>
+          <span class="mem-count" id="mem-archive">0</span>
+        </div>
+      </div>
+    </div>
+
+    <!-- Reflection -->
+    <div class="card card-reflection" id="reflection-card">
+      <div class="card-header">
+        <span class="card-label">Today's Reflection</span>
+        <span class="card-sub" id="reflection-time"></span>
+      </div>
+      <div class="reflection-body" id="reflection-body">"I noticed you've spent most of today improving my cognitive architecture."</div>
+      <div class="reflection-confidence" id="reflection-confidence">Confidence 92%</div>
+    </div>
+
+    <!-- Mind City -->
+    <div class="card card-city">
+      <div class="card-header">
+        <span class="card-label">Mind City</span>
+        <span class="card-sub" id="city-sub">—</span>
+      </div>
+      <div class="city-districts" id="city-districts">
+        <a class="city-district" href="/desktop#space=memory" data-district="memory">
+          <span class="district-dot active"></span> Memory District
+        </a>
+        <a class="city-district" href="/desktop#space=reasoning" data-district="reasoning">
+          <span class="district-dot"></span> Reasoning District
+        </a>
+        <a class="city-district" href="/desktop#space=chat" data-district="chat">
+          <span class="district-dot"></span> Conversation
+        </a>
+        <a class="city-district" href="/desktop#space=voice" data-district="voice">
+          <span class="district-dot"></span> Voice
+        </a>
+        <a class="city-district" href="/desktop#space=agency" data-district="agency">
+          <span class="district-dot"></span> Agency
+        </a>
+        <a class="city-district" href="/desktop#space=consciousness" data-district="emotion">
+          <span class="district-dot"></span> Emotion
+        </a>
+      </div>
+    </div>
+
+    <!-- Who's Awake -->
+    <div class="card card-subsystems">
+      <div class="card-header">
+        <span class="card-label">Who's Awake</span>
+      </div>
+      <div class="subsystem-grid" id="subsystem-grid">
+        <!-- Populated by JS -->
+      </div>
+    </div>
+
+    <!-- Moments -->
+    <div class="card card-moments">
+      <div class="card-header">
+        <span class="card-label">Moments</span>
+        <div class="card-header-actions">
+          <button id="capture-btn" class="moments-capture" title="Capture moment">✦</button>
+          <span id="moments-count" class="card-sub">0</span>
+        </div>
+      </div>
+      <div class="moments-list" id="moments-list">
+        <div class="moments-empty">Moments appear here when captured</div>
+      </div>
+    </div>
+
+    <!-- Timeline -->
+    <div class="card card-timeline">
+      <div class="card-header">
+        <span class="card-label">Activity Timeline</span>
+        <span id="timeline-count" class="card-sub">0 events</span>
+      </div>
+      <div class="timeline-scroll" id="timeline-scroll">
+        <div id="timeline-list"></div>
+      </div>
+    </div>
+
+    <!-- Navigation Pills -->
+    <div class="nav-pills">
+      <div class="nav-pill-group">
+        <span class="pill-group-label">Surface</span>
+        <a class="pill" href="/desktop#space=chat">💬 Chat</a>
+        <a class="pill" href="/desktop#space=consciousness">◈ Consciousness</a>
+      </div>
+      <div class="nav-pill-group">
+        <span class="pill-group-label">Operational</span>
+        <a class="pill" href="/desktop#space=memory">🧠 Memory</a>
+        <a class="pill" href="/desktop#space=graph">🕸 Graph</a>
+        <a class="pill" href="/desktop#space=reasoning">⚡ Reasoning</a>
+        <a class="pill" href="/desktop#space=agency">💭 Agency</a>
+        <a class="pill" href="/desktop#space=voice">🎤 Voice</a>
+      </div>
+      <div class="nav-pill-group">
+        <span class="pill-group-label">Developer</span>
+        <a class="pill" href="/desktop#space=system">⚙ System</a>
+        <a class="pill" href="/desktop">🖥 Desktop</a>
+      </div>
+    </div>
+  </div>
+
+  <!-- Status Dock -->
+  <div id="status-dock">
+    <div class="dock-left">
+      <span class="dock-brand">Mai</span>
+      <span class="dock-divider"></span>
+      <span class="dock-item"><span class="status-dot online" id="dock-dot"></span><span id="dock-status">Online</span></span>
+    </div>
+    <div class="dock-center">
+      <span class="dock-item" id="dock-emotion">😊 Happy</span>
+      <span class="dock-divider"></span>
+      <span class="dock-item" id="dock-listening">👂 OFF</span>
+      <span class="dock-divider"></span>
+      <span class="dock-item" id="dock-speaking">🎤 OFF</span>
+    </div>
+    <div class="dock-right">
+      <span class="dock-item" id="dock-cpu">CPU 18%</span>
+      <span class="dock-divider"></span>
+      <span class="dock-item" id="dock-memory">🧠 79</span>
+      <span class="dock-divider"></span>
+      <span class="dock-item" id="dock-relation">❤ Close Friend</span>
+      <span class="dock-divider"></span>
+      <span class="dock-item dock-time" id="dock-time">00:00</span>
+    </div>
+  </div>
+
+  <div id="taskbar">
+    <button id="start-btn"><span class="dot"></span><span>Mai</span></button>
+    <div id="taskbar-apps"></div>
+    <span id="taskbar-clock">00:00</span>
+  </div>
+
+  <div id="start-menu">
+    <div id="start-menu-header">Applications</div>
+    <div id="start-menu-list"></div>
+  </div>
+</div>
+<script src="js/os.js"></script>
+<script src="js/motion.js"></script>
+<script src="js/presence.js"></script>
+<script src="js/search.js"></script>
+<script src="js/notifications.js"></script>
+</body>
+</html>

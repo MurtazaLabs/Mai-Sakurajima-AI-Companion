@@ -1,0 +1,59 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gallery — Cards</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: system-ui, -apple-system, sans-serif; background: #0F1117; color: #F4F6F8; padding: 24px; }
+h1 { font-size: 32px; font-weight: 600; margin-bottom: 8px; }
+h2 { font-size: 24px; font-weight: 600; margin: 32px 0 16px; }
+p { font-size: 16px; color: #A9B0BD; margin-bottom: 24px; }
+.grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 24px; }
+.card { background: #20252F; border: 1px solid rgba(255,255,255,0.06); border-radius: 16px; padding: 16px; transition: all 150ms ease-out; }
+.card:hover { border-color: rgba(255,255,255,0.12); }
+.card h3 { font-size: 11px; font-weight: 600; color: #5E81F4; text-transform: uppercase; letter-spacing: 0.5px; margin-bottom: 8px; }
+.card .value { font-size: 24px; font-weight: 600; color: #F4F6F8; line-height: 1.2; }
+.card .label { font-size: 12px; color: #A9B0BD; margin-top: 4px; }
+.card .stat-row { display: flex; justify-content: space-between; padding: 4px 0; font-size: 13px; }
+.card .stat-label { color: #A9B0BD; }
+.card .stat-value { color: #F4F6F8; font-weight: 500; }
+.bar { height: 6px; background: #171A21; border-radius: 3px; margin-top: 8px; overflow: hidden; }
+.bar-fill { height: 100%; background: #5E81F4; border-radius: 3px; transition: width 0.5s ease; }
+</style>
+</head>
+<body>
+<h1>Cards</h1>
+<p>Dark panel cards. Radius: 16px. Padding: 16px. Border: 1px subtle.</p>
+
+<div class="grid">
+<div class="card">
+<h3>Emotion</h3>
+<div class="value">Calm</div>
+<div class="label">current state</div>
+<div class="stat-row"><span class="stat-label">confidence</span><span class="stat-value">0.92</span></div>
+<div class="stat-row"><span class="stat-label">history</span><span class="stat-value">142 records</span></div>
+<div class="bar"><div class="bar-fill" style="width:92%"></div></div>
+</div>
+
+<div class="card">
+<h3>Memory</h3>
+<div class="value">1,284</div>
+<div class="label">total memories</div>
+<div class="stat-row"><span class="stat-label">semantic</span><span class="stat-value">842</span></div>
+<div class="stat-row"><span class="stat-label">episodic</span><span class="stat-value">312</span></div>
+<div class="stat-row"><span class="stat-label">procedural</span><span class="stat-value">130</span></div>
+</div>
+
+<div class="card">
+<h3>Goals</h3>
+<div class="value">3</div>
+<div class="label">active goals</div>
+<div class="stat-row"><span class="stat-label">completed</span><span class="stat-value">12</span></div>
+<div class="stat-row"><span class="stat-label">progress</span><span class="stat-value">64%</span></div>
+<div class="bar"><div class="bar-fill" style="width:64%"></div></div>
+</div>
+</div>
+</body>
+</html>

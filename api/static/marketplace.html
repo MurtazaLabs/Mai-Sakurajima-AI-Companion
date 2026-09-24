@@ -1,0 +1,189 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Mai AI — Plugin Marketplace</title>
+    <link rel="stylesheet" href="/css/style.css">
+    <link rel="stylesheet" href="/css/marketplace.css">
+    <link rel="icon" href="/img/favicon.ico">
+</head>
+<body>
+    <div class="app-shell">
+        <!-- Sidebar Navigation -->
+        <aside class="sidebar" id="sidebar">
+            <div class="sidebar-header">
+                <div class="logo">
+                    <span class="logo-icon">⚡</span>
+                    <span class="logo-text">Mai AI</span>
+                </div>
+            </div>
+            <nav class="sidebar-nav">
+                <a href="/desktop" class="nav-item" data-space="desktop">
+                    <span class="nav-icon">🖥️</span>
+                    <span>Desktop</span>
+                </a>
+                <a href="/chat" class="nav-item" data-space="chat">
+                    <span class="nav-icon">💬</span>
+                    <span>Chat</span>
+                </a>
+                <a href="/consciousness" class="nav-item" data-space="consciousness">
+                    <span class="nav-icon">🧠</span>
+                    <span>Consciousness</span>
+                </a>
+                <a href="/graph" class="nav-item" data-space="graph">
+                    <span class="nav-icon">🕸️</span>
+                    <span>Knowledge Graph</span>
+                </a>
+                <a href="/reasoning" class="nav-item" data-space="reasoning">
+                    <span class="nav-icon">🧩</span>
+                    <span>Reasoning</span>
+                </a>
+                <a href="/memory" class="nav-item" data-space="memory">
+                    <span class="nav-icon">🧩</span>
+                    <span>Memory</span>
+                </a>
+                <a href="/voice" class="nav-item" data-space="voice">
+                    <span class="nav-icon">🎙️</span>
+                    <span>Voice</span>
+                </a>
+                <a href="/marketplace" class="nav-item active" data-space="marketplace">
+                    <span class="nav-icon">🏪</span>
+                    <span>Marketplace</span>
+                </a>
+                <a href="/system" class="nav-item" data-space="system">
+                    <span class="nav-icon">⚙️</span>
+                    <span>System</span>
+                </a>
+                <a href="/tasks" class="nav-item" data-space="tasks">
+                    <span class="nav-icon">✅</span>
+                    <span>Tasks</span>
+                </a>
+                <a href="/reasoning" class="nav-item" data-space="reasoning">
+                    <span class="nav-icon">🧩</span>
+                    <span>Reasoning</span>
+                </a>
+                <a href="/inspector" class="nav-item" data-space="inspector">
+                    <span class="nav-icon">🔍</span>
+                    <span>Inspector</span>
+                </a>
+            </nav>
+            <div class="sidebar-footer">
+                <div class="connection-status" id="connection-status">
+                    <span class="status-dot" id="status-dot"></span>
+                    <span id="status-text">Connecting...</span>
+                </div>
+            </div>
+        </aside>
+
+        <!-- Main Content Area -->
+        <main class="main-content" id="main-content">
+            <!-- Top Bar -->
+            <header class="top-bar">
+                <div class="top-bar-left">
+                    <h1 class="page-title">Plugin Marketplace</h1>
+                    <p class="page-subtitle">Discover, install, and manage plugins to extend Mai's capabilities</p>
+                </div>
+                <div class="top-bar-right">
+                    <button class="btn btn-secondary" id="btn-refresh-marketplace" title="Refresh marketplace">
+                        <span class="btn-icon">🔄</span>
+                        <span>Refresh</span>
+                    </button>
+                </div>
+            </header>
+
+            <!-- Search & Filter Bar -->
+            <div class="marketplace-toolbar">
+                <div class="search-box">
+                    <input type="text" id="marketplace-search" placeholder="Search plugins..." autocomplete="off">
+                    <span class="search-icon">🔍</span>
+                </div>
+                <div class="filter-group">
+                    <select id="filter-category" class="filter-select">
+                        <option value="">All Categories</option>
+                        <option value="utility">Utility</option>
+                        <option value="api">API</option>
+                        <option value="system">System</option>
+                        <option value="media">Media</option>
+                        <option value="developer">Developer</option>
+                    </select>
+                    <select id="filter-sort" class="filter-select">
+                        <option value="popular">Most Popular</option>
+                        <option value="rating">Highest Rated</option>
+                        <option value="newest">Newest</option>
+                        <option value="updated">Recently Updated</option>
+                    </select>
+                    <select id="filter-status" class="filter-select">
+                        <option value="">All Status</option>
+                        <option value="installed">Installed</option>
+                        <option value="available">Available</option>
+                    </select>
+                </div>
+            </div>
+
+            <!-- Plugin Grid -->
+            <section class="marketplace-section">
+                <div class="section-header">
+                    <h2>Available Plugins</h2>
+                    <span class="result-count" id="result-count">Loading...</span>
+                </div>
+                <div class="plugin-grid" id="plugin-grid">
+                    <!-- Plugin cards will be rendered here -->
+                </div>
+                <div class="pagination" id="pagination" style="display: none;">
+                    <button class="btn btn-sm" id="btn-prev-page" disabled>← Previous</button>
+                    <span class="page-info" id="page-info">Page 1 of 1</span>
+                    <button class="btn btn-sm" id="btn-next-page" disabled>Next →</button>
+                </div>
+            </section>
+
+            <!-- Plugin Detail Modal -->
+            <div class="modal-overlay" id="plugin-modal" style="display: none;">
+                <div class="modal" id="plugin-modal">
+                    <div class="modal-header">
+                        <div class="modal-header-left">
+                            <span class="modal-plugin-icon" id="modal-plugin-icon">📦</span>
+                            <div class="modal-title-group">
+                                <h2 id="modal-plugin-name">Plugin Name</h2>
+                                <span class="modal-version" id="modal-version">v1.0.0</span>
+                            </div>
+                        </div>
+                        <button class="modal-close" id="modal-close" aria-label="Close modal">×</button>
+                    </div>
+                    <div class="modal-body" id="modal-body">
+                        <!-- Plugin details loaded dynamically -->
+                    </div>
+                    <div class="modal-footer" id="modal-footer">
+                        <!-- Action buttons rendered here -->
+                    </div>
+                </div>
+            </div>
+
+            <!-- Plugin Detail Page (for deep links) -->
+            <div class="plugin-detail-page" id="plugin-detail-page" style="display: none;">
+                <div class="detail-header">
+                    <a href="/marketplace" class="back-link">← Back to Marketplace</a>
+                    <div class="detail-title-group">
+                        <span class="detail-icon" id="detail-icon">📦</span>
+                        <div>
+                            <h1 id="detail-name">Plugin Name</h1>
+                            <span class="detail-version" id="detail-version">v1.0.0</span>
+                        </div>
+                    </div>
+                    <div class="detail-actions" id="detail-actions">
+                        <!-- Action buttons rendered here -->
+                    </div>
+                </div>
+                <div class="detail-content" id="detail-content">
+                    <!-- Detailed plugin info -->
+                </div>
+            </div>
+
+            <!-- Toast Notifications Container -->
+            <div class="toast-container" id="toast-container"></div>
+        </main>
+    </div>
+
+    <script type="module" src="/js/marketplace.js"></script>
+</body>
+</html>

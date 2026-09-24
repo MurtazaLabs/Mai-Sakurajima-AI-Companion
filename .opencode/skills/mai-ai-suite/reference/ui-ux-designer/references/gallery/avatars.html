@@ -1,0 +1,46 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Gallery — Avatars</title>
+<style>
+* { margin: 0; padding: 0; box-sizing: border-box; }
+body { font-family: system-ui, -apple-system, sans-serif; background: #0F1117; color: #F4F6F8; padding: 24px; }
+h1 { font-size: 32px; font-weight: 600; margin-bottom: 8px; }
+p { font-size: 16px; color: #A9B0BD; margin-bottom: 24px; }
+h2 { font-size: 24px; font-weight: 600; margin: 32px 0 16px; }
+.row { display: flex; gap: 32px; align-items: center; flex-wrap: wrap; }
+.avatar { border-radius: 50%; border: 2px solid rgba(255,255,255,0.06); background: linear-gradient(135deg, #20252F, #171A21); display: flex; align-items: center; justify-content: center; color: #5E81F4; }
+.avatar-lg { width: 96px; height: 96px; font-size: 36px; }
+.avatar-md { width: 48px; height: 48px; font-size: 20px; }
+.avatar-sm { width: 32px; height: 32px; font-size: 14px; }
+.avatar-online { position: relative; }
+.avatar-online::after { content: ''; position: absolute; bottom: 2px; right: 2px; width: 12px; height: 12px; background: #49D17D; border-radius: 50%; border: 2px solid #0F1117; box-shadow: 0 0 6px rgba(73,209,125,0.5); }
+.label { font-size: 12px; color: #A9B0BD; margin-top: 6px; text-align: center; }
+</style>
+</head>
+<body>
+<h1>Avatars</h1>
+<p>Abstract AI style. Soft geometry. Muted colors. Premium aesthetic.</p>
+
+<h2>Sizes</h2>
+<div class="row">
+<div><div class="avatar avatar-lg">M</div><div class="label">96px — Login</div></div>
+<div><div class="avatar avatar-md">M</div><div class="label">48px — Header</div></div>
+<div><div class="avatar avatar-sm">M</div><div class="label">32px — Inline</div></div>
+</div>
+
+<h2>With Status Indicator</h2>
+<div class="row">
+<div style="position:relative"><div class="avatar avatar-lg avatar-online">M</div><div class="label">Online</div></div>
+<div style="position:relative"><div class="avatar avatar-md avatar-online">M</div><div class="label">Online</div></div>
+</div>
+
+<h2>Placeholder (initials)</h2>
+<div class="row">
+<div><div class="avatar avatar-md" style="background:linear-gradient(135deg,#5E81F4,#171A21);color:#fff">U</div><div class="label">User</div></div>
+<div><div class="avatar avatar-md" style="background:linear-gradient(135deg,#49D17D,#171A21);color:#fff">A</div><div class="label">AI</div></div>
+</div>
+</body>
+</html>

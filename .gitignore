@@ -1,0 +1,51 @@
+# Byte-compiled / optimized / DLL files
+__pycache__/
+*.py[cod]
+*$py.class
+
+# Virtual environments
+mai_env/
+venv/
+env/
+.env
+
+# Distribution / packaging
+dist/
+build/
+*.egg-info/
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Logs
+logs/
+*.log
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Test / coverage
+.coverage
+.pytest_cache/
+htmlcov/
+
+# Cache
+.cache/
+vector_memory/
+cache/
+
+# Data
+data/
+temp/
+models/
+
+# Node (if any)
+node_modules/
+package-lock.json
+
+# Local config
+.freebuff/

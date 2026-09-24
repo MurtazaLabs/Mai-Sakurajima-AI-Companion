@@ -1,0 +1,241 @@
+/**
+ * MAI Cognitive Operating System - Design Tokens
+ * Single source of truth for all design decisions
+ */
+
+/* ==========================================================================
+   COLOR SYSTEM
+   ========================================================================== */
+
+:root {
+  /* Backgrounds */
+  --color-bg-primary: #0A0B0F;
+  --color-bg-secondary: #0E1015;
+  --color-bg-panel: #12141A;
+  --color-bg-card: #181B22;
+  --color-bg-elevated: #1D2028;
+
+  /* Borders */
+  --color-border-subtle: rgba(255, 255, 255, 0.07);
+  --color-border-default: rgba(255, 255, 255, 0.10);
+  --color-border-strong: rgba(255, 255, 255, 0.15);
+
+  /* Text */
+  --color-text-primary: #F2F5FA;
+  --color-text-secondary: #A6B0BF;
+  --color-text-muted: #6E7785;
+
+  /* Accent Colors */
+  --color-accent-primary: #7C5CFF;    /* Signature MAI Purple */
+  --color-accent-soft: #9B86FF;       /* Soft Purple */
+  --color-accent-blue: #6EA8FF;       /* Subtle Blue */
+
+  /* Semantic */
+  --color-success: #72D6A5;
+  --color-warning: #E8B86A;
+  --color-danger: #E87575;
+
+  /* Status Colors */
+  --color-status-idle: var(--color-accent-primary);
+  --color-status-listening: var(--color-accent-blue);
+  --color-status-thinking: var(--color-accent-soft);
+  --color-status-speaking: var(--color-success);
+  --color-status-processing: var(--color-warning);
+  --color-status-sleeping: var(--color-accent-primary);
+  --color-status-updating: var(--color-accent-blue);
+  --color-status-offline: #6E7785;
+
+  /* ==========================================================================
+     TYPOGRAPHY
+     ========================================================================== */
+
+  --font-sans: 'Inter', 'Manrope', 'Space Grotesk', system-ui, -apple-system, sans-serif;
+  --font-mono: 'JetBrains Mono', 'Consolas', 'Monaco', monospace;
+
+  --font-size-xs: 0.75rem;      /* 12px */
+  --font-size-sm: 0.875rem;     /* 14px */
+  --font-size-base: 1rem;       /* 16px */
+  --font-size-lg: 1.125rem;     /* 18px */
+  --font-size-xl: 1.25rem;      /* 20px */
+  --font-size-2xl: 1.5rem;      /* 24px */
+  --font-size-3xl: 1.875rem;    /* 30px */
+  --font-size-4xl: 2.25rem;     /* 36px */
+  --font-size-5xl: 3rem;        /* 48px */
+
+  --font-weight-normal: 400;
+  --font-weight-medium: 500;
+  --font-weight-semibold: 600;
+  --font-weight-bold: 700;
+
+  --line-height-tight: 1.1;
+  --line-height-snug: 1.3;
+  --font-line-height-normal: 1.5;
+  --line-height-relaxed: 1.6;
+
+  --letter-spacing-tight: -0.02em;
+  --letter-spacing-normal: 0;
+  --letter-spacing-wide: 0.02em;
+  --letter-spacing-wider: 0.08em;
+
+  /* ==========================================================================
+     SPACING
+     ========================================================================== */
+
+  --space-0: 0;
+  --space-1: 0.25rem;   /* 4px */
+  --space-2: 0.5rem;    /* 8px */
+  --space-3: 0.75rem;   /* 12px */
+  --space-4: 1rem;      /* 16px */
+  --space-5: 1.25rem;   /* 20px */
+  --space-6: 1.5rem;    /* 24px */
+  --space-8: 2rem;      /* 32px */
+  --space-10: 2.5rem;   /* 40px */
+  --space-12: 3rem;     /* 48px */
+  --space-16: 4rem;     /* 64px */
+  --space-20: 5rem;     /* 80px */
+  --space-24: 6rem;     /* 96px */
+
+  /* ==========================================================================
+     BORDER RADIUS
+     ========================================================================== */
+
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+  --radius-2xl: 20px;
+  --radius-full: 9999px;
+
+  /* ==========================================================================
+     SHADOWS
+     ========================================================================== */
+
+  --shadow-sm: 0 1px 2px rgba(0, 0, 0, 0.3);
+  --shadow-md: 0 4px 12px rgba(0, 0, 0, 0.4);
+  --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.5);
+  --shadow-glow: 0 0 20px rgba(124, 92, 255, 0.3);
+  --shadow-glow-soft: 0 0 12px rgba(124, 92, 255, 0.15);
+
+  /* ==========================================================================
+     TRANSITIONS & ANIMATIONS
+     ========================================================================== */
+
+  --transition-fast: 150ms ease-out;
+  --transition-normal: 250ms ease-out;
+  --transition-slow: 500ms ease-out;
+  --transition-cinematic: 1000ms ease-out;
+
+  --easing-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --easing-ease-out: cubic-bezier(0.23, 1, 0.32, 1);
+  --easing-ease-in-out: cubic-bezier(0.4, 0, 0.2, 1);
+
+  /* ==========================================================================
+     Z-INDEX
+     ========================================================================== */
+
+  --z-dropdown: 100;
+  --z-sticky: 200;
+  --z-sidebar: 300;
+  --z-header: 400;
+  --z-modal: 500;
+  --z-popover: 600;
+  --z-tooltip: 700;
+  --z-command-palette: 900;
+  --z-toast-container: 1000;
+
+  /* ==========================================================================
+     LAYOUT DIMENSIONS
+     ========================================================================== */
+
+  --sidebar-width-collapsed: 72px;
+  --sidebar-width-expanded: 220px;
+  --topbar-height: 48px;
+  --bottombar-height: 64px;
+  --right-panel-width: 320px;
+  --right-panel-width-collapsed: 0;
+
+  /* ==========================================================================
+    BREAKPOINTS
+    ========================================================================== */
+
+  --bp-xs: 320px;
+  --bp-sm: 375px;
+  --bp-md: 768px;
+  --bp-lg: 1024px;
+  --bp-xl: 1440px;
+  --bp-2xl: 1920px;
+}
+
+/* ==========================================================================
+   DARK MODE (Only - MAI is dark-first)
+   ========================================================================== */
+
+@media (prefers-color-scheme: light) {
+  :root {
+    color-scheme: dark;
+  }
+}
+
+/* ==========================================================================
+   REDUCED MOTION
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ==========================================================================
+   FOCUS STYLES
+   ========================================================================== */
+
+.focus-visible-ring {
+  outline: 2px solid var(--color-accent-primary);
+  outline-offset: 2px;
+}
+
+/* ==========================================================================
+   SCROLLBAR STYLES
+   ========================================================================== */
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+
+::-webkit-scrollbar-thumb {
+  background: var(--color-border-strong);
+  border-radius: 3px;
+}
+
+::-webkit-scrollbar-thumb:hover {
+  background: var(--color-text-muted);
+}
+
+/* ==========================================================================
+   TEXT SELECTION
+   ========================================================================== */
+
+::selection {
+  background-color: color-mix(in srgb, var(--color-accent-primary) 30%, transparent);
+  color: var(--color-text-primary);
+}
+
+/* ==========================================================================
+   FOCUS VISIBLE
+   ========================================================================== */
+
+:focus-visible {
+  outline: 2px solid var(--color-accent-primary);
+  outline-offset: 2px;
+}

@@ -1,0 +1,55 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<script src="js/page-redirect.js" data-page="system"></script>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Mai OS — Control Room</title>
+<link rel="shortcut icon" href="img/ChatGPT Image Jul 22, 2026, 07_27_22 AM.png" type="image/x-icon">
+<link rel="stylesheet" href="css/style.css">
+<link rel="stylesheet" href="css/orb.css">
+<link rel="stylesheet" href="css/animations.css">
+</head>
+<body>
+<div class="page">
+  <div id="wallpaper" style="position:fixed;inset:0;z-index:0;background:url('img/System%20Monitor.png') center/cover no-repeat"></div>
+  <div id="wallpaper-overlay"></div>
+  <div class="page-content" style="position:relative;z-index:1">
+    <div class="page-header">
+      <a class="back-btn" href="index.html">← Desktop</a>
+      <h1>Control Room</h1><div class="page-header-sub">System</div>
+      <div class="mai-illustration"></div>
+    </div>
+    <div id="system-content"><div class="no-data"><span>Loading...</span></div></div>
+  </div>
+
+  <div id="status-bar">
+    <div class="status-indicator">
+      <span class="status-dot online" id="status-dot"></span>
+      <span id="status-text">Connecting...</span>
+    </div>
+    <div class="status-divider"></div>
+    <div class="status-indicator"><span id="status-emotion">—</span></div>
+    <div class="status-divider"></div>
+    <div class="status-indicator"><span id="status-voice">🎤 —</span></div>
+    <div class="status-divider"></div>
+    <div class="status-indicator"><span id="status-memory">🧠 —</span></div>
+  </div>
+
+  <div id="taskbar">
+    <button id="start-btn"><span class="dot"></span><span>Mai</span></button>
+    <div id="taskbar-apps"></div>
+    <span id="taskbar-clock">00:00</span>
+  </div>
+
+  <div id="start-menu">
+    <div id="start-menu-header">Applications</div>
+    <div id="start-menu-list"></div>
+  </div>
+</div>
+<script src="js/os.js"></script>
+<script src="js/system.js"></script>
+<script src="js/motion.js"></script>
+<script src="js/orb.js"></script>
+</body>
+</html>

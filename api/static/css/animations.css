@@ -1,0 +1,84 @@
+/* ---- Ambient Motion ---- */
+@keyframes panel-float {
+  0%, 100% { transform: translateY(0); }
+  50% { transform: translateY(-3px); }
+}
+
+@keyframes glass-shimmer {
+  0% { background-position: 200% 0; }
+  100% { background-position: -200% 0; }
+}
+
+/* Wallpaper drift handled in JS via parallax+mouse; base transition for smoothness */
+.animate-wallpaper {
+  transition: transform 1.2s cubic-bezier(0.23, 1, 0.32, 1);
+}
+
+.animate-float {
+  animation: panel-float 6s ease-in-out infinite;
+}
+
+.animate-float-delayed {
+  animation: panel-float 7s ease-in-out 2s infinite;
+}
+
+/* Dock hover */
+#taskbar-apps { gap: 0; justify-content: center; padding: 0 4px; }
+
+.taskbar-app {
+  padding: 6px 10px;
+  margin: 0 2px;
+  border-radius: 8px;
+  transition: transform 150ms cubic-bezier(0.34, 1.56, 0.64, 1), background 150ms ease, color 150ms ease;
+  transform-origin: center bottom;
+  will-change: transform;
+}
+
+.taskbar-app:hover {
+  transform: scale(1.25);
+  background: var(--glass-strong);
+  color: var(--text-primary);
+}
+
+.taskbar-app:hover + .taskbar-app,
+.taskbar-app:has(+ .taskbar-app:hover) {
+  transform: scale(1.1);
+}
+
+/* Running app glow */
+.taskbar-app.active {
+  background: var(--glass-strong);
+}
+
+.taskbar-app.active .indicator {
+  opacity: 1;
+  background: var(--accent);
+  box-shadow: 0 0 6px var(--accent);
+}
+
+/* Mic pulse */
+.taskbar-app.mic-active .indicator {
+  animation: mic-pulse 1.5s ease-in-out infinite;
+}
+
+@keyframes mic-pulse {
+  0%, 100% { box-shadow: 0 0 4px var(--success); }
+  50% { box-shadow: 0 0 12px var(--success); }
+}
+
+/* Cursor glow — two variants: dot (default) and pointer (interactive) */
+* {
+  cursor: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="20" height="20"><circle cx="5" cy="5" r="3" fill="rgba(255,255,255,0.7)"/><circle cx="5" cy="5" r="9" fill="rgba(79,167,255,0.06)"/></svg>') 5 5, auto;
+}
+
+a, button, input, textarea, select, .clickable, [role="button"], label {
+  cursor: url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" width="24" height="24"><circle cx="8" cy="8" r="4" fill="rgba(79,167,255,0.85)"/><circle cx="8" cy="8" r="11" fill="rgba(79,167,255,0.08)"/></svg>') 8 8, pointer;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .animate-wallpaper { animation: none; }
+  .animate-float { animation: none; }
+  .animate-float-delayed { animation: none; }
+  .taskbar-app { transition: none; }
+  .taskbar-app:hover { transform: none; }
+}

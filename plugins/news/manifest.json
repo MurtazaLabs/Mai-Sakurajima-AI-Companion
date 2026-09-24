@@ -1,0 +1,23 @@
+{
+  "name": "news",
+  "version": "1.0.0",
+  "description": "RSS/Atom feed reader for recent headlines",
+  "author": "Mai AI Team",
+  "entry_point": "news:NewsPlugin",
+  "api_version": "1.0",
+  "permissions": {
+    "filesystem": "none",
+    "network": "outbound",
+    "execution": "none",
+    "api_access": ["news"],
+    "config": "none"
+  },
+  "dependencies": [],
+  "hooks": ["pre_chat"],
+  "min_mai_version": "1.0.0",
+  "max_mai_version": null,
+  "homepage": "https://github.com/mai-ai/plugins/tree/main/news",
+  "repository": "https://github.com/mai-ai/plugins",
+  "license": "MIT",
+  "tags": ["news", "rss", "feed", "utility"]
+}

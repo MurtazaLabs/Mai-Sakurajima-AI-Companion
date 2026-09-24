@@ -1,0 +1,65 @@
+# Production Docker Compose for Mai AI
+# Single service with health checks, persistent volumes, and restart policy
+
+version: "3.8"
+
+services:
+  mai-ai:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    image: mai-ai:latest
+    container_name: mai-ai
+
+    # Restart policy — keep running unless explicitly stopped
+    restart: unless-stopped
+
+    ports:
+      - "8000:8000"
+
+    # Environment — use env_file for local dev, CI secrets for production
+    env_file:
+      - .env
+    environment:
+      - LOG_LEVEL=info
+
+    # Health check — verifies application readiness, not just container running
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8000/health"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+
+    # Persistent data volumes
+    volumes:
+      - mai-data:/app/data
+      - mai-cache:/app/cache
+      - mai-logs:/app/logs
+      - mai-knowledge:/app/knowledge_docs
+
+    # Resource limits — prevents container from consuming all host resources
+    deploy:
+      resources:
+        limits:
+          cpus: "2"
+          memory: "4G"
+        reservations:
+          cpus: "0.5"
+          memory: "1G"
+
+    logging:
+      driver: "json-file"
+      options:
+        max-size: "10m"
+        max-file: "3"
+
+volumes:
+  mai-data:
+    name: mai_data
+  mai-cache:
+    name: mai_cache
+  mai-logs:
+    name: mai_logs
+  mai-knowledge:
+    name: mai_knowledge

@@ -1,0 +1,661 @@
+/**
+ * MAI Cognitive Operating System - Animation System
+ * Motion (Framer Motion) + Anime.js animations
+ * Built on design tokens from design-tokens.css
+ */
+
+/* ==========================================================================
+   MOTION (FRAMER MOTION) VARIANTS
+   ========================================================================== */
+
+/* Page Transitions */
+.page-enter {
+  animation: page-enter var(--transition-cinematic) var(--easing-ease-out) forwards;
+}
+
+.page-exit {
+  animation: page-exit var(--transition-normal) var(--easing-ease-in-out) forwards;
+}
+
+@keyframes page-enter {
+  from {
+    opacity: 0;
+    transform: translateY(20px) scale(0.98);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+
+@keyframes page-exit {
+  from {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+  to {
+    opacity: 0;
+    transform: translateY(-20px) scale(0.98);
+  }
+}
+
+/* Layout Animations */
+.layout-enter {
+  animation: layout-enter var(--transition-slow) var(--easing-spring) forwards;
+}
+
+@keyframes layout-enter {
+  from {
+    opacity: 0;
+    transform: translateX(-20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateX(0);
+  }
+}
+
+.layout-exit {
+  animation: layout-exit var(--transition-fast) var(--easing-ease-in-out) forwards;
+}
+
+@keyframes layout-exit {
+  from {
+    opacity: 1;
+    transform: translateX(0);
+  }
+  to {
+    opacity: 0;
+    transform: translateX(20px);
+  }
+}
+
+/* Shared Layout (for AnimatePresence) */
+.shared-layout {
+  transition: transform var(--transition-normal) var(--easing-spring),
+              opacity var(--transition-normal) var(--easing-ease-out),
+              width var(--transition-normal) var(--easing-spring),
+              height var(--transition-normal) var(--easing-spring);
+}
+
+/* ==========================================================================
+   ANIME.JS TIMELINE ANIMATIONS
+   ========================================================================== */
+
+/* Staggered Entrance */
+.stagger-container {
+  opacity: 0;
+}
+
+.stagger-item {
+  opacity: 0;
+  transform: translateY(20px);
+}
+
+.stagger-revealed .stagger-item {
+  animation: stagger-reveal var(--transition-slow) var(--easing-spring) forwards;
+}
+
+@keyframes stagger-reveal {
+  from {
+    opacity: 0;
+    transform: translateY(20px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+/* Breathing Animation (for MAI orb center) */
+@keyframes breathing {
+  0%, 100% {
+    transform: scale(1);
+    opacity: 0.8;
+  }
+  50% {
+    transform: scale(1.08);
+    opacity: 1;
+  }
+}
+
+.breathing {
+  animation: breathing 4s ease-in-out infinite;
+}
+
+/* Orbital Rotation (for MAI symbol) */
+@keyframes orbital-rotate {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+.orbital-ring-1 {
+  animation: orbital-rotate 20s linear infinite;
+}
+
+.orbital-ring-2 {
+  animation: orbital-rotate 30s linear infinite reverse;
+}
+
+.orbital-ring-3 {
+  animation: orbital-rotate 40s linear infinite;
+}
+
+/* Pulse Glow */
+@keyframes pulse-glow {
+  0%, 100% {
+    box-shadow: 0 0 12px rgba(124, 92, 255, 0.3);
+  }
+  50% {
+    box-shadow: 0 0 32px rgba(124, 92, 255, 0.6), 0 0 64px rgba(124, 92, 255, 0.3);
+  }
+}
+
+.pulse-glow {
+  animation: pulse-glow 2s ease-in-out infinite;
+}
+
+/* Waveform Animation (for voice) */
+@keyframes waveform-bar {
+  0%, 100% { transform: scaleY(0.1); }
+  50% { transform: scaleY(1); }
+}
+
+.waveform-bar {
+  transform-origin: bottom center;
+  animation: waveform-bar 0.5s ease-in-out infinite;
+}
+
+.waveform-bar:nth-child(odd) {
+  animation-delay: 0.1s;
+}
+
+.waveform-bar:nth-child(even) {
+  animation-delay: 0.2s;
+}
+
+.waveform-bar:nth-child(3n) {
+  animation-delay: 0.05s;
+}
+
+/* Thinking Dots */
+@keyframes thinking-dots {
+  0%, 80%, 100% {
+    transform: scale(0.6);
+    opacity: 0.5;
+  }
+  40% {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+.thinking-dot {
+  animation: thinking-dots 1.4s ease-in-out infinite;
+}
+
+.thinking-dot:nth-child(2) { animation-delay: 0.2s; }
+.thinking-dot:nth-child(3) { animation-delay: 0.4s; }
+
+/* Orbiting Dots (loading) */
+@keyframes orbit {
+  from { transform: rotate(0deg) translateX(24px) rotate(0deg); }
+  to { transform: rotate(360deg) translateX(24px) rotate(-360deg); }
+}
+
+.orbiting-dots {
+  position: relative;
+  width: 48px;
+  height: 48px;
+}
+
+.orbiting-dots::before,
+.orbiting-dots::after,
+.orbiting-dots .dot {
+  content: '';
+  position: absolute;
+  width: 8px;
+  height: 8px;
+  background: var(--color-accent-primary);
+  border-radius: 50%;
+  top: 50%;
+  left: 50%;
+  transform: translate(-50%, -50%);
+}
+
+.orbiting-dots::before {
+  animation: orbit 1s linear infinite;
+}
+
+.orbiting-dots::after {
+  animation: orbit 1s linear infinite reverse;
+  background: var(--color-accent-soft);
+}
+
+.orbiting-dots .dot {
+  animation: orbit 1.5s linear infinite;
+  background: var(--color-accent-blue);
+}
+
+/* Progressive Line */
+@keyframes progressive-line {
+  from { width: 0%; }
+  to { width: 100%; }
+}
+
+.progressive-line {
+  height: 2px;
+  background: var(--color-accent-primary);
+  border-radius: 1px;
+  animation: progressive-line 2s ease-in-out infinite;
+}
+
+/* Slide Animations */
+@keyframes slide-in-right {
+  from { transform: translateX(100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes slide-out-right {
+  from { transform: translateX(0); opacity: 1; }
+  to { transform: translateX(100%); opacity: 0; }
+}
+
+@keyframes slide-in-left {
+  from { transform: translateX(-100%); opacity: 0; }
+  to { transform: translateX(0); opacity: 1; }
+}
+
+@keyframes slide-out-left {
+  from { transform: translateX(0); opacity: 1; }
+  to { transform: translateX(-100%); opacity: 0; }
+}
+
+@keyframes slide-in-bottom {
+  from { transform: translateY(100%); opacity: 0; }
+  to { transform: translateY(0); opacity: 1; }
+}
+
+@keyframes slide-out-bottom {
+  from { transform: translateY(0); opacity: 1; }
+  to { transform: translateY(100%); opacity: 0; }
+}
+
+.slide-in-right { animation: slide-in-right var(--transition-normal) var(--easing-ease-out); }
+.slide-out-right { animation: slide-out-right var(--transition-fast) var(--easing-ease-in-out); }
+.slide-in-left { animation: slide-in-left var(--transition-normal) var(--easing-ease-out); }
+.slide-out-left { animation: slide-out-left var(--transition-fast) var(--easing-ease-in-out); }
+.slide-in-bottom { animation: slide-in-bottom var(--transition-normal) var(--easing-ease-out); }
+.slide-out-bottom { animation: slide-out-bottom var(--transition-fast) var(--easing-ease-in-out); }
+
+/* Scale Animations */
+@keyframes scale-in {
+  from { transform: scale(0.9); opacity: 0; }
+  to { transform: scale(1); opacity: 1; }
+}
+
+@keyframes scale-out {
+  from { transform: scale(1); opacity: 1; }
+  to { transform: scale(0.9); opacity: 0; }
+}
+
+.scale-in { animation: scale-in var(--transition-normal) var(--easing-spring); }
+.scale-out { animation: scale-out var(--transition-fast) var(--easing-ease-in-out); }
+
+/* Fade Animations */
+@keyframes fade-in {
+  from { opacity: 0; }
+  to { opacity: 1; }
+}
+
+@keyframes fade-out {
+  from { opacity: 1; }
+  to { opacity: 0; }
+}
+
+.fade-in { animation: fade-in var(--transition-fast) var(--easing-ease-out); }
+.fade-out { animation: fade-out var(--transition-fast) var(--easing-ease-in-out); }
+
+/* Shake (for errors) */
+@keyframes shake {
+  0%, 100% { transform: translateX(0); }
+  10%, 30%, 50%, 70%, 90% { transform: translateX(-4px); }
+  20%, 40%, 60%, 80% { transform: translateX(4px); }
+}
+
+.shake { animation: shake 0.5s ease-in-out; }
+
+/* ==========================================================================
+   MAI STATUS INDICATOR ANIMATIONS (8 states)
+   ========================================================================== */
+
+.mai-status {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-1) var(--space-3);
+  border-radius: var(--radius-full);
+  font-size: var(--font-size-xs);
+  font-weight: var(--font-weight-medium);
+  text-transform: uppercase;
+  letter-spacing: var(--letter-spacing-wider);
+}
+
+.mai-status-indicator {
+  width: 8px;
+  height: 8px;
+  border-radius: var(--radius-full);
+  flex-shrink: 0;
+}
+
+/* Idle - Steady glow */
+.mai-status-idle .mai-status-indicator {
+  background: var(--color-status-idle);
+  box-shadow: 0 0 8px var(--color-status-idle);
+  animation: status-idle-pulse 3s ease-in-out infinite;
+}
+
+@keyframes status-idle-pulse {
+  0%, 100% { box-shadow: 0 0 8px var(--color-status-idle); }
+  50% { box-shadow: 0 0 16px var(--color-status-idle), 0 0 24px var(--color-status-idle); }
+}
+
+/* Listening - Waveform bars */
+.mai-status-listening .mai-status-indicator {
+  background: var(--color-status-listening);
+}
+
+.mai-status-listening .waveform-mini {
+  display: inline-flex;
+  gap: 2px;
+  height: 8px;
+  align-items: flex-end;
+}
+
+.mai-status-listening .waveform-mini span {
+  width: 3px;
+  background: currentColor;
+  border-radius: 1px;
+  animation: waveform-bar 0.3s ease-in-out infinite;
+}
+
+.mai-status-listening .waveform-mini span:nth-child(2) { animation-delay: 0.05s; }
+.mai-status-listening .waveform-mini span:nth-child(3) { animation-delay: 0.1s; }
+.mai-status-listening .waveform-mini span:nth-child(4) { animation-delay: 0.15s; }
+.mai-status-listening .waveform-mini span:nth-child(5) { animation-delay: 0.2s; }
+
+/* Thinking - Rotating dots */
+.mai-status-thinking .mai-status-indicator {
+  background: var(--color-status-thinking);
+  animation: status-thinking 1.5s ease-in-out infinite;
+}
+
+@keyframes status-thinking {
+  0%, 100% { transform: scale(1); opacity: 0.6; }
+  50% { transform: scale(1.3); opacity: 1; }
+}
+
+/* Speaking - Expanding rings */
+.mai-status-speaking .mai-status-indicator {
+  background: var(--color-status-speaking);
+  position: relative;
+}
+
+.mai-status-speaking .mai-status-indicator::before,
+.mai-status-speaking .mai-status-indicator::after {
+  content: '';
+  position: absolute;
+  inset: -4px;
+  border: 2px solid var(--color-status-speaking);
+  border-radius: var(--radius-full);
+  opacity: 0;
+  animation: speaking-ring 1.5s ease-out infinite;
+}
+
+.mai-status-speaking .mai-status-indicator::after {
+  animation-delay: 0.75s;
+}
+
+@keyframes speaking-ring {
+  0% { transform: scale(1); opacity: 0.6; }
+  100% { transform: scale(3); opacity: 0; }
+}
+
+/* Processing - Spinning */
+.mai-status-processing .mai-status-indicator {
+  background: var(--color-status-processing);
+  animation: status-processing 1s linear infinite;
+}
+
+@keyframes status-processing {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Sleeping - Slow breathe */
+.mai-status-sleeping .mai-status-indicator {
+  background: var(--color-status-sleeping);
+  animation: status-sleeping 6s ease-in-out infinite;
+}
+
+@keyframes status-sleeping {
+  0%, 100% { opacity: 0.3; transform: scale(0.8); }
+  50% { opacity: 0.8; transform: scale(1); }
+}
+
+/* Updating - Dual rotation */
+.mai-status-updating .mai-status-indicator {
+  background: var(--color-status-updating);
+  position: relative;
+}
+
+.mai-status-updating .mai-status-indicator::before {
+  content: '';
+  position: absolute;
+  inset: -2px;
+  border: 2px solid transparent;
+  border-top-color: var(--color-status-updating);
+  border-radius: var(--radius-full);
+  animation: updating-spin 1s linear infinite;
+}
+
+@keyframes updating-spin {
+  from { transform: rotate(0deg); }
+  to { transform: rotate(360deg); }
+}
+
+/* Offline - Dim */
+.mai-status-offline .mai-status-indicator {
+  background: var(--color-status-offline);
+  opacity: 0.5;
+}
+
+/* ==========================================================================
+   MICRO-INTERACTIONS
+   ========================================================================== */
+
+/* Button press */
+.btn-press:active {
+  transform: scale(0.97);
+}
+
+/* Hover lift */
+.hover-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: var(--shadow-md);
+}
+
+/* Focus ring */
+.focus-ring:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px rgba(124, 92, 255, 0.4);
+}
+
+/* Ripple effect (for Material-like feel) */
+.ripple {
+  position: relative;
+  overflow: hidden;
+}
+
+.ripple::after {
+  content: '';
+  position: absolute;
+  width: 100%;
+  height: 100%;
+  top: 0;
+  left: 0;
+  pointer-events: none;
+  background: radial-gradient(circle, rgba(255,255,255,0.2) 0%, transparent 70%);
+  transform: scale(0);
+  opacity: 0;
+  transition: transform 0.4s ease-out, opacity 0.4s ease-out;
+}
+
+.ripple:active::after {
+  transform: scale(2.5);
+  opacity: 1;
+  transition: 0s;
+}
+
+/* ==========================================================================
+   SCROLL ANIMATIONS (IntersectionObserver based)
+   ========================================================================== */
+
+.scroll-reveal {
+  opacity: 0;
+  transform: translateY(30px);
+  transition: opacity var(--transition-slow) var(--easing-ease-out),
+              transform var(--transition-slow) var(--easing-ease-out);
+}
+
+.scroll-revealed {
+  opacity: 1;
+  transform: translateY(0);
+}
+
+/* Parallax */
+.parallax-slow {
+  transform: translateY(calc(var(--scroll-y, 0) * 0.1));
+}
+
+.parallax-medium {
+  transform: translateY(calc(var(--scroll-y, 0) * 0.3));
+}
+
+.parallax-fast {
+  transform: translateY(calc(var(--scroll-y, 0) * 0.5));
+}
+
+/* ==========================================================================
+   REDUCED MOTION OVERRIDES
+   ========================================================================== */
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+
+  .breathing,
+  .orbital-ring-1,
+  .orbital-ring-2,
+  .orbital-ring-3,
+  .pulse-glow,
+  .waveform-bar,
+  .thinking-dot,
+  .orbiting-dots::before,
+  .orbiting-dots::after,
+  .orbiting-dots .dot,
+  .progressive-line,
+  .mai-status-idle .mai-status-indicator,
+  .mai-status-listening .waveform-mini span,
+  .mai-status-thinking .mai-status-indicator,
+  .mai-status-speaking .mai-status-indicator::before,
+  .mai-status-speaking .mai-status-indicator::after,
+  .mai-status-processing .mai-status-indicator,
+  .mai-status-sleeping .mai-status-indicator,
+  .mai-status-updating .mai-status-indicator::before {
+    animation: none !important;
+  }
+
+  .mai-status-listening .waveform-mini span {
+    transform: scaleY(0.5);
+  }
+
+  .mai-status-speaking .mai-status-indicator::before,
+  .mai-status-speaking .mai-status-indicator::after {
+    display: none;
+  }
+
+  .mai-status-thinking .mai-status-indicator {
+    transform: scale(1);
+    opacity: 1;
+  }
+}
+
+/* ==========================================================================
+   MOTION ONE / FRAMER MOTION VARIANT DEFINITIONS (JS Reference)
+   ========================================================================== */
+
+/*
+// These are reference variants for Framer Motion (use in React components)
+
+export const pageVariants = {
+  initial: { opacity: 0, y: 20, scale: 0.98 },
+  animate: { opacity: 1, y: 0, scale: 1 },
+  exit: { opacity: 0, y: -20, scale: 0.98 },
+  transition: { duration: 0.5, ease: [0.23, 1, 0.32, 1] }
+};
+
+export const layoutVariants = {
+  initial: { opacity: 0, x: -20 },
+  animate: { opacity: 1, x: 0 },
+  exit: { opacity: 0, x: 20 },
+  transition: { duration: 0.25, ease: [0.4, 0, 0.2, 1] }
+};
+
+export const staggerContainer = {
+  animate: { transition: { staggerChildren: 0.08 } }
+};
+
+export const staggerItem = {
+  initial: { opacity: 0, y: 20 },
+  animate: { opacity: 1, y: 0 },
+  transition: { duration: 0.4, ease: [0.34, 1.56, 0.64, 1] }
+};
+
+export const modalVariants = {
+  initial: { opacity: 0, scale: 0.95, y: 20 },
+  animate: { opacity: 1, scale: 1, y: 0 },
+  exit: { opacity: 0, scale: 0.95, y: 20 },
+  transition: { duration: 0.3, ease: [0.34, 1.56, 0.64, 1] }
+};
+
+export const sidebarVariants = {
+  collapsed: { width: 72, transition: { duration: 0.3, ease: [0.23, 1, 0.32, 1] } },
+  expanded: { width: 220, transition: { duration: 0.3, ease: [0.23, 1, 0.32, 1] } }
+};
+
+export const rightPanelVariants = {
+  closed: { width: 0, opacity: 0, transition: { duration: 0.3 } },
+  open: { width: 320, opacity: 1, transition: { duration: 0.3, ease: [0.23, 1, 0.32, 1] } }
+};
+
+export const toastVariants = {
+  initial: { opacity: 0, x: '100%' },
+  animate: { opacity: 1, x: 0 },
+  exit: { opacity: 0, x: '100%' },
+  transition: { duration: 0.4, ease: [0.34, 1.56, 0.64, 1] }
+};
+
+export const dropdownVariants = {
+  initial: { opacity: 0, y: -8 },
+  animate: { opacity: 1, y: 0 },
+  exit: { opacity: 0, y: -8 },
+  transition: { duration: 0.2 }
+};
+*/

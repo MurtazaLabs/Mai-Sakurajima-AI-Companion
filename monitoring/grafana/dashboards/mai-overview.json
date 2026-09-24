@@ -1,0 +1,374 @@
+{
+  "annotations": {
+    "list": [
+      {
+        "builtIn": 1,
+        "datasource": "-- Grafana --",
+        "enable": true,
+        "hide": true,
+        "iconColor": "rgba(0, 211, 255, 1)",
+        "name": "Annotations & Alerts",
+        "type": "dashboard"
+      }
+    ]
+  },
+  "editable": true,
+  "gnetId": null,
+  "graphTooltip": 1,
+  "id": 1,
+  "links": [],
+  "panels": [
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"lineWidth": 2},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "red", "value": 0.5}
+            ]
+          },
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 0},
+      "id": 1,
+      "options": {"legend": {"calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom"}},
+      "pluginVersion": "10.0.0",
+      "targets": [
+        {
+          "expr": "rate(mai_http_requests_total[5m])",
+          "legendFormat": "{{method}} {{endpoint}} - {{status}}",
+          "refId": "A"
+        }
+      ],
+      "title": "HTTP Request Rate (req/s)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {
+            "mode": "absolute",
+            "steps": [
+              {"color": "green", "value": null},
+              {"color": "yellow", "value": 1},
+              {"color": "red", "value": 5}
+            ]
+          },
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 0},
+      "id": 2,
+      "options": {"legend": {"calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom"}},
+      "pluginVersion": "10.0.0",
+      "targets": [
+        {
+          "expr": "histogram_quantile(0.95, rate(mai_http_request_duration_seconds_bucket[5m]))",
+          "legendFormat": "p95",
+          "refId": "A"
+        },
+        {
+          "expr": "histogram_quantile(0.99, rate(mai_http_request_duration_seconds_bucket[5m]))",
+          "legendFormat": "p99",
+          "refId": "B"
+        },
+        {
+          "expr": "histogram_quantile(0.50, rate(mai_http_request_duration_seconds_bucket[5m]))",
+          "legendFormat": "p50",
+          "refId": "C"
+        }
+      ],
+      "title": "HTTP Request Latency (seconds)",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "palette-classic"},
+          "custom": {"lineWidth": 2},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "red", "value": 0.8}]},
+          "unit": "s"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 8},
+      "id": 3,
+      "options": {"legend": {"calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom"}},
+      "pluginVersion": "10.0.0",
+      "targets": [
+        {"expr": "rate(mai_llm_requests_total[5m])", "legendFormat": "{{provider}} {{model}} - {{status}}", "refId": "A"},
+        {"expr": "histogram_quantile(0.95, rate(mai_llm_request_duration_seconds_bucket[5m]))", "legendFormat": "LLM p95 latency", "refId": "B"}
+      ],
+      "title": "LLM Request Rate & Latency",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {
+          "color": {"mode": "thresholds"},
+          "mappings": [],
+          "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 1000000}, {"color": "red", "value": 10000000}]},
+          "unit": "short"
+        },
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 8},
+      "id": 4,
+      "options": {"legend": {"calcs": ["last"], "displayMode": "table", "placement": "bottom"}},
+      "pluginVersion": "10.0.0",
+      "targets": [
+        {"expr": "mai_vector_store_size{index_name=\"mai_memory\"}", "legendFormat": "Vector Store Size", "refId": "A"},
+        {"expr": "mai_memory_operations_total", "legendFormat": "{{operation}}", "refId": "B"}
+      ],
+      "title": "Memory & Vector Store",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {"color": {"mode": "thresholds"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 0.5}, {"color": "red", "value": 0.8}]}, "unit": "short"},
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 16},
+      "id": 5,
+      "options": {"legend": {"calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom"}},
+      "pluginVersion": "10.0.0",
+      "targets": [
+        {"expr": "rate(mai_llm_requests_total[5m])", "legendFormat": "{{provider}} {{model}}", "refId": "A"},
+        {"expr": "histogram_quantile(0.95, rate(mai_llm_request_duration_seconds_bucket[5m]))", "legendFormat": "p95 latency", "refId": "B"}
+      ],
+      "title": "LLM Provider Performance",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {"color": {"mode": "thresholds"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 50}, {"color": "red", "value": 90}]}, "unit": "percent"},
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 16},
+      "id": 6,
+      "options": {"legend": {"calcs": ["last"], "displayMode": "table", "placement": "bottom"}},
+      "pluginVersion": "10.0.0",
+      "targets": [
+        {"expr": "sum(rate(mai_db_connections_active{state=\"active\"}[5m])) / sum(mai_db_pool_size{state=\"active\"}) * 100", "legendFormat": "DB Pool Utilization", "refId": "A"},
+        {"expr": "rate(mai_db_query_duration_seconds_sum[5m]) / rate(mai_db_query_duration_seconds_count[5m])", "legendFormat": "Avg Query Latency", "refId": "B"}
+      ],
+      "title": "Database Health",
+      "type": "gauge"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {"color": {"mode": "thresholds"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 0.8}, {"color": "red", "value": 0.95}]}, "unit": "percent"},
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 24},
+      "id": 7,
+      "options": {"legend": {"calcs": ["last"], "displayMode": "table", "placement": "bottom"}},
+      "pluginVersion": "10.0.0",
+      "targets": [
+        {"expr": "sum(rate(mai_cache_hits_total[5m])) / (sum(rate(mai_cache_hits_total[5m])) + sum(rate(mai_cache_misses_total[5m]))) * 100", "legendFormat": "Cache Hit Rate %", "refId": "A"},
+        {"expr": "sum(mai_cache_size) / 1024 / 1024", "legendFormat": "Cache Size (MB)", "refId": "B"}
+      ],
+      "title": "Cache Performance",
+      "type": "gauge"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {"color": {"mode": "thresholds"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 0.5}, {"color": "red", "value": 5}]}, "unit": "s"},
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 24},
+      "id": 8,
+      "options": {"legend": {"calcs": ["last"], "displayMode": "table", "placement": "bottom"}},
+      "pluginVersion": "10.0.0",
+      "targets": [
+        {"expr": "histogram_quantile(0.95, rate(mai_llm_request_duration_seconds_bucket[5m]))", "legendFormat": "LLM p95", "refId": "A"},
+        {"expr": "histogram_quantile(0.50, rate(mai_llm_request_duration_seconds_bucket[5m]))", "legendFormat": "LLM p50", "refId": "B"}
+      ],
+      "title": "LLM Latency Percentiles",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {"color": {"mode": "thresholds"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 0.5}, {"color": "red", "value": 1.0}]}, "unit": "s"},
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 0, "y": 32},
+      "id": 9,
+      "options": {"legend": {"calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom"}},
+      "pluginVersion": "10.0.0",
+      "targets": [
+        {"expr": "rate(mai_voice_requests_total{type=\"tts\"}[5m])", "legendFormat": "TTS req/s", "refId": "A"},
+        {"expr": "rate(mai_voice_requests_total{type=\"stt\"}[5m])", "legendFormat": "STT req/s", "refId": "B"}
+      ],
+      "title": "Voice Request Rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {"color": {"mode": "thresholds"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 500}, {"color": "red", "value": 1000}]}, "unit": "ms"},
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 32},
+      "id": 10,
+      "options": {"legend": {"calcs": ["last"], "displayMode": "table", "placement": "bottom"}},
+      "pluginVersion": "10.0.0",
+      "targets": [
+        {"expr": "histogram_quantile(0.95, rate(mai_voice_duration_seconds_bucket{type=\"tts\"}[5m]))", "legendFormat": "TTS p95", "refId": "A"},
+        {"expr": "histogram_quantile(0.95, rate(mai_voice_duration_seconds_bucket{type=\"stt\"}[5m]))", "legendFormat": "STT p95", "refId": "B"}
+      ],
+      "title": "Voice Latency",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {"color": {"mode": "thresholds"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 50}, {"color": "red", "value": 100}]}, "unit": "percent"},
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 40},
+      "id": 11,
+      "options": {"legend": {"calcs": ["last"], "displayMode": "table", "placement": "bottom"}},
+      "pluginVersion": "10.0.0",
+      "targets": [
+        {"expr": "sum(rate(mai_cache_hits_total[5m])) / (sum(rate(mai_cache_hits_total[5m])) + sum(rate(mai_cache_misses_total[5m]))) * 100", "legendFormat": "Cache Hit Rate %", "refId": "A"}
+      ],
+      "title": "Cache Hit Rate",
+      "type": "gauge"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {"color": {"mode": "thresholds"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 0.1}, {"color": "red", "value": 0.05}]}, "unit": "s"},
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 48},
+      "id": 12,
+      "options": {"legend": {"calcs": ["mean", "max"], "displayMode": "table", "placement": "bottom"}},
+      "pluginVersion": "10.0.0",
+      "targets": [
+        {"expr": "rate(mai_llm_requests_total{status=\"success\"}[5m])", "legendFormat": "LLM Success Rate", "refId": "A"},
+        {"expr": "rate(mai_llm_requests_total{status=\"error\"}[5m])", "legendFormat": "LLM Error Rate", "refId": "B"}
+      ],
+      "title": "LLM Success vs Error Rate",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {"color": {"mode": "thresholds"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 0.01}, {"color": "red", "value": 0.05}]}, "unit": "ratio"},
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 56},
+      "id": 13,
+      "options": {"legend": {"calcs": ["last"], "displayMode": "table", "placement": "bottom"}},
+      "pluginVersion": "10.0.0",
+      "targets": [
+        {"expr": "sum(rate(mai_cache_hits_total[5m])) / (sum(rate(mai_cache_hits_total[5m])) + sum(rate(mai_cache_misses_total[5m])))", "legendFormat": "Cache Hit Rate", "refId": "A"}
+      ],
+      "title": "Cache Hit Ratio",
+      "type": "stat"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {"color": {"mode": "thresholds"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 0.01}, {"color": "red", "value": 0.05}]}, "unit": "ratio"},
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 64},
+      "id": 14,
+      "options": {"legend": {"calcs": ["last"], "displayMode": "table", "placement": "bottom"}},
+      "pluginVersion": "10.0.0",
+      "targets": [
+        {"expr": "sum(rate(mai_llm_requests_total{status=\"error\"}[5m])) / sum(rate(mai_llm_requests_total[5m]))", "legendFormat": "LLM Error Rate", "refId": "A"},
+        {"expr": "rate(mai_http_requests_total{status=~\"5..\"}[5m])", "legendFormat": "HTTP 5xx Rate", "refId": "B"}
+      ],
+      "title": "Error Rates",
+      "type": "stat"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {"color": {"mode": "thresholds"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 0.5}, {"color": "red", "value": 50}]}, "unit": "MB"},
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 72},
+      "id": 15,
+      "options": {"legend": {"calcs": ["last"], "displayMode": "table", "placement": "bottom"}},
+      "pluginVersion": "10.0.0",
+      "targets": [
+        {"expr": "sum(rate(mai_llm_tokens_total{type=\"prompt\"}[5m]))", "legendFormat": "Prompt tokens/s", "refId": "A"},
+        {"expr": "sum(rate(mai_llm_tokens_total{type=\"completion\"}[5m]))", "legendFormat": "Completion tokens/s", "refId": "B"}
+      ],
+      "title": "LLM Token Throughput",
+      "type": "timeseries"
+    },
+    {
+      "datasource": "Prometheus",
+      "fieldConfig": {
+        "defaults": {"color": {"mode": "thresholds"}, "mappings": [], "thresholds": {"mode": "absolute", "steps": [{"color": "green", "value": null}, {"color": "yellow", "value": 100}, {"color": "red", "value": 500}]}, "unit": "ms"},
+        "overrides": []
+      },
+      "gridPos": {"h": 8, "w": 12, "x": 12, "y": 80},
+      "id": 16,
+      "options": {"legend": {"calcs": ["last"], "displayMode": "table", "placement": "bottom"}},
+      "pluginVersion": "10.0.0",
+      "targets": [
+        {"expr": "histogram_quantile(0.95, rate(mai_http_request_duration_seconds_bucket[5m]))", "legendFormat": "HTTP p95", "refId": "A"},
+        {"expr": "histogram_quantile(0.99, rate(mai_http_request_duration_seconds_bucket[5m]))", "legendFormat": "HTTP p99", "refId": "B"}
+      ],
+      "title": "HTTP Latency Percentiles",
+      "type": "timeseries"
+    }
+  ],
+  "refresh": "10s",
+  "schemaVersion": 38,
+  "style": "dark",
+  "tags": ["mai", "ai", "production", "overview"],
+  "templating": {
+    "list": [
+      {
+        "current": {"selected": false, "text": "All", "value": "$__all"},
+        "datasource": "Prometheus",
+        "definition": "label_values(mai_http_requests_total, endpoint)",
+        "hide": 0,
+        "includeAll": true,
+        "label": "Endpoint",
+        "multi": true,
+        "name": "endpoint",
+        "options": [],
+        "query": {"query": "label_values(mai_http_requests_total, endpoint)", "refId": "standardVariable"},
+        "refresh": 1,
+        "regex": "",
+        "skipUrlSync": false,
+        "type": "query"
+      }
+    ]
+  },
+  "time": {"from": "now-1h", "to": "now"},
+  "timepicker": {},
+  "timezone": "utc",
+  "title": "Mai AI - Production Overview",
+  "uid": "mai-overview",
+  "version": 1,
+  "weekStart": ""
+}

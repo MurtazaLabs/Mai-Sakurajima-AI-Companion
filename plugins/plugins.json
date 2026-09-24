@@ -1,0 +1,138 @@
+{
+  "version": "1.0",
+  "generated_at": "2026-08-09T00:00:00Z",
+  "plugins": [
+    {
+      "name": "example_plugin",
+      "version": "1.0.0",
+      "description": "Example plugin that hooks into chat responses",
+      "author": "Mai AI Team",
+      "entry_point": "example_plugin:ExamplePlugin",
+      "api_version": "1.0",
+      "permissions": {
+        "filesystem": "none",
+        "network": "none",
+        "execution": "none",
+        "api_access": [],
+        "config": "none"
+      },
+      "dependencies": [],
+      "hooks": ["pre_chat", "post_response"],
+      "min_mai_version": "1.0.0",
+      "homepage": "https://github.com/mai-ai/plugins",
+      "repository": "https://github.com/mai-ai/plugins",
+      "license": "MIT",
+      "tags": ["example", "demo"]
+    },
+    {
+      "name": "weather",
+      "version": "1.1.0",
+      "description": "Fetches current weather via OpenWeatherMap API",
+      "author": "Mai AI Team",
+      "entry_point": "weather:WeatherPlugin",
+      "api_version": "1.0",
+      "permissions": {
+        "filesystem": "none",
+        "network": "outbound",
+        "execution": "none",
+        "api_access": ["weather"],
+        "config": "read"
+      },
+      "dependencies": [],
+      "hooks": ["pre_chat"],
+      "min_mai_version": "1.0.0",
+      "homepage": "https://github.com/mai-ai/plugins",
+      "repository": "https://github.com/mai-ai/plugins",
+      "license": "MIT",
+      "tags": ["weather", "utility", "api"]
+    },
+    {
+      "name": "calendar",
+      "version": "1.1.0",
+      "description": "Local event/reminder manager with recurring events and timezones",
+      "author": "Mai AI Team",
+      "entry_point": "calendar:CalendarPlugin",
+      "api_version": "1.0",
+      "permissions": {
+        "filesystem": "write",
+        "network": "none",
+        "execution": "none",
+        "api_access": ["calendar"],
+        "config": "read"
+      },
+      "dependencies": [],
+      "hooks": ["pre_chat"],
+      "min_mai_version": "1.0.0",
+      "homepage": "https://github.com/mai-ai/plugins",
+      "repository": "https://github.com/mai-ai/plugins",
+      "license": "MIT",
+      "tags": ["calendar", "utility", "reminders"]
+    },
+    {
+      "name": "system_monitor",
+      "version": "1.0.0",
+      "description": "Reports CPU, memory, and disk usage",
+      "author": "Mai AI Team",
+      "entry_point": "system_monitor:SystemMonitorPlugin",
+      "api_version": "1.0",
+      "permissions": {
+        "filesystem": "read",
+        "network": "none",
+        "execution": "none",
+        "api_access": ["system"],
+        "config": "none"
+      },
+      "dependencies": [],
+      "hooks": ["pre_chat"],
+      "min_mai_version": "1.0.0",
+      "homepage": "https://github.com/mai-ai/plugins",
+      "repository": "https://github.com/mai-ai/plugins",
+      "license": "MIT",
+      "tags": ["system", "monitor", "utility"]
+    },
+    {
+      "name": "news",
+      "version": "1.0.0",
+      "description": "RSS/Atom feed reader for recent headlines",
+      "author": "Mai AI Team",
+      "entry_point": "news:NewsPlugin",
+      "api_version": "1.0",
+      "permissions": {
+        "filesystem": "none",
+        "network": "outbound",
+        "execution": "none",
+        "api_access": ["news"],
+        "config": "none"
+      },
+      "dependencies": [],
+      "hooks": ["pre_chat"],
+      "min_mai_version": "1.0.0",
+      "homepage": "https://github.com/mai-ai/plugins",
+      "repository": "https://github.com/mai-ai/plugins",
+      "license": "MIT",
+      "tags": ["news", "rss", "feed", "utility"]
+    },
+    {
+      "name": "web_scraper",
+      "version": "1.0.0",
+      "description": "Fetches and extracts text content from URLs",
+      "author": "Mai AI Team",
+      "entry_point": "web_scraper:WebScraperPlugin",
+      "api_version": "1.0",
+      "permissions": {
+        "filesystem": "none",
+        "network": "outbound",
+        "execution": "none",
+        "api_access": ["web"],
+        "config": "none"
+      },
+      "dependencies": [],
+      "hooks": ["pre_chat"],
+      "min_mai_version": "1.0.0",
+      "homepage": "https://github.com/mai-ai/plugins",
+      "repository": "https://github.com/mai-ai/plugins",
+      "license": "MIT",
+      "tags": ["web", "scraper", "utility", "extraction"]
+    }
+  ]
+}

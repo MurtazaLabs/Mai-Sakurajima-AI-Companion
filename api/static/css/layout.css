@@ -1,0 +1,195 @@
+/* ==========================================================================
+   LAYOUT — login shell, app shell skeleton, page containers
+   ========================================================================== */
+
+body {
+  min-height: 100vh;
+  min-height: 100dvh;
+}
+
+/* --------------------------------------------------------------------------
+   Login
+   -------------------------------------------------------------------------- */
+
+.login-shell {
+  min-height: 100dvh;
+  display: grid;
+  grid-template-columns: 1fr;
+  place-items: center;
+  align-content: center;
+  gap: var(--space-5);
+  padding: var(--space-6);
+  background:
+    radial-gradient(
+      1200px 600px at 50% -10%,
+      color-mix(in srgb, var(--color-accent-primary) 12%, transparent),
+      transparent 60%
+    ),
+    var(--color-bg-primary);
+}
+
+.login-card {
+  width: min(400px, 100%);
+  background: var(--color-bg-card);
+  border: 1px solid var(--color-border-default);
+  border-radius: var(--radius-xl);
+  padding: var(--space-8);
+  box-shadow: var(--shadow-lg);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.login-brand {
+  display: flex;
+  align-items: center;
+  gap: var(--space-4);
+}
+
+.login-mark {
+  flex-shrink: 0;
+}
+
+.login-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+
+.login-form .btn {
+  width: 100%;
+  padding: var(--space-3);
+  font-size: var(--font-size-base);
+}
+
+.login-error {
+  padding: var(--space-3) var(--space-4);
+  border-radius: var(--radius-sm);
+  background: color-mix(in srgb, var(--color-danger) 14%, transparent);
+  border: 1px solid color-mix(in srgb, var(--color-danger) 40%, transparent);
+  color: var(--color-text-primary);
+  font-size: var(--font-size-sm);
+  line-height: var(--line-height-snug);
+  text-align: left;
+}
+
+.login-status {
+  font-size: var(--font-size-sm);
+  color: var(--color-success);
+  text-align: center;
+}
+
+.login-switch {
+  text-align: center;
+  font-size: var(--font-size-sm);
+  color: var(--color-text-secondary);
+}
+
+.link-btn {
+  background: none;
+  border: none;
+  padding: 0;
+  color: var(--color-accent-primary);
+  font-weight: var(--font-weight-medium);
+  cursor: pointer;
+}
+
+.link-btn:hover {
+  color: var(--color-accent-soft);
+  text-decoration: underline;
+}
+
+.login-footnote {
+  text-align: center;
+  font-size: var(--font-size-xs);
+  color: var(--color-text-muted);
+}
+
+/* --------------------------------------------------------------------------
+   App shell skeleton (M1 fills regions)
+   -------------------------------------------------------------------------- */
+
+.shell-app {
+  display: grid;
+  grid-template-areas:
+    "brand  topbar"
+    "sidebar main";
+  grid-template-columns: var(--sidebar-width-collapsed) 1fr;
+  grid-template-rows: var(--topbar-height) 1fr;
+  min-height: 100dvh;
+}
+
+.shell-brand {
+  grid-area: brand;
+}
+
+.shell-topbar {
+  grid-area: topbar;
+}
+
+.shell-sidebar {
+  grid-area: sidebar;
+}
+
+.shell-main {
+  grid-area: main;
+  overflow-y: auto;
+}
+
+.shell-context {
+  display: none;
+  grid-area: context;
+}
+
+@media (min-width: 1024px) {
+  .shell-app {
+    grid-template-columns: var(--sidebar-width-expanded) 1fr;
+  }
+}
+
+@media (min-width: 1280px) {
+  .shell-app {
+    grid-template-areas:
+      "brand  topbar  topbar"
+      "sidebar main    context";
+    grid-template-columns: var(--sidebar-width-expanded) 1fr var(--right-panel-width);
+  }
+
+  .shell-context {
+    display: block;
+  }
+}
+
+@media (max-width: 767px) {
+  .shell-app {
+    grid-template-areas:
+      "topbar"
+      "main";
+    grid-template-columns: 1fr;
+  }
+
+  .shell-brand,
+  .shell-sidebar {
+    display: none;
+  }
+}
+
+/* --------------------------------------------------------------------------
+   Page container
+   -------------------------------------------------------------------------- */
+
+.page {
+  width: min(1200px, 100%);
+  margin-inline: auto;
+  padding: var(--space-6);
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-6);
+}
+
+.page-header {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: var(--space-4);
+}

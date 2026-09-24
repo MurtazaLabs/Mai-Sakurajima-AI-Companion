@@ -1,0 +1,179 @@
+/* ---- Desktop Windows (Phase 4) ---- */
+.desktop-window {
+  background: #0d0f14;
+  border: 1px solid rgba(79,167,255,0.15);
+  border-radius: 14px;
+  box-shadow: 0 8px 40px rgba(0,0,0,0.6), 0 0 0 1px rgba(255,255,255,0.03);
+  animation: win-open 220ms cubic-bezier(0.34, 1.56, 0.64, 1) both;
+  min-width: 320px;
+  min-height: 240px;
+  overflow: visible;
+}
+
+@keyframes win-open {
+  from { opacity: 0; transform: scale(0.88) translateY(12px); }
+  to { opacity: 1; transform: scale(1) translateY(0); }
+}
+
+/* ---- Title Bar ---- */
+.win-titlebar {
+  display: flex;
+  align-items: center;
+  padding: 10px 14px;
+  background: rgba(18,21,28,0.96);
+  border-bottom: 1px solid rgba(79,167,255,0.08);
+  border-radius: 14px 14px 0 0;
+  cursor: default;
+  flex-shrink: 0;
+  user-select: none;
+}
+
+.win-dots {
+  display: flex;
+  gap: 7px;
+  margin-right: 14px;
+  flex-shrink: 0;
+}
+
+.win-dot {
+  width: 12px;
+  height: 12px;
+  border-radius: 50%;
+  cursor: pointer;
+  transition: filter 150ms ease, transform 100ms ease;
+  display: inline-block;
+}
+
+.win-dot:hover { filter: brightness(1.4); transform: scale(1.15); }
+
+.win-close { background: #FF5D73; }
+.win-minimize { background: #FFC857; }
+.win-maximize { background: #3DDC97; }
+
+.win-title {
+  font-size: 12px;
+  color: var(--text-primary);
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.win-spacer { flex: 1; }
+
+.win-close-x {
+  font-size: 14px;
+  color: var(--text-muted);
+  cursor: pointer;
+  padding: 0 6px;
+  transition: color 150ms ease;
+  flex-shrink: 0;
+}
+
+.win-close-x:hover { color: var(--text-primary); }
+
+/* ---- Body ---- */
+.win-body {
+  flex: 1;
+  overflow: hidden;
+  position: relative;
+  border-radius: 0 0 14px 14px;
+}
+
+.win-body iframe {
+  width: 100%;
+  height: 100%;
+  border: none;
+  background: #090B10;
+  display: block;
+}
+
+/* ---- Resize Handles ---- */
+.win-handle { position: absolute; z-index: 10; }
+
+.win-handle-n { top: -3px; left: 8px; right: 8px; height: 6px; cursor: n-resize; }
+.win-handle-s { bottom: -3px; left: 8px; right: 8px; height: 6px; cursor: s-resize; }
+.win-handle-w { left: -3px; top: 8px; bottom: 8px; width: 6px; cursor: w-resize; }
+.win-handle-e { right: -3px; top: 8px; bottom: 8px; width: 6px; cursor: e-resize; }
+
+.win-handle-nw { top: -4px; left: -4px; width: 12px; height: 12px; cursor: nw-resize; }
+.win-handle-ne { top: -4px; right: -4px; width: 12px; height: 12px; cursor: ne-resize; }
+.win-handle-sw { bottom: -4px; left: -4px; width: 12px; height: 12px; cursor: sw-resize; }
+.win-handle-se { bottom: -4px; right: -4px; width: 12px; height: 12px; cursor: se-resize; }
+
+/* ---- Minimized ---- */
+.desktop-window.minimized {
+  transform: scale(0.7) translateY(calc(100vh + 120px)) !important;
+  opacity: 0;
+  pointer-events: none;
+  transition: transform 350ms cubic-bezier(0.4, 0, 0.2, 1), opacity 300ms ease;
+}
+
+/* ---- Maximized ---- */
+.desktop-window.maximized {
+  border-radius: 0 !important;
+  border: none !important;
+  box-shadow: none !important;
+  transition: none !important;
+}
+
+.desktop-window.maximized .win-titlebar {
+  border-radius: 0;
+}
+
+.desktop-window.maximized .win-body {
+  border-radius: 0;
+}
+
+/* ---- Taskbar running indicator ---- */
+.taskbar-app.running .indicator {
+  opacity: 1;
+  background: var(--accent);
+}
+
+.taskbar-app.running.active .indicator {
+  opacity: 1;
+  background: var(--accent-highlight);
+  box-shadow: 0 0 6px rgba(157,123,255,0.6);
+}
+
+.taskbar-app.running.minimized .indicator {
+  opacity: 0.4;
+  background: var(--text-muted);
+}
+
+/* ---- Window count badge ---- */
+.taskbar-app.running::after {
+  content: '';
+  position: absolute;
+  bottom: 2px;
+  left: 50%;
+  transform: translateX(-50%);
+  width: 16px;
+  height: 2px;
+  border-radius: 1px;
+  background: var(--accent);
+  opacity: 0;
+  transition: opacity 150ms ease;
+}
+
+.taskbar-app.running.active::after {
+  opacity: 1;
+}
+
+/* ---- Window glass backdrop ---- */
+.desktop-window::before {
+  content: '';
+  position: absolute;
+  inset: 0;
+  border-radius: inherit;
+  pointer-events: none;
+  background: rgba(9,11,16,0.3);
+}
+
+/* ---- Reduced motion ---- */
+@media (prefers-reduced-motion: reduce) {
+  .desktop-window { animation: none; }
+  .desktop-window.minimized { transition: none; }
+  .desktop-window.maximized { transition: none; }
+}

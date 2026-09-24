@@ -1,0 +1,22 @@
+{
+  "name": "Mai OS",
+  "short_name": "Mai OS",
+  "description": "Mai Sakurajima AI Assistant — Desktop Environment",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0a0c14",
+  "theme_color": "#131620",
+  "orientation": "any",
+  "icons": [
+    {
+      "src": "img/ChatGPT Image Jul 22, 2026, 07_27_22 AM.png",
+      "sizes": "192x192",
+      "type": "image/png"
+    },
+    {
+      "src": "img/ChatGPT Image Jul 22, 2026, 07_27_22 AM.png",
+      "sizes": "512x512",
+      "type": "image/png"
+    }
+  ]
+}
