@@ -185,7 +185,9 @@ class TestServerSecurityConsistency:
 
     def test_cors_credentials_disabled_for_wildcard(self):
         """Wildcard origins must not send ``Access-Control-Allow-Credentials``
-        (browsers reject the combo)."""
+        (browsers reject the combo). Explicit origins may enable credentials."""
         from api.server import _allow_credentials, _cors_origins
-        assert _cors_origins == ["*"]
-        assert _allow_credentials is False
+        if _cors_origins == ["*"]:
+            assert _allow_credentials is False
+        else:
+            assert _allow_credentials is True

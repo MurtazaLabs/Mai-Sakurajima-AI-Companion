@@ -46,6 +46,8 @@ models/
 # Node (if any)
 node_modules/
 package-lock.json
+package.json
 
 # Local config
 .freebuff/
+.opencode

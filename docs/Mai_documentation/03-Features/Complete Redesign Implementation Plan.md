@@ -1,988 +1,1043 @@
-# MAI Cognitive Operating System — Pure HTML/CSS/JS Redesign Implementation Plan
-
-## Task Classification
-
-- **Type**: Complete frontend redesign + frontend architecture + design system + 13 page implementations
-- **Implementation**: Pure HTML5 + CSS3 + modern vanilla JavaScript (ES2022+)
-- **Backend**: Existing Python/FastAPI architecture remains the source of truth (unchanged)
-- **Frontend state**: Native JavaScript ES modules + browser APIs
-- **Animations**: Native CSS animations/transitions + Web Animations API + requestAnimationFrame
-- **3D graph**: Native Canvas 2D (WebGL only if profiling proves insufficient); no Three.js
-- **Routing**: Native History API
-- **Server state**: Native fetch() + SSE/WebSocket
-- **Build philosophy**: Minimal tooling, zero dependencies, maximum control
-- **Motivation**: Operator prefers a new UI — the current UI works but does not feel right for daily use
-
+---
+document_type: feature-plan
+project: Mai AI
+title: MAI Cognitive Desktop Product and Implementation Plan
+status: superseded
+version: 3.2.0
+last_updated: 2026-09-26
+superseded_by: "[[MAI Cognitive Entity Interface Plan]]"
+superseded_on: 2026-09-26
+tags:
+  - mai-ai
+  - product-strategy
+  - frontend
+  - cognitive-desktop
+  - vanilla-javascript
+related:
+  - "[[Native OS Bridge Architecture]]"
+  - "[[Event Fabric Architecture]]"
+  - "[[08-API Native & Surface]]"
+  - "[[Memory Pipeline]]"
+  - "[[Voice Pipeline]]"
+  - "[[Testing Strategy]]"
 ---
 
-## Selected Specialists (Minimum Required)
+# MAI Cognitive Desktop — Product and Implementation Plan
 
-| Specialist | Role | Reason |
-| --- | --- | --- |
-| AI Product Manager | PRIMARY (planning) | MVP gating, roadmap, acceptance criteria, risk |
-| UI/UX Designer | PRIMARY (implementation) | Design system, component library, all 13 pages |
-| Character/Narrative Designer | SUPPORTING | MAI personality, character visual identity, emotional states in UI |
-| Python Codebase Architect | SUPPORTING | Confirm endpoint map, SSE topics, auth refresh contract |
-| Voice Architecture Expert | SUPPORTING | Voice page — control + visualization only, backend owns pipeline |
-| Memory Architecture Expert | SUPPORTING | Memory page, memory visualization |
-| Reasoning Architecture Expert | SUPPORTING | Reasoning page, reasoning flow visualization |
-| Performance Engineer | SUPPORTING | Animation performance, Canvas graph optimization |
-| Security Engineer | SUPPORTING | Auth flow, CSP vs new assets, no secret leakage in JS |
-| Knowledge Base Builder | SUPPORTING | Document frontend architecture + widget-endpoint map |
-
----
-
-## Technology Decision
-
-### Frontend stack (USE)
-
-| Concern | Use |
-| --- | --- |
-| Markup | HTML5 |
-| Styling | Native CSS3 (design tokens, no Tailwind) |
-| Language | JavaScript ES2022+ (native ES modules) |
-| Components | HTML + Web Components where genuinely useful |
-| Server state | Fetch API |
-| Realtime | WebSocket API, EventSource / SSE |
-| Routing | History API (pushState / replaceState / popstate) |
-| Visualization | Canvas API (2D first), SVG |
-| Audio visualization | Web Audio API (visualization of backend-provided signal only — see Voice constraint) |
-| Complex animation | Web Animations API |
-| Continuous animation | requestAnimationFrame |
-| Client persistence | IndexedDB / localStorage (tokens, UI prefs only — not domain data) |
-
-### Prohibited (DO NOT USE)
-
-React, React DOM, TypeScript, Tailwind CSS, Framer Motion / Motion, Anime.js, Three.js, Lucide React, Zustand, TanStack Query, React Router, Cypress, Jest, React Testing Library.
-
-**Rationale**: The objective is a dependency-light Cognitive OS interface, not a JavaScript framework application. The backend is already modular and event-driven; native browser modules keep the UI architecturally close to the Cognitive OS itself.
-
----
-
-## MAI Frontend Dependency Policy
-
-> The MAI Cognitive OS frontend shall use native browser APIs wherever practical. UI frameworks, CSS frameworks, animation libraries, state-management libraries, routing frameworks, and visualization frameworks are prohibited unless a demonstrated performance or capability requirement cannot reasonably be satisfied using platform APIs.
+> **⚠️ SUPERSEDED — 2026-09-26.** The product direction in this document has
+> been replaced by [[MAI Cognitive Entity Interface Plan]] (v4.0,
+> *Living Intelligence*).
 >
-> Any proposed dependency must provide measurable value that cannot reasonably be achieved with HTML, CSS, JavaScript, SVG, Canvas, Web Audio, WebSocket, SSE, or Web APIs.
+> **This document is retained as a record of completed work, not as current
+> direction.** Phases 0–4 described here were delivered and verified: 2,068
+> backend tests, 15/15 acceptance criteria, a 229-check accessibility contract, a
+> formatter contract, a graph performance budget, and a visual sign-off across
+> all ten shell pages. That work is the foundation the v4.0 presentation layer
+> is built on, and none of it is discarded.
+>
+> What changes: the **presentation layer only**. New presentation code lives in
+> `api/web/` under the rules in that folder's README. The backend, API
+> contracts, authentication, memory, reasoning, agency, voice, graph,
+> accessibility work, and tests all remain.
+>
+> See also [[ADR Presentation Layer Restructure]].
 
----
+## Executive Decision
 
-## Three Mandatory Fixes (Locked Before Code)
+Adopt the **MAI Cognitive Desktop** direction, but implement it as a calm cognitive workstation rather than a simulated operating system.
 
-These three items were identified in product review and are **required before any page work begins**:
+The product should expose MAI's memory, relationship state, reasoning, agency, voice, knowledge, and system health through a persistent desktop shell. It should not reproduce a futuristic dashboard, a particle system, a giant AI orb, or a collection of unrelated animated pages.
 
-### Fix 1 — Voice Page: Control + Visualization Only (No Browser Mic Capture)
+The design rule is:
 
-**Rule**: The frontend MUST NOT call `navigator.mediaDevices.getUserMedia()` or capture microphone audio.
+> Information first. Personality second. Animation third.
 
-**Why**: The backend already owns the complete voice pipeline — mic capture, Silero VAD, Faster Whisper STT, speaker recognition/ID, Kokoro TTS, interruption/barge-in, adaptive noise filter, FullAEC, diarization. Browser-side capture would create a second, competing voice pipeline that bypasses wake word, speaker memory, and emotion detection.
+The first useful milestone is a vertical slice containing:
 
-**Voice page is allowed to**:
-- Read and display state from `GET /api/voice/status` and `GET /api/voice/details`
-- Toggle the backend pipeline via `POST /api/voice/toggle`
-- Visualize waveform/state driven by backend-provided signals (SSE `state.voice.*` events; audio-level data if the backend later exposes it)
-- Show metrics already returned by `/api/voice/details` (VAD threshold, sample rate, STT/TTS/AEC/diarization stats, emotion detector output)
+1. Persistent shell
+2. Presence
+3. Streaming Chat
+4. Memory search and detail inspection
 
-**Voice page is prohibited from**:
-- `getUserMedia()` / `AudioContext` microphone capture
-- Browser-side STT or wake-word detection
-- Any second voice pipeline
+The remaining workspaces are delivered incrementally after this core loop is proven.
 
-### Fix 2 — M0 Must Include State Primitives + JWT Refresh
+## 1. Product Discovery
 
-**State primitives** — `components.css` in M0 ships three mandatory primitives used by every page:
+### Problem
 
-```css
-.state-loading { /* orbiting dots / breathing node / progressive line */ }
-.state-empty   { /* page-specific empty message + call to action */ }
-.state-error   { /* error message + retry button */ }
+MAI has a deep backend, but its capabilities are not yet presented as one coherent operating environment. Users must move between pages and interpret disconnected widgets instead of seeing the current state, conversation context, relevant memory, reasoning, and available actions in one place.
+
+### Primary User
+
+Murtaza as the owner and daily operator of MAI.
+
+### Secondary User
+
+A technically capable user who wants to understand, configure, and operate a persistent AI companion.
+
+### Pain Point
+
+The current experience risks feeling like a website that displays AI-related data rather than a workstation that helps the user converse, remember, reason, and act with an AI system.
+
+### Desired Outcome
+
+The user can:
+
+- Understand MAI's current state at a glance.
+- Hold a continuous conversation.
+- Inspect the memory and reasoning behind a response.
+- See active goals and available tools.
+- Act without losing navigation context.
+- Trust that displayed values come from real backend data.
+
+## 2. Product Principles
+
+1. **Information first** — expose useful state before visual spectacle.
+2. **Personality in behavior** — express MAI through language, timing, memory, and emotional continuity rather than decorative effects.
+3. **Persistent context** — navigation must not make the user feel they left the application.
+4. **Real data only** — no fabricated metrics, inferred percentages, or fake system states.
+5. **Progressive disclosure** — show a useful summary first and reveal detail on demand.
+6. **Calm by default** — density is available, but the default experience is composed and readable.
+7. **Functional motion** — animation communicates state changes; it does not exist to fill space.
+8. **Backend ownership** — the frontend presents and controls existing systems; it does not create parallel AI pipelines.
+9. **Graceful degradation** — loading, empty, stale, unauthorized, unavailable, and error states are first-class UI.
+10. **Incremental migration** — preserve existing routes and backend behavior until acceptance is complete.
+
+## 3. Product Scope
+
+### In Scope
+
+- Persistent desktop-style shell.
+- Grouped navigation across five cognitive areas.
+- Presence overview.
+- Streaming conversation workspace.
+- Context and relationship inspector.
+- Memory search, list, detail, provenance, and safe actions.
+- Reasoning notebook and reflection views.
+- Goals, tasks, tools, and intent queue.
+- System health, services, plugins, and configuration.
+- Permission modes and audit visibility.
+- Backend-owned voice status and controls.
+- 2D Canvas knowledge graph.
+- Responsive layouts and keyboard accessibility.
+- Native browser modules, CSS, and restrained transitions.
+
+### Explicit Non-Goals
+
+- React, React DOM, TypeScript, Tailwind, Framer Motion, Motion, Anime.js, Three.js, Lucide, Zustand, TanStack Query, React Router, Jest, Cypress, or a frontend build framework.
+- A giant animated AI orb or particle system.
+- Mandatory 3D graph rendering.
+- Decorative page transitions.
+- A second browser-side voice pipeline.
+- Browser microphone capture through `getUserMedia()`.
+- Fabricated metrics or placeholder "live" data.
+- A claim that the browser interface is a full native operating system.
+- Removing legacy routes or pages before the new experience is accepted.
+
+## 4. Information Architecture
+
+The navigation is grouped by cognitive function, while existing routes remain valid for compatibility.
+
+| Area | Routes | Primary workspace | Typical inspector |
+| --- | --- | --- | --- |
+| Home | `/`, `/presence` | Current state and recent activity | Selected state or activity item |
+| Conversation | `/chat` | Sessions and conversation | Relationship, memory, goals, tools |
+| Knowledge | `/memory`, `/graph` | Searchable memory and entity network | Memory or entity detail |
+| Cognition | `/reasoning`, `/agency`, `/tasks` | Decisions, goals, tasks, and actions | Selected thought, goal, or task |
+| System | `/voice`, `/system`, `/permissions` | Health, voice, configuration, and safety | Selected service, setting, or permission |
+
+### Navigation Rules
+
+- Group navigation by user intent, not by backend module name.
+- Keep route paths stable even when labels are reorganized.
+- Show only one active shell.
+- Never mount the legacy and redesigned shells simultaneously.
+- Preserve deep links to pages and selected resources where practical.
+- Use the command palette for navigation and safe actions, not as a replacement for clear navigation.
+
+## 5. Persistent Shell
+
+The shell is the stable frame around every workspace.
+
+```text
+┌──────────────────────────────────────────────────────────────┐
+│ MAI                                  Status       Time      │
+├──────────────┬───────────────────────────────┬──────────────┤
+│ Navigation   │ Active workspace              │ Inspector    │
+│              │                               │              │
+│              │                               │              │
+│              │                               │              │
+├──────────────┴───────────────────────────────┴──────────────┤
+│ Connection state · Active goal · Voice state · Version      │
+└──────────────────────────────────────────────────────────────┘
 ```
 
-No page may render a blank screen on API failure. Every fetch path renders one of these three states.
+### Shell Components
 
-**JWT refresh** — `js/api-client.js` in M0 ships auth logic:
+- **Sidebar** — grouped navigation, active route, compact status.
+- **Topbar** — MAI identity, page context, global actions, connection state.
+- **Workspace** — the main task area.
+- **Contextual inspector** — details for the selected resource when useful.
+- **Command bar** — keyboard-first navigation and safe actions.
+- **Status strip** — connection, voice, active goal, and version state.
 
-1. Attach `Authorization: Bearer <access_token>` to every `/api/*` request
-2. On `401`: call `POST /api/auth/refresh` with refresh token → retry original request once
-3. On refresh failure: clear tokens, redirect to `/login`, preserve intended route
-4. Token storage: localStorage (access + refresh); never log tokens
+### Shell Rules
 
-This mirrors the existing backend auth (`api/auth.py`: 15-min access, 7-day refresh, HS256/RS256).
+- The shell renders before slow API responses.
+- The inspector is contextual; it is not mandatory on every page.
+- On narrow screens, the inspector becomes a drawer.
+- Page navigation preserves scroll position where practical.
+- API failures update the affected workspace without destroying the shell.
+- Connection state distinguishes connected, reconnecting, degraded, and offline.
 
-### Fix 3 — MVP-First Roadmap (Not 13 Equal Phases)
+## 6. Page Blueprints
 
-The roadmap is gated: **Shell + Presence + Chat is the launchable MVP (~2–3 weeks)**. Remaining pages iterate after MVP. See Roadmap section.
+### Presence
 
----
+Presence is a desktop overview, not a hero section.
 
-## Roadmap (MVP-Gated, ~8 Weeks)
+Display:
 
-```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- ROADMAP
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+- Current emotion, energy, focus, and relationship summary when available.
+- Connection and voice state.
+- Active goals.
+- Recent memory, reflection, and activity events.
+- Small status visualization when it communicates real state.
 
-## PHASE 0 — Foundation + Auth (Week 1)
-Objective:        Design system, core JS modules, login works
-Tasks:
-  - Design tokens, reset, typography, layout, components (+ state primitives)
-  - api-client (fetch wrapper, bearer, 401-refresh-retry), event-bus, router
-  - Login page + token storage + refresh
-Deliverables:     One demo page styled entirely with tokens; login → authenticated fetch
-Success Criteria: Can log in and call /api/status with a valid JWT; no blank-state
-                  path exists; Fix 1 and Fix 2 verified in code review
+Do not display invented percentages or duplicate metrics. Every value must be traceable to a backend field or clearly labeled local UI state.
 
-## PHASE 1 — Shell + Presence MVP (Week 2) ← LAUNCHABLE
-Objective:        Navigable OS with live home dashboard
-Tasks:
-  - Sidebar / topbar / orbit navigation / router (History API)
-  - SSE status indicator (voice + reasoning state via /api/stream)
-  - Presence page: greeting, state tabs, emotion, goals, activity stream
-  - Command palette (Ctrl/Cmd+K) — basic version
-Deliverables:     Working app: login → shell → live Presence
-Success Criteria: Presence renders real data in <2s; SSE updates state tabs live;
-                  all nav routes work; loading/empty/error states demonstrated by
-                  stopping the backend
+### Chat
 
-## PHASE 2 — Chat (Week 3) ← DAILY DRIVER
-Objective:        Streaming conversation
-Tasks:
-  - chat.html + chat-stream (fetch ReadableStream / SSE), chat-renderer (markdown)
-  - Session handling, keyboard shortcuts, voice toggle integration
-Deliverables:     Full chat with token streaming
-Success Criteria: Stream renders as tokens arrive; no full-page reload; survives
-                  token refresh mid-conversation
+Chat is the flagship daily-driver workspace.
 
-## PHASE 3 — Read-Only + CRUD Pages (Week 4-5)
-Objective:        Memory, Reasoning, Agency, Tasks, System, Permissions
-Tasks:
-  - Memory (search / list / detail)
-  - Reasoning (journal / flow / reflections)
-  - Agency (goals / tools / world entities)
-  - Tasks (CRUD + subtasks)
-  - System (health / plugins / config)
-  - Permissions (view + mode set)
-Deliverables:     6 pages functional against real APIs
-Success Criteria: Each page: real data, three state primitives, zero fabricated
-                  metrics (widget-endpoint audit passed)
+Layout:
 
-## PHASE 4 — Graph + Voice Control (Week 6-7)
-Objective:        Canvas graph + voice control (Fix 1 enforced)
-Tasks:
-  - Graph: Canvas 2D force layout, 200-node default view, search-to-expand,
-    type filters, inspector panel; WebGL only if profiling demands it
-  - Voice: status / details / toggle from backend; state-driven waveform
-    visualization; ZERO getUserMedia calls
-Deliverables:     Interactive graph; voice control panel
-Success Criteria: Graph ≥30fps at 200 nodes; Voice page makes no mic permission
-                  request (verified in devtools)
-
-## PHASE 5 — Cross-Cutting Polish (Week 8)
-Objective:        Global search, notifications, a11y, PWA, legacy cleanup
-Tasks:
-  - Global search (backend-backed), toast / notification center
-  - WCAG pass (keyboard, contrast, reduced motion), responsive breakpoints
-  - manifest.json + service worker
-  - Remove superseded legacy pages after acceptance sign-off
-Deliverables:     Production-ready UI
-Success Criteria: All acceptance criteria (Success Metrics) checked
-
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- 8 weeks total. MVP launchable at end of Week 2.
- Each phase independently shippable.
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
+```text
+Sessions │ Conversation │ Context / Relationship / Memory / Goals
 ```
 
----
+Required behavior:
 
-## Phase Details
+- Streaming response.
+- Session persistence.
+- Retry and cancellation.
+- Token refresh during an active session.
+- Tool/action feedback.
+- Context inspector with relevant memories, goals, and relationship state.
+- Voice toggle that controls the backend pipeline only.
 
-### PHASE 0 — Design System Foundation + Auth (Week 1)
+### Memory
 
-**Specialists**: UI/UX Designer (PRIMARY), AI Product Manager (gate review)
+Memory is a knowledge workstation.
 
-**Deliverables**:
-- Design tokens (CSS custom properties)
-- Reset, typography, layout, component primitives
-- **State primitives: `.state-loading`, `.state-empty`, `.state-error` (Fix 2)**
-- Core JS modules: api-client (with JWT refresh — Fix 2), event-bus, router, keyboard, accessibility
-- Login page + authenticated fetch working end-to-end
-- MAI visual identity symbol (3 orbital lines forming M)
-- Responsive breakpoints (320, 375, 414, 768, 1024, 1440)
-- Accessibility standards (WCAG AA, reduced motion, focus states)
+Layout:
 
-**Design Tokens**:
+- Search and filters.
+- Dense memory list.
+- Selected memory inspector.
+- Provenance, importance, emotional weight, and connections when returned by the backend.
+
+Actions such as archive or forget must be explicit, permission-aware, auditable, and undoable where the backend supports it.
+
+### Knowledge Graph
+
+The graph is a 2D Canvas workspace by default.
+
+Required behavior:
+
+- Zoom and pan.
+- Node and edge selection.
+- Search-to-expand.
+- Type filters.
+- Relationship strength.
+- Keyboard-accessible list fallback.
+
+Three.js is not required. WebGL or another renderer may be considered only after profiling demonstrates a need.
+
+### Reasoning
+
+Reasoning is an engineering notebook.
+
+Display:
+
+- Current turn input.
+- Relevant context.
+- Decision and confidence.
+- Reflection history.
+- Repeated patterns and outcomes.
+
+Internal implementation fields must not leak raw packet JSON, private prompts, or unbounded internal traces into the user-facing response.
+
+### Agency
+
+Agency is a control room.
+
+Display:
+
+- Autonomy mode.
+- Active goals and progress.
+- Available tools and permissions.
+- Intent queue and approval state.
+- World entities when useful.
+
+Actions that affect the operating system must show approval and execution state.
+
+### Tasks
+
+Tasks are operational work items.
+
+Display:
+
+- Today, upcoming, in progress, and completed groups.
+- Priority, deadline, related goal, and subtasks.
+- Detail inspector.
+- Clear completion, cancellation, and recovery states.
+
+### Voice
+
+Voice is deliberately minimal and backend-owned.
+
+Display:
+
+- Backend state: idle, listening, thinking, speaking, unavailable.
+- STT, TTS, AEC, diarization, emotion, and latency details when available.
+- Voice toggle and pipeline test controls.
+- Optional state-driven waveform visualization.
+
+Prohibited:
+
+- `navigator.mediaDevices.getUserMedia()`.
+- Browser microphone capture.
+- Browser-side STT or wake-word detection.
+- A second competing voice pipeline.
+
+The control should be labeled **Test voice pipeline**, not **Test microphone**, unless the backend explicitly exposes a daemon-owned microphone test.
+
+### System
+
+System is an engineering control center.
+
+Display:
+
+- Health summary.
+- Service status.
+- LLM, STT, TTS, memory, and graph health when available.
+- Plugins and configuration.
+- Clear source and freshness for metrics.
+
+### Permissions
+
+Permissions is a safety and trust surface.
+
+Display:
+
+- Current permission mode.
+- Allowed and blocked operations.
+- Recent audit events.
+- Destructive-action warnings.
+
+Never hide security state behind visual decoration.
+
+## 7. Visual System
+
+### Base Tokens
 
 ```css
 :root {
-    --bg-primary: #0A0B0F;
-    --bg-secondary: #0E1015;
-    --bg-panel: #12141A;
-    --bg-card: #181B22;
-    --bg-elevated: #1D2028;
+  --bg-primary: #0A0B0F;
+  --bg-secondary: #0E1015;
+  --bg-panel: #12141A;
+  --bg-card: #181B22;
+  --bg-elevated: #1D2028;
 
-    --accent-primary: #7C5CFF;
-    --accent-soft: #9B86FF;
-    --accent-blue: #6EA8FF;
+  --accent-primary: #7C5CFF;
+  --accent-soft: #9B86FF;
+  --accent-blue: #6EA8FF;
 
-    --success: #72D6A5;
-    --warning: #E8B86A;
-    --danger: #E87575;
+  --success: #72D6A5;
+  --warning: #E8B86A;
+  --danger: #E87575;
 
-    --text-primary: #F2F5FA;
-    --text-secondary: #A6B0BF;
-    --text-muted: #6E7785;
+  --text-primary: #F2F5FA;
+  --text-secondary: #A6B0BF;
+  --text-muted: #6E7785;
 
-    --border-subtle: rgba(255,255,255,0.07);
+  --border-subtle: rgba(255, 255, 255, 0.07);
+  --radius-sm: 8px;
+  --radius-md: 10px;
+  --radius-lg: 12px;
 
-    --radius-sm: 8px;
-    --radius-md: 10px;
-    --radius-lg: 12px;
+  --transition-fast: 150ms ease-out;
+  --transition-normal: 180ms ease-out;
+  --transition-slow: 250ms ease-out;
 
-    --shadow-sm: 0 1px 2px rgba(0,0,0,.3);
-    --shadow-md: 0 4px 12px rgba(0,0,0,.4);
-    --shadow-lg: 0 8px 32px rgba(0,0,0,.5);
-
-    --transition-fast: 150ms ease-out;
-    --transition-normal: 250ms ease-out;
-    --transition-slow: 500ms ease-out;
-
-    --font-sans: Inter, Manrope, system-ui, sans-serif;
-    --font-mono: "JetBrains Mono", Consolas, monospace;
+  --font-sans: Inter, Manrope, system-ui, sans-serif;
+  --font-mono: "JetBrains Mono", Consolas, monospace;
 }
 ```
 
-No Tailwind. No CSS-in-JS. No component framework.
+### Visual Rules
 
-**Files to Create**:
-- `api/static/css/reset.css`
-- `api/static/css/design-tokens.css`
-- `api/static/css/typography.css`
-- `api/static/css/layout.css`
-- `api/static/css/components.css` — includes `.state-loading`, `.state-empty`, `.state-error`
-- `api/static/css/animations.css`
-- `api/static/css/utilities.css`
-- `api/static/js/api-client.js` — fetch wrapper + bearer + 401→refresh→retry (Fix 2)
-- `api/static/js/event-bus.js`
-- `api/static/js/history-router.js` — History API (legacy `MaiRouter` preserved)
-- `api/static/js/keyboard.js`
-- `api/static/js/accessibility.js`
-- `api/static/login.html`
+- Use violet for identity, selection, active state, and intelligence/processing state.
+- Use blue as a restrained secondary accent.
+- Keep most surfaces neutral.
+- Avoid gradients as decoration.
+- Avoid glow, particles, oversized orbs, and excessive borders.
+- Use thin borders and compact typography to create hierarchy.
+- Preserve contrast at all density levels.
+- Use semantic colors consistently for healthy, warning, danger, and unavailable states.
 
----
+### Density Modes
 
-### PHASE 1 — Application Shell + Presence (Week 2) — MVP GATE
+- **Calm** — default; more whitespace and fewer simultaneous details.
+- **Compact** — power-user mode; denser rows and metadata.
 
-**Specialists**: UI/UX Designer (PRIMARY), Character/Narrative Designer (SUPPORTING)
+Persist the preference locally. The product must remain usable in both modes.
 
-**Shell structure**:
+## 8. Motion System
 
-```html
-<body>
-    <div id="mai-app">
-        <aside id="sidebar">...</aside>
-        <header id="topbar">...</header>
-        <main id="main-content">...</main>
-        <aside id="context-panel">...</aside>
-        <footer id="command-bar">...</footer>
-    </div>
-</body>
-```
+Motion is functional and restrained.
 
-**Deliverables**:
-- AppShell (persistent OS shell, semantic HTML)
-- Sidebar navigation rail (72px default → 220px expanded)
-- TopBar with MAI status indicator (driven by SSE)
-- Orbit navigation — clickable nodes per page (navigation + live status ring via SSE)
-- Command Palette (Ctrl/Cmd+K) — basic version
-- Page transition system (CSS + Web Animations API)
-- Presence page: greeting, state tabs, emotion, goals, activity stream
-- SSE connection to `/api/stream` driving voice/reasoning state tabs
+### Allowed Uses
 
-**Native routing** (no React Router):
+- Hover and focus feedback.
+- Panel open/close.
+- Inspector selection.
+- State indicator changes.
+- Message insertion.
+- Small voice waveform movement when driven by backend state.
+- Canvas graph interaction and selection.
 
-```js
-history.pushState(state, title, url);
-window.addEventListener("popstate", handler);
-```
+### Motion Budget
 
-Routes: `/`, `/chat`, `/memory`, `/graph`, `/reasoning`, `/agency`, `/voice`, `/tasks`, `/system`, `/permissions`, `/login`
+- Hover/focus: 150ms.
+- Panel/inspector transition: 180ms.
+- Larger state transition: 250ms maximum.
+- No continuous decorative background animation.
+- Respect `prefers-reduced-motion`.
+- Do not animate critical warnings in a way that delays comprehension.
 
-**Presence page — real API mapping (zero fabricated metrics)**:
+## 9. Frontend Architecture
 
-| Widget | API Endpoint |
+### Responsibilities
+
+- **HTML** owns semantic structure and static page regions.
+- **CSS** owns layout, hierarchy, responsive behavior, and restrained transitions.
+- **JavaScript** owns state, API access, events, dynamic rendering, and interaction.
+- **Canvas** is reserved for graph and signal visualization where it provides clear value.
+- **Backend** remains the source of truth for AI, memory, voice, goals, and system state.
+
+### Module Boundaries
+
+The frontend must not become one giant `app.js`. Maintain separate responsibilities for:
+
+- Application bootstrap.
+- API client and authentication.
+- Event bus.
+- History router.
+- Shell components.
+- Command palette.
+- Presence state and rendering.
+- Chat store, transport, renderer, sessions, context, and voice controls.
+- Memory list, search, detail, and actions.
+- Reasoning notebook and reflection views.
+- Agency, tasks, system, and permissions views.
+- Graph model, layout, renderer, camera, interaction, and inspector.
+- Voice state and visualization.
+
+The exact directory layout is governed by the repository's `AGENTS.md`. Do not create additional folders under `css/`, `js/`, `img/`, or `assets/` without resolving the existing layout policy conflict.
+
+### State Model
+
+Separate these concerns:
+
+- **Server state** — API responses, SSE events, persistence.
+- **Session state** — active conversation, selected memory, selected task, inspector selection.
+- **Connection state** — connected, reconnecting, degraded, offline.
+- **UI preferences** — density, panel state, theme and accessibility preferences.
+- **Ephemeral interaction state** — hover, focus, menu open, input draft.
+
+Do not store domain data in localStorage. Use localStorage only for tokens and UI preferences unless a documented product decision allows more.
+
+### Rendering Rules
+
+- Render loading, empty, stale, unauthorized, unavailable, and error states.
+- Preserve the shell when a workspace request fails.
+- Escape user-controlled content before inserting it into HTML.
+- Use progressive rendering for long lists.
+- Batch streaming DOM updates.
+- Provide accessible text alternatives for Canvas visualizations.
+
+## 10. Data and API Contract
+
+The frontend is a presentation and control layer. Every displayed value must map to a documented backend field or be clearly labeled as local UI state.
+
+### Contract Rules
+
+1. Inventory every displayed value before implementing a widget.
+2. Confirm the endpoint and response field.
+3. Handle missing, null, stale, and unauthorized values explicitly.
+4. Show provenance and freshness for memory, system, and relationship data where available.
+5. Do not invent fallback percentages or health states.
+6. If an endpoint is unavailable, show a degraded state rather than fabricated data.
+7. Keep API-specific mapping in page modules, not in the generic API client.
+
+### Primary Endpoint Map
+
+| Area | Endpoints |
 | --- | --- |
-| Greeting (time-aware) | Local time logic (`_time_of_day()` pattern) |
-| State tabs (Idle/Listening/Thinking/Speaking) | SSE `state.voice.*`, `state.reasoning.busy/complete` |
-| Uptime | `GET /api/health/metrics` → `uptime_seconds` |
-| Health badge (Nominal) | `GET /api/system/health` → summary |
-| Emotion / mood / energy | `GET /api/consciousness` → `emotion`, `cognitive` |
-| Confidence | `GET /api/consciousness` → `cognitive.confidence` |
-| Active goals count + goal card | `GET /api/status` → `goals`; `GET /api/goals` |
-| Activity stream | `GET /api/inspector/records` + SSE `state.*` |
-| Memory count | `GET /api/memory/stats` |
-| Sidebar badges | `GET /api/goals` / `GET /api/tasks` active counts |
-| Introspective reflection | `GET /api/reasoning/reflect/history` |
-
-**Presence widgets REMOVED (no backend data — do not implement)**:
-
-- Flow State %, Cognitive Friction %, Empathy Resonance % (unless wired to `relationship.affection`)
-- Loop/Cadence metric, "Activity: High" duplicate, "1 Active Sub-agents"
-- "100% COHERENT" badge, "Last State Shift", "Subagent Execution: Synchronized"
-- Fake "Rel: %" relevance scores on activity items
-- "Autonomous Core: ON" footer
-- Any metric not traceable to a listed endpoint
-
-**Orbit**: Keep as interactive navigation hub (nodes = pages, click = navigate). Optional: color-code node status from SSE (`state.voice.*`, `state.reasoning.*`). Not a fake knowledge-graph render — wire to `GET /api/graph` only if showing real entities.
-
-**Backend API requirements** (all exist — no backend changes):
-
-- `GET /api/status`
-- `GET /api/consciousness`
-- `GET /api/health/metrics`
-- `GET /api/system/health`
-- `GET /api/goals`
-- `GET /api/inspector/records`
-- `GET /api/memory/stats`
-- `GET /api/stream` (SSE)
-- `POST /api/auth/login`, `POST /api/auth/refresh`
-
-**Files to Create**:
-- `api/static/presence.html` (or served as `/` landing — resolve route swap with legacy UI)
-- `api/static/js/app.js`
-- `api/static/js/shell/app-shell.js`
-- `api/static/js/shell/sidebar.js`
-- `api/static/js/shell/topbar.js`
-- `api/static/js/shell/command-bar.js`
-- `api/static/js/shell/context-panel.js`
-- `api/static/js/shell/mai-status.js`
-- `api/static/js/components/command-palette.js`
-- `api/static/js/pages/presence.js`
-- `api/static/js/features/presence/mai-orb.js`
-- `api/static/js/features/presence/goals-panel.js`
-- `api/static/js/features/presence/activity-stream.js`
-- `api/static/css/shell-new.css`
-- `api/static/css/pages/presence.css`
-
----
-
-### PHASE 2 — Chat (Week 3)
-
-**Specialists**: UI/UX Designer (PRIMARY), Character/Narrative Designer (SUPPORTING)
-
-**Deliverables**:
-- Three-panel layout: Sessions | Conversation | Context
-- Session list with grouping (Today, Yesterday, 7 days)
-- Message rendering with markdown, code blocks, tables
-- **Streaming via native `fetch()` + `ReadableStream` + `TextDecoder`, or `EventSource` for SSE — no TanStack Query, no React state**
-- MAI thinking state driven by SSE `state.reasoning.busy`
-- Tool execution display in chat
-- Floating input: Attach / Voice toggle / Command / Send
-- Keyboard shortcut indicator (Ctrl/Cmd+K)
-- Session persistence (localStorage for UI prefs only; server state via API)
-
-**Module architecture (do NOT build one giant chat.js)**:
-
-```
-js/features/chat/
-    chat-store.js        — state (native JS store)
-    chat-stream.js       — transport (fetch ReadableStream / SSE)
-    chat-renderer.js     — DOM rendering + markdown
-    chat-session.js      — session manager
-    chat-context.js      — right context panel
-    chat-voice.js        — voice toggle (backend pipeline control only — Fix 1)
-    markdown-renderer.js — lightweight native markdown
-```
-
-Consistent with backend's modular architecture: `ChatState`, `ChatTransport`, `ChatRenderer`, `ChatSessionManager`, `ChatVoice`.
-
-**Backend API requirements** (exist):
-- `POST /api/chat` — send message
-- `POST /api/chat/stream` — streaming (SSE)
-- `POST /api/chat/wake` — wake greeting
-- Session endpoints as exposed by backend (ProfileStore / SessionManager routes)
-
-**Files to Create**:
-- `api/static/chat.html`
-- `api/static/js/pages/chat.js`
-- `api/static/js/features/chat/*` (modules above)
-- `api/static/css/pages/chat.css`
-
----
-
-### PHASE 3 — Memory, Reasoning, Agency, Tasks, System, Permissions (Week 4-5)
-
-**Specialists**: UI/UX Designer (PRIMARY); Memory / Reasoning / Security experts SUPPORTING per page
-
-#### Memory Page
-
-**Deliverables**:
-- Header stats (Total, Important, Recent, Emotional) from `/api/memory/stats`
-- Search with filters (All, People, Projects, Events, Preferences, Knowledge, Emotional, Recent)
-- Memory cards: title, preview, date, importance bar, emotional weight bar, source, tags
-- Right-side detail panel — **CSS transition only, no animation library**:
-
-```css
-.memory-detail { transform: translateX(100%); transition: transform 250ms ease-out; }
-.memory-detail.is-open { transform: translateX(0); }
-```
-
-**API**: `GET /api/memory`, `GET /api/memory/stats`, `GET /api/memory/timeline` (all exist)
-
-**Files**: `memory.html`, `js/pages/memory.js`, `js/features/memory/{memory-store,memory-search,memory-list,memory-detail,memory-viz}.js`, `css/pages/memory.css`
-
-#### Reasoning Page
-
-**Deliverables**:
-- Header: "REASONING — How MAI arrived at decisions"
-- Decision history, reflections journal, confidence indicators
-- Visual flow: INPUT → CONTEXT → CONSIDERATIONS → DECISION → OUTCOME
-- **Connectors via SVG** (no animation library)
-- Reflection journal with personal journal feel
-
-**API**: `GET /api/reasoning/thoughts`, `GET /api/reasoning/reflect`, `GET /api/reasoning/reflect/history` (exist)
-
-**Files**: `reasoning.html`, `js/pages/reasoning.js`, `js/features/reasoning/{reasoning-store,reasoning-flow,decision-history,reflection-journal,patterns}.js`, `css/pages/reasoning.css`
-
-#### Agency Page
-
-**Deliverables**:
-- Agency status, autonomy segmented control (native HTML):
-
-```html
-<div class="segmented-control">
-    <button data-level="0">Manual</button>
-    <button data-level="1">Assisted</button>
-    <button data-level="2">Semi-Autonomous</button>
-    <button data-level="3">Autonomous</button>
-</div>
-```
-
-- Goals with priority/progress, tools, world entities, intent queue
-- No component library
-
-**API**: `GET /api/goals`, `GET /api/tools`, `GET /api/world/entities` (exist)
-
-**Files**: `agency.html`, `js/pages/agency.js`, `js/features/agency/{agency-store,autonomy-control,goals,tools,entities,intent-queue}.js`, `css/pages/agency.css`
-
-#### Tasks Page
-
-**Deliverables**:
-- Sections: Today, Upcoming, In Progress, Completed
-- Task cards: checkbox, title, priority, deadline, related goal
-- Detail panel; completion animation via **CSS only**:
-
-```css
-.task.is-complete .task-checkbox { animation: checkbox-complete 250ms ease-out; }
-```
-
-**API**: `GET /api/tasks`, `POST /api/tasks/create`, `POST /api/tasks/{id}/complete`, `/cancel`, `/activate`, `/subtasks` (exist)
-
-**Files**: `tasks.html`, `js/pages/tasks.js`, `js/features/tasks/{task-store,task-list,task-detail,task-animation}.js`, `css/pages/tasks.css`
-
-#### System Page
-
-**Deliverables**:
-- System health (CPU, memory, components) with minimal charts (thin lines, subtle grid)
-- Plugin cards: icon, name, status, permissions
-- Configuration editor: AI, Memory, Voice, Autonomy, Security, Appearance, System
-- Professional toggles, selects, inputs
-
-**API**: `GET /api/system/health`, `GET /api/system/plugins`, `GET /api/health/metrics`, `GET /api/config`, `POST /api/config/update` (exist)
-
-**Files**: `system.html`, `js/pages/system.js`, `js/features/system/{health,plugins,configuration,metrics}.js`, `css/pages/system.css`
-
-#### Permissions Page
-
-**Deliverables**:
-- Security status badge, mode selector (STRICT / BALANCED / AUTONOMOUS)
-- Whitelist display, blocked commands, destructive hotkeys
-- Audit log with timestamps
-- **Deliberately conservative, professional security aesthetic**
-
-**API**: `GET /api/permissions`, `POST /api/permissions/mode` (exist)
-
-**Files**: `permissions.html`, `js/pages/permissions.js`, `js/features/security/{permission-mode,whitelist,audit-log}.js`, `css/pages/permissions.css`
-
----
-
-### PHASE 4 — Knowledge Graph + Voice Control (Week 6-7)
-
-**Specialists**: UI/UX Designer (PRIMARY), Memory Architecture Expert + Voice Architecture Expert (SUPPORTING), Performance Engineer (SUPPORTING)
-
-#### Graph Page
-
-**Architecture decision — Canvas 2D first, WebGL only if profiled necessary**:
-
-```js
-const canvas = document.querySelector("#graph");
-const ctx = canvas.getContext("2d");
-
-function render() {
-    ctx.clearRect(0, 0, canvas.width, canvas.height);
-    drawEdges();
-    drawNodes();
-    requestAnimationFrame(render);
-}
-render();
-```
-
-**Deliverables**:
-- Force-directed graph, Canvas 2D
-- **200-node default view** with search-to-expand (virtualization threshold: if >500 visible nodes or <30fps in profiling, paginate before considering WebGL)
-- Node types (8): Memory, Person, Project, Goal, Concept, Event, Location, Task — colors within MAI palette
-- Zoom, pan (mouse + touch); rotate optional (2D tilt)
-- Node selection + expansion, search with highlight, type filters
-- Relationship edges with strength
-- Right-side inspector panel (CSS slide)
-- Subtle node pulses via CSS/rAF (no Anime.js)
-- Level-of-detail for performance
-
-**API**: `GET /api/graph` (exists — nodes, edges, type_breakdown); entity detail via graph data; prune via `POST /api/graph/prune`
-
-**Files**: `graph.html`, `js/pages/graph.js`, `js/features/graph/{graph-store,graph-model,graph-layout,graph-renderer,graph-camera,graph-interaction,graph-inspector,graph-search}.js`, `css/pages/graph.css`
-
-#### Voice Page — Fix 1 Enforced
-
-**Deliverables (control + visualization ONLY)**:
-- Center state display: "MAI SPEAKING" / "MAI LISTENING" / "MAI THINKING" / "MAI IDLE" — driven by SSE `state.voice.*`
-- Metrics panel from `GET /api/voice/details`: VAD threshold, silence timeout, sample rate, STT/TTS/AEC/diarization/emotion-detector/noise-filter stats
-- Controls: Toggle mic pipeline (`POST /api/voice/toggle`), stop, test voice (backend TTS)
-- Voice profile display from details endpoint
-- Waveform visualization: **state-driven animation** (CSS/rAF visualization of backend state, or backend-provided audio levels if later exposed). NOT live browser-captured audio.
-- Latency/state transitions with smooth CSS animations
-
-**PROHIBITED (Fix 1)**:
-- `navigator.mediaDevices.getUserMedia()`
-- `AudioContext` microphone capture / browser STT
-- Any second voice pipeline
-
-**API**: `GET /api/voice/status`, `GET /api/voice/details`, `POST /api/voice/toggle`, SSE `state.voice.*` (all exist)
-
-**Files**: `voice.html`, `js/pages/voice.js`, `js/features/voice/{voice-store,voice-state,voice-waveform,voice-metrics,voice-controls}.js`, `css/pages/voice.css`
-
----
-
-### PHASE 5 — Cross-Cutting Concerns (Week 8)
-
-**Specialists**: UI/UX Designer (PRIMARY), Performance Engineer, Security Engineer, Knowledge Base Builder
-
-**Deliverables**:
-- Command Palette full version (Ctrl/Cmd+K) — native keyboard handling:
-
-```js
-document.addEventListener("keydown", (event) => {
-    if ((event.ctrlKey || event.metaKey) && event.key === "k") {
-        event.preventDefault();
-        openCommandPalette();
-    }
-});
-```
-
-- Global Search — **use existing backend search infrastructure, do not implement a second search engine in the frontend**
-- Notification system (small elegant surfaces / toasts)
-- Loading / empty / error states audit across all pages (Fix 2 verification)
-- Page transitions (fade + slight movement via Web Animations API)
-- Micro-interactions for all components (CSS)
-- Responsive design (320px, 768px, 1024px, 1440px)
-- Accessibility audit (keyboard, screen reader, contrast, reduced motion)
-- PWA: manifest.json, service worker, offline fallback
-- Performance optimization (virtualization, lazy loading)
-- Dark mode only (per design spec)
-- **Legacy UI cleanup**: remove superseded legacy pages only after acceptance sign-off; never mount old and new shell simultaneously (avoids double SSE + global conflicts)
-
-**Files**:
-- `api/static/js/components/{modal,dropdown,tabs,toast,progress,tooltip}.js`
-- `api/static/js/{store,notifications,responsive,global-search}.js`
-- `api/static/sw.js` (updated)
-- `api/static/manifest.json` (updated)
-- `api/static/css/animations.css` (extended)
-- `api/static/css/utilities.css`
-
----
-
-## Revised Frontend Architecture (Canonical Directory Structure)
-
-**Per AGENTS.md static file rules: Never create new folders under `css/`, `js/`, `img/`, or `assets/`. All files live flat in their respective directories.**
-
-```
-api/static/
-│
-├── login.html
-├── presence.html          (or / landing — resolve with legacy route swap)
-├── chat.html
-├── memory.html
-├── graph.html
-├── reasoning.html
-├── agency.html
-├── voice.html
-├── tasks.html
-├── system.html
-├── permissions.html
-│
-├── css/
-│   ├── reset.css
-│   ├── design-tokens.css
-│   ├── typography.css
-│   ├── layout.css
-│   ├── components.css        (includes .state-loading/.state-empty/.state-error)
-│   ├── animations.css
-│   ├── utilities.css
-│   ├── presence.css
-│   ├── chat.css
-│   ├── memory.css
-│   ├── graph.css
-│   ├── reasoning.css
-│   ├── agency.css
-│   ├── voice.css
-│   ├── tasks.css
-│   ├── system.css
-│   └── permissions.css
-│
-├── js/
-│   ├── app.js
-│   ├── api-client.js      (bearer + 401 refresh + retry — Fix 2)
-│   ├── event-bus.js
-│   ├── history-router.js   (History API — legacy MaiRouter preserved)
-│   ├── keyboard.js
-│   ├── accessibility.js
-│   ├── store.js
-│   ├── notifications.js
-│   ├── global-search.js
-│   ├── app-shell.js
-│   ├── sidebar.js
-│   ├── topbar.js
-│   ├── command-bar.js
-│   ├── context-panel.js
-│   ├── mai-status.js
-│   ├── command-palette.js
-│   ├── modal.js
-│   ├── dropdown.js
-│   ├── tabs.js
-│   ├── toast.js
-│   ├── progress.js
-│   ├── tooltip.js
-│   ├── presence.js
-│   ├── chat.js
-│   ├── memory.js
-│   ├── graph.js
-│   ├── reasoning.js
-│   ├── agency.js
-│   ├── voice.js
-│   ├── tasks.js
-│   ├── system.js
-│   └── permissions.js
-│
-├── img/
-├── assets/
-│   ├── icons/
-│   └── fonts/
-│
-├── manifest.json
-└── sw.js
-```
-
-**Entry**:
-
-```html
-<script type="module" src="/static/js/app.js"></script>
-```
-
-```js
-import { HistoryRouter } from "./history-router.js";
-import { api } from "./api-client.js";
-import { EventBus } from "./event-bus.js";
-```
-
-**Warning — do not over-engineer vanilla JS**: Pure HTML/CSS/JS does not mean one giant `app.js` (e.g., 8,000 lines). The browser already provides a module system. You don't need React to achieve modularity.
-
----
-
-## Animation Architecture (3 Layers)
-
-| Layer | Technology | Use For |
-| --- | --- | --- |
-| **Layer 1 — CSS** | transitions, transforms, keyframes | hover, focus, opacity, panels, buttons, status changes, breathing effects, orbital animations |
-| **Layer 2 — Web Animations API** | `element.animate()` | complex component sequences, page transitions, staged entrances, timeline animations |
-| **Layer 3 — requestAnimationFrame** | rAF loop | waveform, Canvas graph, particles, orbital visualization, real-time visuals |
-
-Example (Layer 2):
-
-```js
-element.animate(
-    [
-        { opacity: 0, transform: "translateY(8px)" },
-        { opacity: 1, transform: "translateY(0)" }
-    ],
-    { duration: 300, easing: "ease-out", fill: "forwards" }
-);
-```
-
-This is enough for MAI. No Anime.js. No Framer Motion.
-
----
-
-## Backend API Map (All Endpoints Exist — No Backend Rewrite Required)
-
-The frontend is a thin presentation/control layer. Every widget maps to a real endpoint.
-
-| Page | Endpoints |
-| --- | --- |
-| Auth | `POST /api/auth/login`, `POST /api/auth/refresh`, `POST /api/auth/register`, `GET /api/auth/me` |
-| Shell / Presence | `GET /api/status`, `GET /api/consciousness`, `GET /api/health/metrics`, `GET /api/system/health`, `GET /api/goals`, `GET /api/inspector/records`, `GET /api/memory/stats`, `GET /api/reasoning/reflect/history` |
+| Authentication | `POST /api/auth/login`, `POST /api/auth/refresh`, `GET /api/auth/me` |
+| Presence | `GET /api/status`, `GET /api/consciousness`, `GET /api/health/metrics`, `GET /api/system/health`, `GET /api/goals`, `GET /api/memory/stats`, `GET /api/inspector/records`, `GET /api/reasoning/reflect/history` |
 | Chat | `POST /api/chat`, `POST /api/chat/stream`, `POST /api/chat/wake` |
 | Memory | `GET /api/memory`, `GET /api/memory/stats`, `GET /api/memory/timeline` |
 | Graph | `GET /api/graph`, `POST /api/graph/prune` |
 | Reasoning | `GET /api/reasoning/thoughts`, `GET /api/reasoning/reflect`, `GET /api/reasoning/reflect/history` |
 | Agency | `GET /api/goals`, `GET /api/tools`, `GET /api/world/entities` |
+| Tasks | `GET /api/tasks`, task create/complete/cancel/activate/subtask routes |
 | Voice | `GET /api/voice/status`, `GET /api/voice/details`, `POST /api/voice/toggle` |
-| Tasks | `GET /api/tasks`, `POST /api/tasks/create`, `POST /api/tasks/{id}/complete`, `/cancel`, `/activate`, `/subtasks` |
 | System | `GET /api/system/health`, `GET /api/system/plugins`, `GET /api/system/about`, `GET /api/config`, `POST /api/config/update` |
 | Permissions | `GET /api/permissions`, `POST /api/permissions/mode` |
-| Inspector | `GET /api/inspector/records`, `/record/{id}`, `/trace/{id}`, `/subscribers`, `/queues`, `/dead_letters`, `/latency`, `/health`, `/summary` |
-| Plugins | `GET /api/plugins/installed`, `/marketplace/search`, install/enable/disable |
-| Realtime | `GET /api/stream` (SSE — 15 `state.*` topics), `WS /ws` |
+| Realtime | `GET /api/stream` and `WS /ws` where supported |
 
-**Known backend gaps to confirm (Python Codebase Architect)**: global search endpoint (`/api/search/global`) may not exist — use existing backend search routes instead of inventing one; audio-level events for waveform may not exist — waveform stays state-driven until confirmed.
+Endpoint availability must be verified during implementation. The table is a contract map, not permission to assume every response shape is stable.
 
----
+### Event Topics
 
-## Widget-to-Endpoint Audit Rule
+Use the existing event fabric and `state.*` projection topics for UI state. Do not create a second event vocabulary in the frontend.
 
-**Every displayed value must be traceable to a listed endpoint.** Before marking any page done:
+Relevant categories include:
 
-1. List every displayed value on the page
-2. curl the claimed endpoint
-3. Confirm the value appears in the response
-4. Fail any widget you cannot trace
+- `state.voice.*`
+- `state.emotion.changed`
+- `state.memory.updated`
+- `state.reasoning.*`
+- `state.goal.updated`
+- `state.agent.completed`
+- `state.knowledge.updated`
+- `state.belief.updated`
 
-This eliminates the fabricated-metric problem (Flow State %, Cognitive Friction, fake Rel %, etc.) permanently.
+See [[Event Fabric Architecture]] for the event model.
 
----
+## 11. Current Implementation Checkpoint
 
-## Design System Migration Strategy (Current → New Tokens)
+> **⚠️ The checkpoint below describes work that is NOT in the current tree.**
+> On 2026-09-26 the v3.x presentation layer was reverted and `api/static/` was
+> restored to the M0 foundation (`fa36089`). The entire v3.x frontend — the
+> redesigned shell and pages, the accessibility contract, `format.js`, and the
+> Canvas graph work — lives on branch **`cognitive-desktop-v3`** (commit
+> `a2ac347`), not on `master`.
+>
+> What **did** survive on `master`: all backend work, the `state.retrieval.*` and
+> `state.tool.*` projections, and `api/web/`. See
+> [[ADR Presentation Layer Restructure]].
+>
+> Read the rest of this section as a record of verified work, useful as a
+> reference for anything lifted forward — not as a description of the current
+> frontend.
 
-| Current | New | Notes |
+The redesign is not starting from zero. Preserve and validate the work already completed:
+
+- M0 design tokens, reset, typography, layout, utilities, and state primitives.
+- API client with bearer authentication and refresh handling.
+- Event bus, History API router, keyboard utilities, accessibility utilities, and login page.
+- Static shell and redesigned Presence, Chat, Memory, Reasoning, Agency, Tasks, System, Permissions, and Voice pages.
+- Chat feature modules and real API-backed page controllers.
+- Authenticated router guard using the shared API client and bearer headers.
+- Static-page navigation with one router start and full-page route transitions.
+- EventBus detail payload contract aligned with shell and Chat consumers.
+- Chat SSE parsing aligned to the backend `token` frame, with in-memory message updates, one refresh retry, cancellation, and no fallback after partial output.
+- Memory timeline/search response contracts normalized for list and detail views.
+- Tasks now consume the existing Goal response contract and submit the supported description/priority fields.
+- Reasoning now boots through the canonical app shell, uses `thoughts`/`history` envelopes, renders actual trace fields, normalizes Unix timestamps, and provides explicit page states.
+- Reasoning REST routes now require the shared auth dependency and return bounded public DTOs without private monologue/speech-plan fields.
+- Reasoning, Memory, and Tasks now react to shared `workspace:refresh` invalidation events.
+- Agency now renders real goals/tools/entities, marks unsupported autonomy and intent-queue controls honestly, and reacts to refresh events.
+- System now renders verified health, plugin, configuration, and about data with working plugin load/unload actions.
+- Permissions now uses the backend `safe`/`advanced`/`admin` contract and renders read-only policy/audit data.
+- Voice now has a redesigned backend-owned control page with no browser microphone capture; the browser only reads status/details and toggles the daemon.
+- Agency, System, Permissions, and Voice routes now boot through the canonical app shell and protected read endpoints.
+- Graph now boots through the canonical shell with a native 2D Canvas view, pan/zoom/selection, type filters, an accessible node list, and an inspector.
+- Service worker now uses a versioned static cache and never caches API, SSE, or WebSocket responses; manifest identity matches the Cognitive Desktop.
+- Presence defaults now show unavailable state instead of fabricated values; emotion, goals, health, activity, and memory stats use verified response fields.
+- Backend configuration and runtime fixes already made during the redesign.
+- Backend hardening pass: the knowledge chunker no longer spins on a degenerate overlap/size combination, the retriever preserves explicitly named sources during phatic-query short-circuiting, the voice stream player degrades when `sounddevice` is unavailable, and the health metrics endpoint returns structured nulls when `psutil` is unavailable.
+- JWT signing keys are now lazily initialized, so tokens can be minted from any entry point (including test clients that skip the lifespan) instead of raising `No key found for kid`.
+- The legacy shell is isolated: `/desktop` redirects to `/presence`, and `graph`/`consciousness`/`inspector`/`marketplace` legacy pages redirect to their canonical routes.
+- Accessibility review closed: skip link on every shell page, focusable main region, real buttons for the avatar and state chips, keyboard-operable canvas graph, WCAG AA text and link colours, and explicit reduced-motion rules.
+- Graph render path profiled and de-quadratified: cached type colours, cached visible-node projection, and a stable canvas backing store.
+- `/api/graph` now exports the live knowledge graph instead of a throwaway `CognitiveGraph()`. The live payload is 765 nodes / 558 edges across 11 types, and the node count matches `type_breakdown` exactly.
+- Headless Chrome smoke validation for all redesigned pages.
+- Import and JavaScript syntax checks for the new frontend modules.
+
+Current validation status:
+
+- **Full backend suite: 1808 passed, 0 failed (240s).** The previous 10-minute timeout was caused by the chunker spin now fixed.
+- Frontend contract tests: 29 passed.
+- Accessibility contract tests: 229 passed (`tests/test_frontend_a11y.py`).
+- Graph performance gate: 4 passed (`tests/test_graph_performance.py`).
+- Reasoning API, Phase 3 auth, and profile/auth regression tests: passed.
+- Direct Chat SSE contract harness: passed with backend-shaped `token` frames.
+- Browser navigation smoke test: Presence → Chat passed with the Chat workspace mounted.
+- All 11 redesigned pages (Presence, Chat, Memory, Reasoning, Graph, Agency, Tasks, System, Permissions, Voice, Login) load in headless Chrome with no JavaScript console errors.
+- Memory browser smoke test: real timeline data renders without the previous response-shape failure.
+- Tasks browser smoke test: the Goal response renders without the previous object-iteration failure.
+- Reasoning browser smoke test: canonical app shell, journal, trace, and reflection views render with real response fields.
+- Reasoning API tests: public DTO redaction and auth dependency passed.
+- Phase 3 browser smoke tests: Agency, System, Permissions, and redesigned Voice pages load without JavaScript console errors.
+- Phase 3 auth tests: protected Agency, Voice, System, and Permissions read routes return 401 when the dependency denies access.
+- Phase 4 graph smoke test: Canvas, accessible node list, and explicit empty state render without JavaScript console errors.
+- Phase 4 hardening checks: service worker excludes API/SSE/WebSocket caching; manifest identity is updated; graph route is authenticated.
+- Accessibility browser verification: skip link focus/reveal/focus-move confirmed in headless Chrome under both default and `--force-prefers-reduced-motion` profiles; emotion ring animation resolves to `none` under reduced motion.
+- Graph profile: 5,000 nodes / 9,995 edges redraw in 1.30ms average (1.31ms p95) against a 250ms budget; was 406ms before the fix.
+- Live graph verification: the production payload (765 nodes, 558 edges, 292KB) normalizes and renders in 0.25ms average with 0 dangling edges.
+- Live restart validation: `/api/health` returns 200, full bootstrap succeeds, and legacy-route redirects resolve as expected.
+
+The product plan should refine this checkpoint, not restart it.
+
+## 12. MVP Architecture
+
+### Must Have
+
+- Persistent shell.
+- Grouped navigation.
+- Presence summary.
+- Streaming Chat.
+- Session persistence.
+- Context inspector.
+- Memory search and list.
+- Memory detail inspector.
+- Loading, empty, stale, unauthorized, unavailable, and error states.
+- JWT refresh and retry.
+- Keyboard navigation.
+- Responsive inspector drawer.
+- Real data only.
+- Backend-owned voice control.
+
+### Should Have
+
+- Reasoning journal and decision history.
+- Goals and task quick actions.
+- Relationship summary in Chat context.
+- Density preference.
+- Memory provenance and freshness.
+- Archive/forget confirmation and audit behavior.
+- SSE connection state and reconnect feedback.
+
+### Could Have
+
+- 2D graph.
+- Detailed system metrics.
+- Plugin management.
+- Permission editor.
+- Voice latency details.
+- Compact density mode.
+
+### Future Vision
+
+- Native daemon shell.
+- Multi-window workspace.
+- Multi-user profiles.
+- Cloud synchronization.
+- Mobile companion application.
+- WebGL graph only after measured need.
+- Richer offline and native bridge capabilities.
+
+## 13. Roadmap
+
+The sequence is more important than the calendar. Dates are planning targets, not commitments.
+
+| Phase | Objective | Status |
+|-------|-----------|--------|
+| 0 | Product Contract and Data Integrity | Complete |
+| 1 | Shell + Presence + Chat MVP | Complete |
+| 2 | Memory + Reasoning + Tasks | Complete |
+| 3 | Agency + System + Permissions + Voice | Complete |
+| 4 | Graph and Hardening | Complete |
+
+### Phase 0 — Product Contract and Data Integrity — Complete
+
+**Objective:** Make the workstation direction implementable and truthful.
+
+Tasks:
+
+- Confirm the five-area information architecture.
+- Verify endpoint and response contracts.
+- Define page and inspector state contracts.
+- Resolve Voice wording and backend test behavior.
+- Define memory action permissions and audit requirements.
+- Freeze the real-data and no-browser-mic rules.
+
+Deliverables:
+
+- Approved route map.
+- Widget-to-endpoint matrix.
+- Inspector interaction contract.
+- Updated acceptance criteria.
+
+Success criteria:
+
+- No page requirement depends on an unverified metric.
+- Voice ownership is unambiguous.
+- Destructive memory actions have a defined safety model.
+
+### Phase 1 — Shell + Presence + Chat MVP — Complete
+
+**Objective:** Deliver the first daily-driver loop.
+
+Tasks:
+
+- Finish persistent shell behavior.
+- Complete grouped navigation.
+- Finish Presence real-data summary.
+- Complete streaming Chat.
+- Add session persistence and reconnect states.
+- Add context inspector.
+- Add Calm density default.
+
+Deliverables:
+
+- Login → shell → Presence → Chat workflow.
+- Loading, empty, error, stale, and reconnect states.
+- Responsive narrow-screen layout.
+
+Success criteria:
+
+- A user can complete a conversation without a blank screen or route failure.
+- A user can inspect context relevant to the active conversation.
+- Chat remains usable after token refresh and transient stream failure.
+
+### Phase 2 — Memory + Reasoning + Tasks — Complete
+
+**Objective:** Make continuity and action inspectable.
+
+Tasks:
+
+- Memory search and filters.
+- Memory list and detail inspector.
+- Provenance and freshness labels.
+- Reasoning notebook and reflection history.
+- Goals and task list.
+- Safe memory actions.
+
+Success criteria:
+
+- A user can find, understand, and safely act on a memory.
+- A user can understand why a decision or task exists.
+- No destructive action occurs without the required confirmation and audit behavior.
+
+### Phase 3 — Agency + System + Permissions + Voice — Complete
+
+**Objective:** Expose control and safety surfaces.
+
+Tasks:
+
+- Agency control room.
+- System health and services.
+- Permission mode and audit view.
+- Voice pipeline status and controls.
+- Degraded-state behavior for unavailable services.
+
+Success criteria:
+
+- Every control maps to a real backend operation.
+- Users can understand what autonomy and permissions currently allow.
+- Voice controls never request browser microphone access.
+
+### Phase 4 — Graph and Hardening — Complete
+
+**Objective:** Add advanced visualization only after the core loop is proven.
+
+Tasks:
+
+- 2D Canvas graph.
+- Graph list fallback.
+- Performance profiling.
+- PWA/offline strategy.
+- Accessibility audit.
+- Security audit.
+- Legacy route retirement after sign-off.
+
+Success criteria:
+
+- Graph is usable at the target node count on supported hardware.
+- The application remains usable without Canvas.
+- Legacy and redesigned shells are never active simultaneously.
+
+## 14. Requirements
+
+### Functional Requirements
+
+- The shell MUST remain available when a page request fails.
+- Every page MUST render loading, empty, stale, unauthorized, unavailable, and error states as applicable.
+- Every displayed data value MUST be traceable to a backend field or explicitly labeled local state.
+- Chat MUST support streaming, cancellation, retry, and token refresh.
+- Memory selection MUST show provenance when available.
+- Destructive memory actions MUST be permission-aware, confirmed, and auditable.
+- Voice MUST use the backend-owned pipeline.
+- System metrics MUST expose source and freshness where possible.
+- Inspector selections SHOULD be keyboard accessible and deep-linkable where practical.
+- The shell MUST preserve navigation context across route changes.
+
+### Non-Functional Requirements
+
+- No blank-screen failure path.
+- No uncaught JavaScript error during normal page navigation.
+- Initial shell response target: under 2 seconds when the backend is healthy.
+- Chat first-token target: under 1 second after request acceptance when the provider is healthy.
+- SSE UI update target: under 500ms.
+- Keyboard navigation and visible focus states are mandatory.
+- Text contrast must meet WCAG AA.
+- `prefers-reduced-motion` must be respected.
+- No raw secrets, tokens, private prompts, or unbounded internal traces in the frontend.
+- Browser microphone permission must never be requested by the redesigned Voice page.
+
+## 15. Testing and Validation
+
+### Static and Module Checks
+
+- Verify every local ES module import resolves.
+- Verify every named import has a matching export.
+- Run JavaScript syntax checks with Node.
+- Verify all HTML asset references resolve.
+- Verify no forbidden browser voice capture call exists.
+
+### Browser Smoke Tests
+
+Use the installed headless Chrome or an explicitly approved browser test runner.
+
+For each redesigned page:
+
+- Load with a healthy backend.
+- Confirm shell, navigation, workspace, and inspector render.
+- Confirm no JavaScript console errors.
+- Confirm loading, empty, error, and unauthorized behavior.
+- Confirm responsive drawer behavior at narrow width.
+
+### Product Validation
+
+- Login → shell → Presence → Chat.
+- Start and complete a streaming conversation.
+- Refresh the access token during a session.
+- Search and inspect a real memory.
+- Trigger a backend outage and confirm no blank screen.
+- Disconnect and reconnect SSE.
+- Inspect a goal, task, and reasoning record.
+- Toggle backend voice state.
+- Verify the browser never requests microphone permission.
+- Render a graph response and measure interaction performance.
+- Verify every widget against its documented endpoint.
+
+### Performance Checks
+
+- Initial page load target: under 2 seconds.
+- Chat first token target: under 1 second.
+- SSE state update target: under 500ms.
+- Graph target: at least 30 FPS at the supported default node count.
+- Long lists must paginate, virtualize, or progressively render.
+- Streaming updates must not block input or navigation.
+
+### Accessibility Review (Phase 4 — complete)
+
+Enforced by `tests/test_frontend_a11y.py` (229 checks) rather than a one-time manual pass.
+
+| Area | Finding | Resolution |
+|------|---------|------------|
+| Keyboard | No skip link; `A11y.skipToMain()` existed with no trigger | Skip link is the first child of `<body>` on all 10 shell pages, styled in `shell-new.css`, wired through `A11y.initSkipLink()` |
+| Keyboard | `<main>` was not programmatically focusable | `tabindex="-1"` added; focus moves to `shell-main` on activation |
+| Keyboard | User avatar was a clickable `<div>` | Converted to `<button type="button" aria-label="User menu" aria-haspopup="true">` on all 10 pages |
+| Keyboard | Presence state chips used `role="tab"` with no tab panels and click-only handling | Replaced with `role="group"` + `aria-pressed` toggle buttons; `A11y`/CSS kept intact |
+| Keyboard | Graph canvas was pointer-only | `tabindex="0"`, `role="img"`, arrow-key pan, `+`/`-` zoom, `0` reset, `Enter`/`Space` select, with `announce()` feedback |
+| Focus | No visible ring guarantee per page | Every page is asserted to load a stylesheet containing `:focus-visible`; focus ring is 2px accent (3.96:1 against elevated surfaces, above the 3:1 non-text bar) |
+| Contrast | `--color-text-muted: #6E7785` measured 3.60:1 on cards — failed AA | Replaced with `#828C9A` (4.78:1 worst case) |
+| Contrast | Links used `--color-accent-primary` (3.96:1) — failed AA | `typography.css`, `layout.css` (`.link-btn`), `layout-new.css` (`.text-accent`), and `.tab-active` now use `--color-accent-soft` (5.95:1) |
+| Reduced motion | Emotion rings and status dot animated forever | Explicit `@media (prefers-reduced-motion: reduce)` block in `presence.css` sets `animation: none` |
+| Reduced motion | Skip-link reveal depended on a transition completing | Verified in-browser: the global 0.01ms transition rule left the focused link off-screen; `shell-new.css` now disables the transition under reduced motion |
+| Reduced motion | Legacy rAF loops (`graph3d.js`, `orb.js`, `motion.js`, `mai-symbol.js`) | Unreachable from redesigned routes; the gate asserts no redesigned module calls `requestAnimationFrame` |
+| Structure | Redundant `role="navigation"` on `<nav>` | Removed from all 10 shell pages |
+| Structure | `chat.html` had no `<h1>` and an unlabelled `<nav>` | Added `<h1 class="sr-only">` and `aria-label="Conversation context"` |
+| Structure | `role="listitem"` applied directly to `<button>` in the graph list | Wrapped each entry in a `role="listitem"` element |
+
+Browser-verified with headless Chrome (default and `--force-prefers-reduced-motion`): skip link is the first focusable element, reveals on focus with a 2–3px ring, moves focus to the main region, and the emotion ring animation is `none` under reduced motion.
+
+Known non-blocking finding: 54 shell/page-toolbar `<button>` elements outside any `<form>` omit an explicit `type`. They carry accessible names and have no submit behaviour, so the gate only requires an explicit type inside forms (all of which already declare one).
+
+### Graph Performance Profile (Phase 4 — complete)
+
+`scripts/bench_graph.mjs` runs the real render path under Node with a stubbed 2D context; `tests/test_graph_performance.py` fails the build if the p95 redraw exceeds 250ms.
+
+| Nodes | Edges | Before (avg) | After (avg) | After (p95) |
+|-------|-------|--------------|-------------|-------------|
+| 500 | 995 | 6.63ms | 0.19ms | 0.20ms |
+| 1,000 | 1,995 | 18.63ms | 0.37ms | 0.46ms |
+| 2,000 | 3,995 | 65.03ms | 0.56ms | 0.57ms |
+| 5,000 | 9,995 | 406.49ms (over budget) | 1.30ms | 1.31ms |
+
+Root causes fixed in `api/static/js/pages/graph.js`:
+
+- `colorFor()` rebuilt the sorted unique-type list for every node on every redraw — now an O(1) `Map` lookup.
+- `visibleNodes()` ran the search/filter predicate repeatedly per frame — now cached and invalidated only on input, filter change, or reload.
+- The canvas backing store was reallocated on every draw — now only resized when the viewport or device pixel ratio changes.
+
+Scaling is linear (~0.26ms per 1,000 nodes) and comfortably inside the 30 FPS budget at the 5,000-node target.
+
+The profile also exposed a data defect: the page was being asked to render one node next to a 776-node summary, because `api/routes_dashboard.py::dashboard_graph()` constructed a throwaway `CognitiveGraph()` instead of reading `self.brain_graph`. The export now reads the same store it counts, merges world entities without duplicates, drops relations pointing at unknown nodes, and reports a `truncated` flag at the 5,000-node export cap. `scripts/render_graph_payload.mjs` replays the live payload through the client pipeline to confirm the page renders what the API sends.
+
+
+## 16. Success Metrics
+
+### Primary Metrics
+
+- Successful chat turns: target 95% without manual recovery.
+- Long-term memory retrieval usefulness: target 8/10 scripted recall checks.
+- Supported task completion: target 90%.
+- Cross-session continuity: target 90% on scripted continuity checks.
+- Redesigned page load success: target 99%.
+- Uncaught frontend errors during smoke tests: target 0.
+
+### Secondary Metrics
+
+- Time to locate a memory.
+- Time to resume a conversation.
+- Inspector use rate.
+- Voice pipeline control success.
+- Page response time.
+- Accessibility violations.
+- Stale-data incidents.
+- User-reported trust and continuity.
+
+### Failure Indicators
+
+- A value cannot be traced to a backend field.
+- A user cannot tell whether data is live, cached, or stale.
+- Navigation loses active context.
+- Memory actions cannot be audited or recovered.
+- Browser microphone permission is requested.
+- Chat streaming fails without a recoverable state.
+- The interface becomes visually noisy during ordinary use.
+- System displays invented health or performance values.
+
+## 17. Risk Assessment
+
+| Risk | Category | Severity | Mitigation |
+| --- | --- | --- | --- |
+| OS metaphor creates unmet native-window expectations | Product | High | Use workstation language; defer native window manager claims. |
+| Contextual inspector reduces usable workspace width | UX | Medium | Inspector is optional and becomes a drawer on narrow screens. |
+| Dense interface harms calmness | UX | High | Calm default and Compact opt-in. |
+| Frontend/backend contract drift | Technical | High | Widget-to-endpoint matrix and contract validation per page. |
+| Relationship or memory display feels invasive | Trust | High | User visibility controls, provenance, privacy settings, restrained presentation. |
+| Archive/forget actions cause data loss | Technical | High | Confirmation, permissions, audit trail, undo where supported. |
+| Vanilla modules become inconsistent | Maintainability | Medium | Clear ownership, import checks, browser smoke tests, no giant app module. |
+| Stale service-worker assets persist | Reliability | Medium | Versioned cache and explicit invalidation strategy. |
+| Voice wording conflicts with backend ownership | Technical | High | Use backend pipeline terminology and enforce no `getUserMedia()`. |
+| Legacy and redesigned routes conflict | Reliability | High | Single active shell, route aliases, sign-off before retirement. |
+
+Overall risk posture after the locked constraints: **Medium**, primarily because the backend is rich and the UI must not misrepresent its state.
+
+## 18. Specialist Handoff
+
+| Sequence | Specialist | Deliverable |
 | --- | --- | --- |
-| `--bg-deep-midnight: #090B10` | `--bg-primary: #0A0B0F` | Primary background |
-| `--bg-charcoal: #12151C` | `--bg-secondary: #0E1015` | Secondary background |
-| `--glass: rgba(255,255,255,0.08)` | `--bg-panel: #12141A` | Panels |
-| `--glass-strong: rgba(255,255,255,0.12)` | `--bg-card: #181B22` | Cards |
-| `--accent: #4FA7FF` | `--accent-primary: #7C5CFF` | Signature MAI purple |
-| `--accent-highlight: #9D7BFF` | `--accent-soft: #9B86FF` | Soft purple |
-| `--accent-secondary: #67E8F9` | `--accent-blue: #6EA8FF` | Subtle blue |
-| `--success: #3DDC97` | `--success: #72D6A5` | Updated success |
-| `--warning: #FFC857` | `--warning: #E8B86A` | Updated warning |
-| `--danger: #FF5D73` | `--danger: #E87575` | Updated danger |
+| 1 | AI Product Manager | Approve scope, MVP, metrics, and acceptance criteria. |
+| 2 | UI/UX Designer | Shell, grouped navigation, inspector patterns, density modes, accessibility. |
+| 3 | Python Codebase Architect | Verify route, API, auth, and event contracts. |
+| 4 | Memory Architecture Expert | Define memory inspector, provenance, retrieval feedback, and safe actions. |
+| 5 | Reasoning Architecture Expert | Define safe reasoning visibility and user-facing explanations. |
+| 6 | Voice Architecture Expert | Define backend-owned voice controls and test behavior. |
+| 7 | Security Engineer | Review auth, permissions, privacy, destructive actions, and sensitive state. |
+| 8 | Performance Engineer | Profile chat streaming, SSE, memory lists, and Canvas graph. |
+| 9 | Knowledge Base Builder | Maintain this plan and related architecture documentation. |
 
----
+## 19. Acceptance Criteria
 
-## Risk Assessment
+The redesign is accepted only when:
 
-| Risk | Category | Severity | Probability | Mitigation |
-| --- | --- | --- | --- | --- |
-| Voice page captures browser mic (bypasses backend pipeline) | Technical | 🔴 Critical | Certain if plan uncorrected | **Fix 1 locked**: control + visualization only; no getUserMedia; verify in devtools |
-| Blank screens on API failure (no state primitives) | User | 🟠 High | Likely | **Fix 2 locked**: `.state-loading/.state-empty/.state-error` in M0; every fetch path renders one |
-| Auth/token refresh missing from frontend | Security | 🟠 High | Possible | **Fix 2 locked**: api-client 401→refresh→retry in M0; login page in M1 |
-| 14-week equal-phase roadmap, no MVP, motivation fatigue | Product | 🟠 High | Likely | **Fix 3 locked**: MVP-gated 8-week roadmap; launchable at Week 2 |
-| Canvas 2D <30fps at 1000+ nodes | Technical | 🟡 Medium | Possible | 200-node default, search-to-expand, virtualize >500 nodes before WebGL |
-| Legacy + new UI both serving same route (double SSE, global conflicts) | Technical | 🟡 Medium | Possible | Separate entry routes; never mount both shells; delete legacy only after sign-off |
-| Fabricated widgets creep back in | Product | 🟡 Medium | Possible | Widget-to-endpoint audit as acceptance gate per page |
-| Streaming text animation performance | Technical | 🟡 Medium | Medium | rAF, batch DOM updates, virtualize long conversations |
-| Font loading (Inter/Manrope/JetBrains Mono) | Technical | 🔵 Low | Low | Preload, system fallback, `font-display: swap`; CSP allows self + cdn.jsdelivr + unpkg |
-| Service worker cache invalidation | Technical | 🟡 Medium | Medium | Versioned cache names; cache-first static, network-first API |
+- [x] Login → shell → Presence → Chat works with the real backend.
+- [x] Grouped navigation covers all five cognitive areas.
+- [x] Existing route paths remain usable.
+- [x] Every redesigned page has explicit loading, empty, stale, unavailable, unauthorized, and error behavior as applicable.
+- [x] Chat streams, retries, cancels, and survives token refresh.
+- [x] Memory search, detail, provenance, and safe actions work against real data.
+- [x] Reasoning and goals expose meaningful state without leaking internal artifacts.
+- [x] Voice controls operate on the backend pipeline only.
+- [x] No redesigned page calls `getUserMedia()` or browser-side microphone capture.
+- [x] Every displayed data value passes the widget-to-endpoint audit.
+- [x] Keyboard navigation, focus states, contrast, and reduced motion pass review.
+- [x] The graph has a usable non-Canvas fallback.
+- [x] No legacy and redesigned shells are active at the same time.
+- [x] Relevant frontend checks and the full backend test suite pass before release.
+- [x] The graph stays inside its frame budget at the target node count.
 
-**Summary**: 1 critical (now locked via Fix 1), 3 high (now locked via Fixes 2-3), 5 medium, 1 low. **Overall risk posture after fixes: Low-Medium.**
+### Visual Sign-Off (complete)
 
----
+`scripts/visual_check.py` drives Chrome over the DevTools Protocol, waits for each page to be genuinely ready, and only then captures. This replaced `chrome --dump-dom` / `--screenshot`, which snapshot before module JavaScript renders and made correct pages look broken.
 
-## Testing Strategy
+Reviewed at 1440x900 and 390x wide: Presence, Chat, Memory, Reasoning, Graph.
 
-**Remove**: Jest, React Testing Library, Cypress.
+| Defect | Root cause | Resolution |
+|--------|------------|------------|
+| Graph canvas rendered nothing useful | `.graph-layout` inherited the 100-row node list's height, stretching the canvas to 8,072px and pushing the cloud below the fold | The workspace owns the row height (`clamp(520px, 66vh, 760px)`) |
+| Graph was an unreadable hairball | Nested-ring placement plus every edge drawn | Deterministic force layout with grid-bucketed repulsion, zoom-to-fit, and edge decluttering above 150 nodes |
+| Graph listed `mem:<uuid>` identifiers | Node names are knowledge-graph keys | `labelFor()` prefers metadata text |
+| Graph legend leaked `entity_from_link` | Raw type keys | `humanizeType()` |
+| Presence showed `20701d ago` | `new Date(seconds)` read as milliseconds | `toDate()` normalises epoch units |
+| Command bar floated bottom-right, clipped | `grid-area: command` with no `command` area in the grid template | Shell grid areas corrected; the context panel became a real right column that occupies zero width until opened |
+| Chat showed a blank void on a new conversation | `renderMessages` had no empty branch | Explicit empty state |
+| Chat context panel dumped raw vault triples | Backend text rendered verbatim | `memoryLabel()` |
+| Memory cards showed the same sentence twice | `title` and `content` are the same vault text | Preview suppressed when the two are redundant, including backend-truncated titles |
+| Reasoning leaked `mem:<uuid>` into DECISION and EVIDENCE | Raw LLM output rendered as-is | `humanizeReasoningText()` and `evidenceLink()` |
+| Labels cut mid-word (`hello wonder…`) | Truncation fell back to a hard cut | `truncateWords()` always prefers a word boundary |
 
-**Use**:
+The shared formatters live in `api/static/js/format.js` and are covered by `tests/test_frontend_format.py` (20 checks), which asserts no raw identifier reaches the UI.
 
-### Backend (existing — must stay green)
-- `pytest` (1,832 tests), `mypy`, `ruff`
-- Zero backend regressions: full suite must pass after any (expected: no) backend touch
+## 20. Post-Completion Release Work
 
-### Frontend logic
-- Keep important logic as plain, importable JS modules (testable without a browser harness where possible)
+All Phase 0–4 work is complete, the accessibility review and visual sign-off are closed, the graph is profiled, and the full backend suite is green. The items below sit outside this plan's scope:
 
-### Browser integration
-- **Playwright as the single frontend testing dependency** (recommended — not a UI framework, does not dictate architecture)
-- If extreme dependency-minimization is preferred: browser-native/manual integration tests + existing Python API integration suite
+1. Browser smoke test of the legacy-route redirects under an authenticated session.
+2. Resolve the `AGENTS.md` rule that forbids subfolders under `api/static/js/` while the shell ships `js/shell/`, `js/pages/`, and `js/features/chat/`.
+3. Release build, deployment, and rollback checklist.
 
-### Widget-to-endpoint audit (manual or Playwright script)
-- Per page: displayed values → curl endpoint → confirm presence
+## 21. Decision Record
 
-### State-primitive test
-- Kill backend mid-session per page → confirm `.state-error` renders (not blank) → restart → confirm recovery
+### Decision
 
-### Auth flow test
-- Let access token expire (15 min) → silent refresh; force refresh fail → redirect to login preserving route
+Adopt **MAI Cognitive Desktop — Quiet Intelligence** as the frontend product direction.
 
-### Voice architecture test (Fix 1)
-- Load Voice page → assert `getUserMedia` never called
+### Context
 
-### Performance tests
-- Lighthouse (Performance > 90)
-- Bundle size < 200KB gzipped initial
-- Graph FPS ≥ 30 at 200 nodes (stretch: 1000)
-- Animation frame rate ≥ 55fps
-- Time to Interactive < 2s
-- Chat first token < 1s after POST
-- SSE state update latency < 500ms
+MAI's backend contains memory, relationships, emotions, reasoning, experience, dreaming, agency, tools, goals, voice, and knowledge systems. A highly animated dashboard would hide this depth and add implementation burden without improving daily use.
 
----
+### Options Considered
 
-## Success Metrics
+1. Continue the React and animation-heavy concept.
+2. Replace the visual components with static HTML while preserving the original dashboard structure.
+3. Build a calm, dense, native-browser cognitive workstation.
 
-```
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
- SUCCESS METRICS
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-Primary Metrics:
-  - Page load (Presence, cold) — <2s — browser devtools
-  - SSE state update latency — <500ms — event→DOM timestamp diff
-  - Chat first token — <1s after POST — stream timing
-  - All 13 pages show real API data (0 fabricated widgets) — widget-endpoint audit
+### Chosen Option
 
-Secondary Metrics:
-  - Initial JS (gzipped) — <200KB
-  - Animation FPS (Presence orbit, graph) — ≥55fps / ≥30fps graph
-  - Accessibility: keyboard-navigable, contrast ≥4.5:1 — axe/Lighthouse
-  - 0 console errors during normal navigation
+Option 3.
 
-Failure Indicators:
-  - Any page shows a metric with no backing endpoint
-  - Operator disables auth to avoid login friction
-  - Voice page triggers browser mic permission prompt
-  - Blank screen on API failure (missing state primitive)
-  - Legacy and new UI both serving same route
+### Consequences
 
-Acceptance Criteria:
-  - [ ] Login → shell → Presence works with JWT; refresh silent
-  - [ ] Every page has loading/empty/error state, verified by stopping backend
-  - [ ] SSE stream drives voice/reasoning state tabs with <500ms latency
-  - [ ] Chat streams tokens; survives token refresh mid-stream
-  - [ ] Graph renders 200 nodes ≥30fps Canvas 2D; no Three.js in project
-  - [ ] Voice page makes zero getUserMedia calls (Fix 1)
-  - [ ] Widget-to-endpoint audit: 100% of displayed data traced to real API
-  - [ ] Legacy UI removed or unreachable after final acceptance
-  - [ ] 1,832 backend tests still pass (no backend regressions)
-━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━
-```
+- The frontend becomes easier to deploy and maintain.
+- The visual language becomes calmer and more durable.
+- Backend capabilities can be exposed more directly.
+- The frontend must establish stronger module, state, accessibility, and data-contract discipline.
+- The product remains a workstation metaphor until native daemon capabilities are implemented.
 
----
+### Related Notes
 
-## Validation Plan
+- [[Native OS Bridge Architecture]]
+- [[Event Fabric Architecture]]
+- [[08-API Native & Surface]]
+- [[Memory Pipeline]]
+- [[Voice Pipeline]]
+- [[Testing Strategy]]
 
-**How to Test**:
-1. Widget-endpoint audit per page (list values → curl endpoint → confirm)
-2. State-primitive test (kill backend per page → `.state-error` → restart → recover)
-3. Auth flow test (expire access token → silent refresh; fail refresh → login redirect preserving route)
-4. SSE test (disconnect 30s → reconnect UI → no false "all good")
-5. Voice architecture test (devtools → no `getUserMedia`)
-6. Performance (Lighthouse + devtools FPS on orbit and graph at 200/500/1000 nodes)
-7. Regression (full pytest after any backend touch — expect zero touch)
+## Documentation Status
 
-**Test Scenarios**:
-1. Happy path: login → browse all 13 pages → chat stream → voice toggle
-2. Edge: 5,000-node graph response; empty memory; zero goals
-3. Degraded: backend down; SSE down; expired refresh token
+- **Status:** Complete (v3.2.0) — all five phases delivered, 15/15 acceptance criteria met, 2,068 tests passing, visual sign-off complete
+- **File:** `docs/Mai_documentation/03-Features/Complete Redesign Implementation Plan.md`
+- **Architecture impact:** High
+- **Related notes:** [[Native OS Bridge Architecture]], [[Event Fabric Architecture]], [[08-API Native & Surface]], [[Memory Pipeline]], [[Voice Pipeline]], [[Testing Strategy]]
 
-**Success Means**: All acceptance criteria checked; widget audit 100%; state primitives verified on every page.
-
-**Failure Means**: Any fabricated widget ships; any blank-screen path; browser mic invoked; auth bypass needed to proceed.
-
----
-
-## Performance Targets
-
-| Target | Threshold |
-| --- | --- |
-| Initial load | < 2 seconds |
-| Initial JS | < 200 KB gzipped |
-| Animation | 55–60 FPS |
-| Graph | 30+ FPS at 200 nodes (1000 stretch via virtualization) |
-| Voice UI visual response | < 100 ms (state display; backend voice E2E < 2s) |
-| Chat first token | < 1s |
-| SSE update latency | < 500ms |
-
----
-
-## Specialist Assignments (Implementation Sequence)
-
-| Sequence | Specialist | Scope |
-| --- | --- | --- |
-| 1 | AI Product Manager | Plan, MVP gate, acceptance criteria (this document) |
-| 2 | UI/UX Designer | Design tokens, component primitives, state primitives, per-page visual specs, a11y |
-| 3 | Python Codebase Architect | Confirm endpoint map, SSE topic list, auth refresh contract; flag backend gaps (global search, audio-level events) |
-| 4 | Python Master Engineer | Only if backend gaps confirmed (likely minimal) |
-| 5 | UI/UX Designer + Operator | Implement M0→M5 per roadmap (AI Studio or direct) |
-| 6 | Security Engineer / Systems Auditor | Pre-launch pass: CSP vs new assets, auth coverage, no secrets in JS |
-| 7 | Knowledge Base Builder | Document frontend architecture + widget-endpoint map in `04-Development/` |
-
----
-
-## Documentation Updates Required
-
-Per documentation protocol, after implementation:
-
-| Document | Folder | Action |
-| --- | --- | --- |
-| Frontend Architecture | 01-Architecture/ | Create new |
-| Design System | 02-Subsystems/ | Create new |
-| Component Library | 02-Subsystems/ | Create new |
-| Animation System | 02-Subsystems/ | Create new |
-| Widget-Endpoint Map | 04-Development/ | Create new |
-| Voice Interface | 02-Subsystems/ | Update (control-only constraint) |
-| Presence System | 02-Subsystems/ | Update |
-| Design Tokens | 05-Reference/ | Create new |
-| Complete Redesign Implementation Plan | 03-Features/ | This document — updated |
-
----
-
-## Next Steps
-
-**Immediate (before any page code)**:
-1. Confirm Fix 1, Fix 2, Fix 3 in this document are accepted (they are locked as mandatory)
-2. Python Codebase Architect: confirm endpoint map + auth refresh contract + flag `/api/search/global` and audio-level gaps
-
-**Week 1 (M0)**: Design tokens, state primitives, api-client with JWT refresh, router, event-bus, login page
-
-**Week 2 (M1 — MVP)**: Shell (sidebar/topbar/orbit/command palette), SSE status, Presence page with real data only → **launchable MVP**
-
-**Week 3 (M2)**: Chat with native streaming
-
-**Week 4-5 (M3)**: Memory, Reasoning, Agency, Tasks, System, Permissions
-
-**Week 6-7 (M4)**: Canvas graph + Voice control (Fix 1 verified)
-
-**Week 8 (M5)**: Global search, notifications, a11y, PWA, legacy cleanup, final acceptance
-
----
-
-## Confidence Scoring
-
-| Area | Confidence | Notes |
-| --- | --- | --- |
-| Design System | 🟢 HIGH | Clear token specification; state primitives locked in Fix 2 |
-| Page Implementations | 🟢 HIGH | Detailed specs; all endpoints confirmed to exist |
-| Native Stack Fit | 🟢 HIGH | Matches modular event-driven backend; dependency policy principled |
-| Auth Flow | 🟢 HIGH | Backend auth exists; refresh contract known (15min/7d) |
-| Canvas Graph Performance | 🟡 MEDIUM | 200-node default de-risked; 1000-node stretch needs profiling |
-| Streaming Chat | 🟢 HIGH | Backend SSE already proven; native ReadableStream well-supported |
-| Voice Control Page | 🟢 HIGH | Fix 1 removes architectural risk; endpoints exist |
-| Animation Coordination | 🟡 MEDIUM | 3-layer approach sound; requires discipline (no library fallback) |
-| Legacy Migration | 🟡 MEDIUM | Route-swap strategy needed; double-SSE risk flagged |
-| Timeline (8 weeks) | 🟡 MEDIUM | MVP at Week 2 realistic; later pages may slip if Graph/Voice expand |
-
----
-
-## Final Recommendation
-
-**Build now — MVP-first, with the three mandatory fixes locked.**
-
-The native HTML/CSS/JS architecture is the right fit for Mai's modular backend. Fix 1 eliminates the Voice architectural error, Fix 2 eliminates blank-screen and auth gaps, and Fix 3 delivers a usable product in 2 weeks instead of 14. Start with M0 (design system + api-client with JWT refresh), gate on Shell + Presence, then iterate pages with the widget-to-endpoint audit as the per-page acceptance bar.

@@ -121,10 +121,20 @@ class AdvancedRetriever:
         if not query:
             return []
         
-        # Skip retrieval for phatic/social queries
-        if self.is_phatic(query):
+        # Skip retrieval for phatic/social queries only when no explicit store
+        # or filter was supplied. Explicit API retrieval must still be honored.
+        if self.is_phatic(query) and not any((self.vector_store, self.belief_engine, self.knowledge_graph, speaker, memory_type, user_id)):
             logger.debug("[Retriever] Skipping retrieval for phatic query: %s", query[:50])
             return []
+
+        # A real retrieval is about to happen. Announce it on the state bus so a
+        # live UI can show in-progress retrieval rather than only a retrospective
+        # count. Phatic skips and empty queries return above, so the entity does
+        # not flicker on every greeting.
+        if self.event_bus:
+            from core.event_specs import STATE_RETRIEVAL_STARTED
+            from core.mai_message import publish_event
+            publish_event(self.event_bus, STATE_RETRIEVAL_STARTED, {}, source="knowledge")
 
         # Check cache first
         cache_key_filters = {
@@ -137,6 +147,7 @@ class AdvancedRetriever:
         cached = self._query_cache.get(query, **cache_key_filters)
         if cached is not None:
             logger.debug("[Retriever] Cache hit for query: %s", query[:50])
+            self._publish_retrieval_completed(len(cached))
             return cached
 
         results = []
@@ -291,6 +302,8 @@ class AdvancedRetriever:
                 "count": len(results),
             }, source="knowledge")
 
+        self._publish_retrieval_completed(len(results))
+
         # Cache results for future queries
         cache_key_filters = {
             "attention_focus": attention_focus,
@@ -306,6 +319,23 @@ class AdvancedRetriever:
             results = self._rerank(query, results, top_k)
 
         return results
+
+    def _publish_retrieval_completed(self, count):
+        """Publish retrieval completion on the state bus.
+
+        Carries the result count only - never the query text or the retrieved
+        content, so a live interface can show "retrieved N memories" without
+        exposing private memory to the presentation layer.
+        """
+        if not self.event_bus:
+            return
+        try:
+            from core.event_specs import STATE_RETRIEVAL_COMPLETED
+            from core.mai_message import publish_event
+            publish_event(self.event_bus, STATE_RETRIEVAL_COMPLETED, {"count": count},
+                          source="knowledge")
+        except Exception as e:
+            logger.debug("[Retriever] retrieval-complete publish failed: %s", e)
 
     def _load_cross_encoder(self):
         """Lazy load the cross-encoder model."""

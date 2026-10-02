@@ -112,6 +112,22 @@ STATE_AGENT_COMPLETED = "state.agent.completed"
 STATE_NEEDS_UPDATED = "state.needs.updated"
 STATE_MONOLOGUE_GENERATED = "state.monologue.generated"
 
+# Retrieval and tool-execution projections.
+#
+# The UI subscribes exclusively to `state.*`. Retrieval and tool activity were
+# previously observable only as post-hoc `data.*` facts
+# (`data.retriever.results`, `data.tool.called`), which cannot express "MAI is
+# retrieving right now" — the distinction a live entity interface needs to
+# show progress rather than a retrospective count.
+#
+# These payloads are deliberately minimal: retrieval carries a result count and
+# never the query text; tool events carry the registry tool name, success, and
+# duration, never arguments, results, or error strings.
+STATE_RETRIEVAL_STARTED = "state.retrieval.started"
+STATE_RETRIEVAL_COMPLETED = "state.retrieval.completed"
+STATE_TOOL_STARTED = "state.tool.started"
+STATE_TOOL_COMPLETED = "state.tool.completed"
+
 
 # ── Catalog ────────────────────────────────────────────────────────
 
@@ -279,6 +295,14 @@ VERTEX_SPECS: List[EventSpec] = [
           payload_keys=("needs", "triggered", "unmet"), priority="high"),
     _spec(STATE_MONOLOGUE_GENERATED, "cognition", "Internal monologue packet produced (UI truth)",
           payload_keys=("thought", "decision", "speech_plan", "response"), priority="high"),
+    _spec(STATE_RETRIEVAL_STARTED, "memory", "Memory retrieval began (UI truth)",
+          payload_keys=(), priority="normal"),
+    _spec(STATE_RETRIEVAL_COMPLETED, "memory", "Memory retrieval finished (UI truth)",
+          payload_keys=("count",), priority="normal"),
+    _spec(STATE_TOOL_STARTED, "agency", "Tool execution began (UI truth)",
+          payload_keys=("name",), priority="normal"),
+    _spec(STATE_TOOL_COMPLETED, "agency", "Tool execution finished (UI truth)",
+          payload_keys=("name", "success", "duration"), priority="normal"),
 ]
 
 

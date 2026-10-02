@@ -49,7 +49,7 @@ class TestFix1_NoBrowserMicCapture:
     ]
 
     def test_no_getusermedia_in_static_js(self):
-        js_files = list(JS_DIR.glob("*.js"))
+        js_files = list(JS_DIR.rglob("*.js"))
         assert js_files, "No JS files found"
         violations = []
         for js_file in js_files:
@@ -159,3 +159,10 @@ class TestAccessibilityFocusStyles:
     def test_focus_visible_has_outline(self):
         css = (CSS_DIR / "design-tokens.css").read_text(encoding="utf-8")
         assert "outline:" in css and "outline-offset:" in css, "Focus styles must use outline"
+
+# NOTE: The v3.x "Cognitive Desktop" contract-alignment tests that lived
+# here were removed when api/static was restored to the M0 foundation.
+# They asserted redesigned-page behaviour (shell modules, raw-response
+# envelope handling, canvas graph, service-worker caching). The M0 tests
+# above still apply, including the no-browser-microphone guard.
+# The v3.x suite is preserved on branch cognitive-desktop-v3.

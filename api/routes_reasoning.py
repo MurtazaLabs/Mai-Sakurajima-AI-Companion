@@ -23,7 +23,10 @@ class ReasoningMixin:
             return {"error": "thought_journal_not_available"}
         try:
             entries = self.thought_journal.recent(n=limit)
-            return {"thoughts": entries, "count": self.thought_journal.count()}
+            return {
+                "thoughts": [_public_thought(entry) for entry in entries if isinstance(entry, dict)],
+                "count": self.thought_journal.count(),
+            }
         except Exception as e:
             return {"error": safe_error(e)}
 
@@ -48,11 +51,66 @@ class ReasoningMixin:
             if not hasattr(self, '_reflection_history'):
                 self._reflection_history = []
             self._reflection_history.append(result)
-            return {"reflection": result}
+            return {"reflection": _public_reflection(result)}
         except Exception as e:
             return {"error": safe_error(e)}
 
     def reasoning_reflect_history(self):
         if not hasattr(self, '_reflection_history'):
             self._reflection_history = []
-        return {"history": list(self._reflection_history)}
+        return {"history": [_public_reflection(item) for item in self._reflection_history]}
+
+
+def _public_text(value, limit=500):
+    if value is None:
+        return ""
+    text = str(value).strip()
+    return text[:limit]
+
+
+def _public_list(value, limit=8):
+    if not isinstance(value, list):
+        return []
+    result = []
+    for item in value[:limit]:
+        if isinstance(item, dict):
+            text = item.get("text") or item.get("content") or item.get("summary") or item.get("description")
+        else:
+            text = item
+        text = _public_text(text)
+        if text:
+            result.append(text)
+    return result
+
+
+def _public_thought(entry):
+    confidence = entry.get("confidence")
+    if not isinstance(confidence, (int, float)):
+        confidence = None
+    return {
+        "id": _public_text(entry.get("id"), 120),
+        "query": _public_text(entry.get("query") or "Reasoning trace"),
+        "conclusion": _public_text(entry.get("conclusion")),
+        "reasoning_steps": _public_list(entry.get("reasoning_steps")),
+        "retrieved_evidence": _public_list(entry.get("retrieved_evidence")),
+        "known_facts": _public_list(entry.get("known_facts")),
+        "unknowns": _public_list(entry.get("unknowns")),
+        "confidence": confidence,
+        "timestamp": entry.get("timestamp"),
+    }
+
+
+def _public_reflection(item):
+    if not isinstance(item, dict):
+        return {}
+    confidence = item.get("confidence")
+    if not isinstance(confidence, (int, float)):
+        confidence = None
+    return {
+        "period": _public_text(item.get("period") or "reflection", 32),
+        "summary": _public_text(item.get("summary")),
+        "patterns": _public_list(item.get("patterns")),
+        "topics": _public_list(item.get("topics")),
+        "confidence": confidence,
+        "timestamp": item.get("timestamp"),
+    }

@@ -283,6 +283,96 @@ class TestAPIEndpoints:
         assert data.get("edges") == []
         assert "type_breakdown" in data
 
+    def test_graph_endpoint_returns_the_graph_the_breakdown_counts(self):
+        """Regression: the export built a throwaway CognitiveGraph, so the page
+        showed one node next to a breakdown counting the real graph."""
+        kg = MagicMock()
+        person = MagicMock()
+        person.name = "murtaza"
+        person.type = "person"
+        person.created_at = 1.0
+        person.metadata = {"source": "test"}
+        place = MagicMock()
+        place.name = "karachi"
+        place.type = "place"
+        place.created_at = 2.0
+        place.metadata = {}
+        kg.count_by_type.return_value = {"person": 1, "place": 1}
+        kg.all_entities.return_value = [person, place]
+        relation = MagicMock()
+        relation.source = "murtaza"
+        relation.target = "karachi"
+        relation.relation = "lives_in"
+        relation.weight = 0.9
+        kg.all_relations.return_value = [relation]
+        brain_graph = MagicMock()
+        brain_graph.graph = kg
+
+        with _patch_mai(brain=None, brain_graph=brain_graph, world_model=None):
+            resp = client.get("/api/graph")
+
+        assert resp.status_code == 200
+        data = resp.json()
+        assert {node["id"] for node in data["nodes"]} == {"murtaza", "karachi"}
+        assert data["edges"] == [{
+            "source": "murtaza",
+            "target": "karachi",
+            "type": "lives_in",
+            "label": "lives_in",
+            "weight": 0.9,
+        }]
+        # The payload and the breakdown must describe the same graph.
+        assert sum(data["type_breakdown"].values()) == len(data["nodes"])
+        assert data["truncated"] is False
+
+    def test_graph_endpoint_drops_relations_to_unknown_nodes(self):
+        kg = MagicMock()
+        only = MagicMock()
+        only.name = "murtaza"
+        only.type = "person"
+        only.created_at = 1.0
+        only.metadata = {}
+        kg.count_by_type.return_value = {"person": 1}
+        kg.all_entities.return_value = [only]
+        dangling = MagicMock()
+        dangling.source = "murtaza"
+        dangling.target = "ghost"
+        dangling.relation = "knows"
+        dangling.weight = 1.0
+        kg.all_relations.return_value = [dangling]
+        brain_graph = MagicMock()
+        brain_graph.graph = kg
+
+        with _patch_mai(brain=None, brain_graph=brain_graph, world_model=None):
+            data = client.get("/api/graph").json()
+
+        assert data["edges"] == []
+
+    def test_graph_endpoint_merges_world_entities_without_duplicates(self):
+        kg = MagicMock()
+        shared = MagicMock()
+        shared.name = "murtaza"
+        shared.type = "person"
+        shared.created_at = 1.0
+        shared.metadata = {}
+        kg.count_by_type.return_value = {"person": 1}
+        kg.all_entities.return_value = [shared]
+        kg.all_relations.return_value = []
+        brain_graph = MagicMock()
+        brain_graph.graph = kg
+        world_model = MagicMock()
+        world_model.all_entities.return_value = [
+            {"name": "murtaza", "category": "person"},   # already present
+            {"name": "mai", "category": "character"},     # new
+        ]
+
+        with _patch_mai(brain=None, brain_graph=brain_graph, world_model=world_model):
+            data = client.get("/api/graph").json()
+
+        ids = [node["id"] for node in data["nodes"]]
+        assert ids.count("murtaza") == 1
+        assert "mai" in ids
+
     def test_dashboard_page(self):
         # OS desktop loads correctly
         resp = client.get("/")

@@ -130,44 +130,79 @@ class DashboardMixin:
         state["ready"] = True
         return state
 
+    # Upper bound on the exported payload. The Canvas view renders 5,000 nodes
+    # comfortably (see scripts/bench_graph.mjs); this cap only stops a runaway
+    # graph from producing a multi-megabyte response.
+    GRAPH_NODE_LIMIT = 5000
+    GRAPH_EDGE_LIMIT = 20000
+
     def dashboard_graph(self):
-        try:
-            from knowledge.cognitive_graph import CognitiveGraph
+        """Export the live knowledge graph for the Cognitive Desktop view.
 
-            cg = CognitiveGraph()
-            data: dict = cg.to_graph_data(
-                belief_engine=self.belief_engine,
-                goal_manager=self.goal_manager,
-                brain=self.brain,
-            )
+        The node/edge payload and ``type_breakdown`` must come from the same
+        store. An earlier version built a throwaway ``CognitiveGraph()`` here,
+        which always came back empty while the breakdown counted the real
+        graph, so the page rendered one node next to a 776-node summary.
+        """
+        nodes: list[dict] = []
+        edges: list[dict] = []
+        type_breakdown: dict = {}
 
-            if self.world_model:
-                try:
-                    for ent in self.world_model.all_entities():
-                        data["nodes"].append({
-                            "id": ent.get("name") or ent.get("id"),
-                            "name": ent.get("name") or ent.get("id"),
-                            "type": ent.get("category", "entity"),
-                            "group": "entity",
-                            "created_at": ent.get("created_at", 0),
-                            "metadata": ent,
-                        })
-                except Exception as e:
-                    logger.exception("[Dashboard] world entity: %s", e)
-
-            type_breakdown: dict = {}
+        if self.brain_graph:
             try:
-                if self.brain_graph:
-                    type_breakdown = self.brain_graph.graph.count_by_type()
+                kg = self.brain_graph.graph
+                type_breakdown = kg.count_by_type()
+                for entity in kg.all_entities()[: self.GRAPH_NODE_LIMIT]:
+                    nodes.append({
+                        "id": entity.name,
+                        "name": entity.name,
+                        "type": entity.type or "unknown",
+                        "group": entity.type or "unknown",
+                        "created_at": getattr(entity, "created_at", 0),
+                        "metadata": dict(getattr(entity, "metadata", {}) or {}),
+                    })
+                known = {node["id"] for node in nodes}
+                for relation in kg.all_relations()[: self.GRAPH_EDGE_LIMIT]:
+                    if relation.source not in known or relation.target not in known:
+                        continue
+                    edges.append({
+                        "source": relation.source,
+                        "target": relation.target,
+                        "type": relation.relation,
+                        "label": relation.relation,
+                        "weight": relation.weight,
+                    })
             except Exception as e:
-                logger.exception("[Dashboard] type breakdown: %s", e)
-            data["type_breakdown"] = type_breakdown
+                logger.exception("[Dashboard] graph export: %s", e)
+                nodes, edges = [], []
 
-            if data.get("nodes"):
-                return data
-        except Exception as e:
-            logger.exception("[Dashboard] graph: %s", e)
-        return {"nodes": [], "edges": [], "type_breakdown": {}}
+        # Beliefs, goals, and world entities are not part of the knowledge
+        # graph; merge them so the view shows live cognition too.
+        if self.world_model:
+            try:
+                known = {node["id"] for node in nodes}
+                for ent in self.world_model.all_entities():
+                    node_id = str(ent.get("name") or ent.get("id") or "")
+                    if not node_id or node_id in known:
+                        continue
+                    known.add(node_id)
+                    nodes.append({
+                        "id": node_id,
+                        "name": node_id,
+                        "type": ent.get("category", "entity"),
+                        "group": "entity",
+                        "created_at": ent.get("created_at", 0),
+                        "metadata": ent,
+                    })
+            except Exception as e:
+                logger.exception("[Dashboard] world entity: %s", e)
+
+        return {
+            "nodes": nodes,
+            "edges": edges,
+            "type_breakdown": type_breakdown,
+            "truncated": len(nodes) >= self.GRAPH_NODE_LIMIT,
+        }
 
     def dashboard_graph_prune(self):
         """Remove auto-generated feedback-loop nodes from the KnowledgeGraph."""

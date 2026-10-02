@@ -5,7 +5,10 @@ import time
 import os
 import logging
 
-import sounddevice as sd
+try:
+    import sounddevice as sd
+except ImportError:
+    sd = None
 import soundfile as sf
 import numpy as np
 
@@ -64,6 +67,12 @@ class StreamPlayer:
 
     # 🎧 AUDIO WORKER
     def _worker(self):
+
+        if sd is None:
+            with self._lock:
+                self.state = "unavailable"
+            logger.warning("StreamPlayer unavailable: sounddevice is not installed")
+            return
 
         while not self.stop_flag.is_set():
 
@@ -171,7 +180,8 @@ class StreamPlayer:
 
         self.pause_flag.set()
 
-        sd.stop()
+        if sd is not None:
+            sd.stop()
 
         with self._lock:
             self.state = "paused"
@@ -191,7 +201,8 @@ class StreamPlayer:
 
         self.pause_flag.clear()
 
-        sd.stop()
+        if sd is not None:
+            sd.stop()
 
         with self._lock:
             self.state = "stopped"

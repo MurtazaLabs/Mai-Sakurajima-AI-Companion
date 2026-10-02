@@ -343,8 +343,28 @@ class TestOpenRouterProviderGenerate:
         mock_response.json.return_value = {
             "choices": [{"message": {"content": "model does not support image"}}]
         }
+        # The retry backoff sleeps between attempts; the fallback must not
+        # depend on wall-clock time, which made this test flaky on a loaded
+        # machine (the deadline expired and the error escaped instead).
         with patch.object(provider._session, "post", return_value=mock_response):
-            result = provider.generate("sys", "usr")
+            with patch("llm.providers.openrouter.time.sleep"):
+                result = provider.generate("sys", "usr")
+        assert "can't read" in result
+
+    def test_generate_image_error_survives_exhausted_retry_budget(self):
+        """Regression: budget exhaustion used to raise out of generate(),
+        replacing the graceful image block with a budget exception whenever the
+        machine was slow enough to blow the 45s deadline."""
+        provider = self._make_or_provider(models=["m1"], max_retry_budget=1.0)
+        mock_response = MagicMock()
+        mock_response.status_code = 200
+        mock_response.json.return_value = {
+            "choices": [{"message": {"content": "model does not support image"}}]
+        }
+        with patch.object(provider._session, "post", return_value=mock_response):
+            with patch("time.monotonic", side_effect=[0, 0, 0, 5, 5, 5, 5, 5, 5, 5, 5, 5]):
+                with patch("llm.providers.openrouter.time.sleep"):
+                    result = provider.generate("sys", "usr")
         assert "can't read" in result
 
     def test_generate_empty_user_uses_system_as_user(self):

@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "03-Features/Character Rename PRD.md",
+                "file": "00-Overview/Project Charter.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "Character Rename PRD"
+              "title": "Project Charter"
             }
           }
         ]
@@ -185,11 +185,17 @@
       "bases:Create new base": false
     }
   },
-  "active": "45fab934ca758a45",
+  "active": "e5b4f3596beb254f",
   "lastOpenFiles": [
-    "03-Features/Complete Redesign Implementation Plan.md",
-    "01-Architecture/Bug_Summary_and_Fix_Plan_2026-09-21.md",
+    "00-Overview/README.md",
     "00-Overview/Project Charter.md",
+    "03-Features/Complete Redesign Implementation Plan.md",
+    "01-Architecture/ADR Presentation Layer Restructure.md",
+    "03-Features/MAI Cognitive Entity Interface Plan.md",
+    "03-Features/Native OS Bridge Architecture.md",
+    "03-Features/Event Fabric Architecture.md",
+    "03-Features/Character Rename PRD.md",
+    "01-Architecture/Bug_Summary_and_Fix_Plan_2026-09-21.md",
     "01-Architecture/10-Status & Debt.md",
     "06-Operations/Maintenance/README.md",
     "02-Subsystems/Memory Pipeline.md",
@@ -203,16 +209,10 @@
     "01-Architecture/07-Voice Subsystem.md",
     "02-Subsystems/Vault Compilation.md",
     "05-Reference/Complete Folder Structure.md",
-    "03-Features/Character Rename PRD.md",
     "SUBSYSTEM_DOCUMENTATION/voice.md",
     "SUBSYSTEM_DOCUMENTATION",
-    "03-Features/Native OS Bridge Architecture.md",
-    "03-Features/Event Fabric Architecture.md",
     "05-Reference/MERGED_COMPLETE Reference.md",
     "04-Development/Deployment Guide.md",
-    "04-Development/Testing Strategy.md",
-    "02-Subsystems/Knowledge Graph.md",
-    "02-Subsystems/Identity & Canon.md",
-    "02-Subsystems/Tool System.md"
+    "04-Development/Testing Strategy.md"
   ]
 }

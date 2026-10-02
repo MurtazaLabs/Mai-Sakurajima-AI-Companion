@@ -9,6 +9,69 @@ import pytest
 #  ToolRegistry tests
 # ---------------------------------------------------------------------------
 
+class TestToolStateProjections:
+    """The UI subscribes exclusively to `state.*`; tool execution must be
+    observable as in-progress work, not only as a post-hoc record."""
+
+    def _types(self, bus):
+        return [c[0][0].type for c in bus.publish_message.call_args_list]
+
+    def test_started_and_completed_bracket_the_call(self):
+        from agency.registry import ToolRegistry
+        bus = MagicMock()
+        registry = ToolRegistry(event_bus=bus)
+        registry.register("ok", "desc", lambda: "done")
+        registry.call("ok")
+        types = self._types(bus)
+        assert "state.tool.started" in types
+        assert "state.tool.completed" in types
+        assert types.index("state.tool.started") < types.index("state.tool.completed")
+
+    def test_completed_reports_success_and_duration(self):
+        from agency.registry import ToolRegistry
+        bus = MagicMock()
+        registry = ToolRegistry(event_bus=bus)
+        registry.register("ok", "desc", lambda: "done")
+        registry.call("ok")
+        msg = [c[0][0] for c in bus.publish_message.call_args_list
+               if c[0][0].type == "state.tool.completed"][-1]
+        assert msg.payload["name"] == "ok"
+        assert msg.payload["success"] is True
+        assert "duration" in msg.payload
+
+    def test_failure_still_completes_and_omits_the_error_string(self):
+        from agency.registry import ToolRegistry
+        bus = MagicMock()
+        registry = ToolRegistry(event_bus=bus)
+
+        def fail(**kw):
+            raise ValueError("secret internal detail")
+
+        registry.register("fail", "desc", fail)
+        registry.call("fail")
+        msg = [c[0][0] for c in bus.publish_message.call_args_list
+               if c[0][0].type == "state.tool.completed"][-1]
+        assert msg.payload["success"] is False
+        # The data.* event carries the error for diagnostics; the state
+        # projection must not leak internal failure detail to the UI.
+        assert "error" not in msg.payload
+        assert "secret internal detail" not in str(msg.payload)
+
+    def test_unknown_tool_publishes_no_state_projection(self):
+        from agency.registry import ToolRegistry
+        bus = MagicMock()
+        registry = ToolRegistry(event_bus=bus)
+        result = registry.call("nope")
+        assert result["success"] is False
+        assert "state.tool.started" not in self._types(bus)
+
+    def test_no_bus_does_not_raise(self):
+        from agency.registry import ToolRegistry
+        registry = ToolRegistry()
+        registry.register("ok", "desc", lambda: "done")
+        assert registry.call("ok")["success"] is True
+
+
 class TestToolRegistry:
 
     def test_register_adds_tool(self):
@@ -136,9 +199,12 @@ class TestToolRegistry:
         registry.call("ok")
         bus.publish_message.assert_called()
         calls = [c[0][0] for c in bus.publish_message.call_args_list]
-        msg = calls[-1]
-        assert msg.type == "data.tool.called"
-        payload = msg.payload
+        # `data.tool.called` is the record; the state projections bracket it for
+        # a live interface, so they are asserted separately rather than by
+        # position.
+        data_calls = [m for m in calls if m.type == "data.tool.called"]
+        assert data_calls, [m.type for m in calls]
+        payload = data_calls[-1].payload
         assert payload["name"] == "ok"
         assert payload["success"] is True
         assert "duration" in payload

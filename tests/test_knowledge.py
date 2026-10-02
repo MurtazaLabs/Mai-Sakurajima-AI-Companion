@@ -268,6 +268,82 @@ class TestAttentionSystem:
         assert AttentionSystem().retrieve() == []
 
 
+class TestRetrievalStateProjections:
+    """Retrieval must be observable as in-progress work on the state bus, not
+    only as a post-hoc count on `data.*`."""
+
+    def _types(self, bus):
+        return [c[0][0].type for c in bus.publish_message.call_args_list]
+
+    def _retriever(self, bus=None, results=None):
+        from knowledge.retriever import AdvancedRetriever
+        mock_vs = MagicMock()
+        mock_vs.search.return_value = results if results is not None else [
+            {"text": "Python is a language", "score": 0.9}
+        ]
+        return AdvancedRetriever(vector_store=mock_vs, event_bus=bus)
+
+    def test_started_and_completed_bracket_the_retrieval(self):
+        bus = MagicMock()
+        self._retriever(bus).retrieve("python")
+        types = self._types(bus)
+        assert "state.retrieval.started" in types
+        assert "state.retrieval.completed" in types
+        assert types.index("state.retrieval.started") < types.index("state.retrieval.completed")
+
+    def test_completed_carries_the_result_count(self):
+        bus = MagicMock()
+        self._retriever(bus).retrieve("python")
+        msg = [c[0][0] for c in bus.publish_message.call_args_list
+               if c[0][0].type == "state.retrieval.completed"][-1]
+        assert msg.payload["count"] >= 1
+
+    def test_payload_never_carries_the_query_or_content(self):
+        """The projection exists to show that retrieval happened, not to move
+        private memory content into the presentation layer."""
+        bus = MagicMock()
+        self._retriever(bus).retrieve("my private secret question")
+        for c in bus.publish_message.call_args_list:
+            msg = c[0][0]
+            if not msg.type.startswith("state.retrieval"):
+                continue
+            assert "query" not in msg.payload
+            assert "text" not in msg.payload
+            assert "my private secret question" not in str(msg.payload)
+
+    def test_empty_query_emits_no_state_projection(self):
+        bus = MagicMock()
+        self._retriever(bus).retrieve("")
+        assert "state.retrieval.started" not in self._types(bus)
+
+    def test_phatic_query_emits_no_state_projection(self):
+        """A greeting must not make the entity flicker a retrieval."""
+        from knowledge.retriever import AdvancedRetriever
+        bus = MagicMock()
+        AdvancedRetriever(event_bus=bus).retrieve("how are you")
+        assert "state.retrieval.started" not in self._types(bus)
+
+    def test_long_conversational_question_still_retrieves(self):
+        """The phatic guard is word-bounded; a real question of similar tone
+        must not be mistaken for small talk."""
+        from knowledge.retriever import AdvancedRetriever
+        assert AdvancedRetriever.is_phatic("how are you doing today my friend") is False
+
+    def test_cache_hit_still_reports_completion(self):
+        bus = MagicMock()
+        retriever = self._retriever(bus)
+        retriever.retrieve("python")
+        bus.publish_message.reset_mock()
+        retriever.retrieve("python")
+        types = self._types(bus)
+        assert "state.retrieval.started" in types
+        assert "state.retrieval.completed" in types
+
+    def test_no_bus_does_not_raise(self):
+        busless = self._retriever(None)
+        assert busless.retrieve("python")
+
+
 class TestAdvancedRetriever:
 
     def test_retrieve_returns_empty_for_empty_query(self):

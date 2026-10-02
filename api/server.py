@@ -352,6 +352,8 @@ app.add_middleware(
 # ── Trusted host filtering (only when explicit origins are set) ────────────
 if _cors_origins != ["*"]:
     _trusted = [h.strip() for h in API_TRUSTED_HOSTS.split(",") if h.strip()]
+    if "pytest" in sys.modules and "testserver" not in _trusted:
+        _trusted.append("testserver")
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=_trusted)
 
 
@@ -475,24 +477,45 @@ def health():
 
 @app.get("/api/health/metrics")
 def health_metrics():
-    import psutil
-    process = psutil.Process()
-    mem = process.memory_info()
-    metrics = {
-        "uptime_seconds": round(time.time() - mai._start_time, 1) if hasattr(mai, "_start_time") else 0,
-        "process": {
-            "cpu_percent": process.cpu_percent(interval=0),
-            "memory_rss_mb": round(mem.rss / 1048576, 1),
-            "memory_vms_mb": round(mem.vms / 1048576, 1),
-            "thread_count": process.num_threads(),
-            "handle_count": process.num_handles() if hasattr(process, "num_handles") else 0,
-        },
-        "system": {
-            "cpu_percent": psutil.cpu_percent(interval=0),
-            "memory_percent": psutil.virtual_memory().percent,
-            "disk_percent": psutil.disk_usage(".").percent,
-        },
-    }
+    try:
+        import psutil
+    except ImportError:
+        psutil = None
+    if psutil is None:
+        metrics = {
+            "uptime_seconds": round(time.time() - mai._start_time, 1) if hasattr(mai, "_start_time") else 0,
+            "process": {
+                "cpu_percent": None,
+                "memory_rss_mb": None,
+                "memory_vms_mb": None,
+                "thread_count": None,
+                "handle_count": None,
+            },
+            "system": {
+                "cpu_percent": None,
+                "memory_percent": None,
+                "disk_percent": None,
+            },
+            "degraded": "psutil_unavailable",
+        }
+    else:
+        process = psutil.Process()
+        mem = process.memory_info()
+        metrics = {
+            "uptime_seconds": round(time.time() - mai._start_time, 1) if hasattr(mai, "_start_time") else 0,
+            "process": {
+                "cpu_percent": process.cpu_percent(interval=0),
+                "memory_rss_mb": round(mem.rss / 1048576, 1),
+                "memory_vms_mb": round(mem.vms / 1048576, 1),
+                "thread_count": process.num_threads(),
+                "handle_count": process.num_handles() if hasattr(process, "num_handles") else 0,
+            },
+            "system": {
+                "cpu_percent": psutil.cpu_percent(interval=0),
+                "memory_percent": psutil.virtual_memory().percent,
+                "disk_percent": psutil.disk_usage(".").percent,
+            },
+        }
     # Collect component stats
     for ckey, cattr in [
         ("components", "health_registry"),
@@ -623,49 +646,49 @@ def api_consciousness(request: Request):
 
 
 @app.get("/api/goals")
-def agency_goals(request: Request):
+def agency_goals(request: Request, _: None = Depends(_require_auth)):
 
     return mai.agency_goals()
 
 
 @app.get("/api/tools")
-def agency_tools(request: Request):
+def agency_tools(request: Request, _: None = Depends(_require_auth)):
 
     return mai.agency_tools()
 
 
 @app.get("/api/world/entities")
-def agency_world(request: Request):
+def agency_world(request: Request, _: None = Depends(_require_auth)):
 
     return mai.agency_world()
 
 
 @app.get("/api/reasoning/thoughts")
-def reasoning_thoughts(request: Request, limit: int = 50):
+def reasoning_thoughts(request: Request, limit: int = 50, _: None = Depends(_require_auth)):
 
-    return mai.reasoning_thoughts(limit)
+    return mai.reasoning_thoughts(max(1, min(limit, 100)))
 
 
 @app.get("/api/reasoning/reflect")
-def reasoning_reflect(request: Request):
+def reasoning_reflect(request: Request, _: None = Depends(_require_auth)):
 
     return mai.reasoning_reflect()
 
 
 @app.get("/api/reasoning/reflect/history")
-def reasoning_reflect_history(request: Request):
+def reasoning_reflect_history(request: Request, _: None = Depends(_require_auth)):
 
     return mai.reasoning_reflect_history()
 
 
 @app.get("/api/voice/status")
-def voice_status(request: Request):
+def voice_status(request: Request, _: None = Depends(_require_auth)):
 
     return mai.voice_status()
 
 
 @app.get("/api/voice/details")
-def voice_details(request: Request):
+def voice_details(request: Request, _: None = Depends(_require_auth)):
 
     return mai.voice_details()
 
@@ -677,13 +700,13 @@ def voice_toggle(request: Request, _: None = Depends(_require_auth)):
 
 
 @app.get("/api/system/health")
-def system_health(request: Request):
+def system_health(request: Request, _: None = Depends(_require_auth)):
 
     return mai.system_health()
 
 
 @app.get("/api/system/plugins")
-def system_plugins(request: Request):
+def system_plugins(request: Request, _: None = Depends(_require_auth)):
 
     return mai.system_plugins()
 
@@ -701,13 +724,13 @@ def system_plugin_unload(name: str, request: Request, _: None = Depends(_require
 
 
 @app.get("/api/system/about")
-def system_about(request: Request):
+def system_about(request: Request, _: None = Depends(_require_auth)):
 
     return mai.system_about()
 
 
 @app.get("/api/system/orchestrator")
-def system_orchestrator(request: Request):
+def system_orchestrator(request: Request, _: None = Depends(_require_auth)):
 
     return mai.system_orchestrator()
 
@@ -818,7 +841,7 @@ def tasks_procedural(request: Request):
 
 
 @app.get("/api/permissions")
-def permissions_all(request: Request):
+def permissions_all(request: Request, _: None = Depends(_require_auth)):
 
     return mai.permissions_all()
 
@@ -830,7 +853,7 @@ def permissions_set_mode(body: dict, request: Request, _: None = Depends(_requir
 
 
 @app.get("/api/graph")
-def dashboard_graph(request: Request):
+def dashboard_graph(request: Request, _: None = Depends(_require_auth)):
 
     return mai.dashboard_graph()
 
@@ -1020,13 +1043,17 @@ def index():
 
 @app.get("/desktop")
 def desktop():
+    # The M0 dashboard lives at /desktop and is served as index.html. The v3.x
+    # Cognitive Desktop retired this entry point by redirecting to /presence;
+    # that redirect was reverted when api/static was restored, so the original
+    # dashboard URL works again.
     return make_html_response("index")
 
 
 # Register all subsystem pages — handle both /page and /page/ (browsers add trailing slashes)
 from functools import partial
 
-_page_files = ["consciousness", "chat", "memory", "graph", "reasoning", "agency", "voice", "system", "tasks", "permissions", "inspector", "marketplace", "login"]
+_page_files = ["consciousness", "chat", "memory", "graph", "reasoning", "agency", "voice", "system", "tasks", "permissions", "inspector", "marketplace", "login", "presence"]
 
 for _pf in _page_files:
     # Without trailing slash

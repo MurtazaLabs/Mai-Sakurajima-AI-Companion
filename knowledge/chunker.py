@@ -297,7 +297,7 @@ class TextChunker:
         chunks = []
         index = start_index
         start = 0
-        overlap_chars = OVERLAP_TOKENS * 4  # ~4 chars per token
+        overlap_chars = min(self.overlap * 4, max(0, self.chunk_size // 2))
 
         while start < len(text):
             end = min(start + self.chunk_size, len(text))
@@ -319,7 +319,7 @@ class TextChunker:
                 index += 1
             # Move start position with token-level overlap
             if end < len(text):
-                start = end - overlap_chars
+                start = max(start + 1, end - overlap_chars)
             else:
                 start = end
 

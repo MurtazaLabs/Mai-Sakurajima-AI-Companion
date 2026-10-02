@@ -1,17 +1,24 @@
 {
+  "name": "mai-ai",
+  "version": "4.0.0",
+  "private": true,
+  "description": "MAI Cognitive Entity Interface — web interface runtime dependencies.",
+  "license": "UNLICENSED",
+  "maiStackPolicy": {
+    "plan": "docs/Mai_documentation/03-Features/MAI Cognitive Entity Interface Plan.md (v4.0, sections 22-23)",
+    "rule": "GSAP orchestrates animation, Three.js renders the MAI Entity only, Canvas 2D renders the knowledge graph, and native CSS handles UI. There is deliberately no UI framework and no bundler.",
+    "deliberatelyAbsent": [
+      "Framer Motion / motion",
+      "Anime.js",
+      "React and React Three Fiber",
+      "Radix UI",
+      "any second animation engine"
+    ],
+    "why": "v4.0 section 23 rejects multiple animation engines competing over the same properties. Adding any package listed in deliberatelyAbsent will reintroduce exactly that failure.",
+    "vendoring": "Runtime ES modules are served from api/web/vendor/ so the PWA works offline. This manifest records provenance and versions; it is not a build step."
+  },
   "dependencies": {
-    "@radix-ui/react-avatar": "^1.2.6",
-    "@radix-ui/react-dialog": "^1.1.23",
-    "@radix-ui/react-dropdown-menu": "^2.1.24",
-    "@radix-ui/react-hover-card": "^1.1.23",
-    "@radix-ui/react-popover": "^1.1.23",
-    "@radix-ui/react-scroll-area": "^1.2.18",
-    "@radix-ui/react-select": "^2.3.7",
-    "@radix-ui/react-tabs": "^1.1.21",
-    "@radix-ui/react-tooltip": "^1.2.16",
-    "@react-three/drei": "^10.7.8",
-    "@react-three/fiber": "^9.7.0",
-    "animejs": "^4.5.0",
-    "motion": "^13.2.0"
+    "gsap": "^3.15.0",
+    "three": "^0.170.0"
   }
 }

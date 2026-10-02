@@ -153,7 +153,10 @@ def _get_signing_key(kid: Optional[str] = None) -> tuple[str, str]:
     """Get the signing key and algorithm for a given kid."""
     if kid is None:
         kid = _JWT_CURRENT_KID
-    
+    if not _JWT_KEYS:
+        _init_jwt_keys()
+        kid = _JWT_CURRENT_KID
+
     key_info = _JWT_KEYS.get(kid)
     if not key_info:
         raise ValueError(f"No key found for kid: {kid}")

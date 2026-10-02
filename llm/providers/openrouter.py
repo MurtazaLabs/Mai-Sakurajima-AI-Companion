@@ -197,6 +197,7 @@ class OpenRouterProvider:
         models_to_try = self.models[:1] if simple else self.models
         max_attempts = max(1, int(LLM_RETRY_COUNT))
         deadline = time.monotonic() + self.max_retry_budget
+        budget_hit = False
 
         def budget_exhausted() -> bool:
             if self.max_retry_budget <= 0:
@@ -207,13 +208,20 @@ class OpenRouterProvider:
             return False
 
         for model in models_to_try:
+            if budget_hit:
+                break
             logger.info("[OpenRouter] Using model: %s", model)
 
             payload = {"model": model, "messages": messages}
 
             for attempt in range(max_attempts):
                 if budget_exhausted():
-                    raise RuntimeError("OpenRouter retry budget exhausted") from last_error
+                    # Stop retrying, but fall through to the shared error
+                    # handling below: a failure that already has a graceful
+                    # answer (e.g. the image block) must still get it instead
+                    # of an opaque budget exception.
+                    budget_hit = True
+                    break
 
                 try:
                     resp = self._session.post(
@@ -269,6 +277,8 @@ class OpenRouterProvider:
         error_msg = str(last_error).lower()
         if "image" in error_msg or "does not support" in error_msg:
             return "I can't read or analyze images — I'm a text-only assistant."
+        if budget_hit:
+            raise RuntimeError("OpenRouter retry budget exhausted") from last_error
         raise last_error
 
     def stream(
