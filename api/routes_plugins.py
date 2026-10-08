@@ -1,13 +1,34 @@
 """
 Plugin API Routes
 Provides REST API for plugin management, marketplace, and lifecycle operations.
+
+Phase 2d wiring:
+- Marketplace search/detail/install are backed by the real
+  ``plugins.marketplace_client`` (local ``plugins/registry.json`` via file://
+  URL, built-in catalog as offline fallback).
+- The lifecycle manager is the app-wired instance (set by the runtime
+  builder via ``set_lifecycle_manager``); routes no longer boot the whole
+  system per request.
+- Mutating routes require auth (``api.auth.get_current_user`` — the same
+  single source the server's ``_require_auth`` delegates to).
 """
+import logging
+import os
+from pathlib import Path
 from typing import List, Optional, Dict, Any
-from fastapi import APIRouter, HTTPException, UploadFile, File, Form, Header, Query
+
+from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Header, Query
 from pydantic import BaseModel
 
-from plugins.lifecycle import PluginLifecycleManager, PluginRecord, PluginState
+from api.auth import get_current_user
+from plugins.lifecycle import (
+    PluginLifecycleError,
+    PluginLifecycleManager,
+    PluginRecord,
+    PluginState,
+)
 
+logger = logging.getLogger("Mai.Plugins")
 
 router = APIRouter(prefix="/api/plugins", tags=["plugins"])
 
@@ -48,28 +69,17 @@ class MarketplacePluginResponse(BaseModel):
     updated_at: str
 
 
-# Global reference to lifecycle manager (set by bootstrap)
+# Global reference to lifecycle manager (set by the runtime builder)
 _lifecycle_manager: Optional["PluginLifecycleManager"] = None
+
+# Lazily built marketplace client (local registry file, remote fallback)
+_marketplace_client = None
 
 
 def get_lifecycle_manager() -> PluginLifecycleManager:
-    global _lifecycle_manager
+    """Return the app-wired lifecycle manager (set by the runtime builder)."""
     if _lifecycle_manager is None:
-        # This will be set by the bootstrap process
-        from plugins.lifecycle import create_plugin_lifecycle_manager
-        from core.plugin_system import HookRegistry
-        from core.os_kernel import AIOSKernel
-        
-        # This is a fallback - the real manager should be set by bootstrap
-        hook_registry = HookRegistry()
-        from pathlib import Path
-        import tempfile
-        
-        plugin_dir = Path(tempfile.gettempdir()) / "mai_plugins"
-        _lifecycle_manager = create_plugin_lifecycle_manager(
-            plugin_dir=plugin_dir,
-            hook_registry=HookRegistry(),
-        )
+        raise HTTPException(status_code=503, detail="Plugin system not initialized")
     return _lifecycle_manager
 
 
@@ -79,12 +89,161 @@ def set_lifecycle_manager(manager: "PluginLifecycleManager"):
     _lifecycle_manager = manager
 
 
+def _get_marketplace_client():
+    """Lazily build a MarketplaceClient backed by the local registry file."""
+    global _marketplace_client
+    if _marketplace_client is None:
+        from plugins.marketplace_client import create_marketplace_client
+
+        registry_path = (
+            Path(__file__).resolve().parents[1] / "plugins" / "registry.json"
+        )
+        if registry_path.exists():
+            # file:///E:/Mai_ai/plugins/registry.json — client handles the
+            # Windows drive-letter form and never touches the network.
+            _marketplace_client = create_marketplace_client(
+                f"file:///{registry_path.as_posix()}"
+            )
+        else:
+            _marketplace_client = create_marketplace_client()
+    return _marketplace_client
+
+
+def _registry_plugin_summary(p) -> Dict[str, Any]:
+    return {
+        "name": p.name,
+        "version": p.version,
+        "description": p.description,
+        "author": p.author,
+        "tags": p.tags,
+        "downloads": p.downloads,
+        "rating": p.rating,
+        "updated_at": p.updated_at,
+    }
+
+
+def _registry_plugin_detail(p) -> Dict[str, Any]:
+    data = _registry_plugin_summary(p)
+    data.update(
+        {
+            "entry_point": p.entry_point,
+            "api_version": p.api_version,
+            "permissions": p.permissions,
+            "dependencies": p.dependencies,
+            "hooks": p.hooks,
+            "min_mai_version": p.min_mai_version,
+            "max_mai_version": p.max_mai_version,
+            "homepage": p.homepage,
+            "repository": p.repository,
+            "license": p.license,
+            "package_url": p.package_url,
+            "source": "registry",
+        }
+    )
+    return data
+
+
+# Offline fallback catalog (used only when the registry cannot be read)
+_BUILTIN_MARKETPLACE = [
+    {
+        "name": "weather",
+        "version": "1.1.0",
+        "description": "Fetches current weather via OpenWeatherMap API",
+        "author": "Mai AI Team",
+        "tags": ["weather", "utility", "api"],
+        "downloads": 1000,
+        "rating": 4.5,
+        "updated_at": "2026-09-01",
+    },
+    {
+        "name": "calendar",
+        "version": "1.1.0",
+        "description": "Local event/reminder manager with recurring events",
+        "author": "Mai AI Team",
+        "tags": ["calendar", "utility", "reminders"],
+        "downloads": 800,
+        "rating": 4.3,
+        "updated_at": "2026-09-01",
+    },
+    {
+        "name": "news",
+        "version": "1.0.0",
+        "description": "Fetches news headlines from multiple sources",
+        "author": "Mai AI Team",
+        "tags": ["news", "utility", "api"],
+        "downloads": 500,
+        "rating": 4.0,
+        "updated_at": "2026-09-01",
+    },
+    {
+        "name": "system_monitor",
+        "version": "1.0.0",
+        "description": "System resource monitoring and alerts",
+        "author": "Mai AI Team",
+        "tags": ["system", "monitoring", "utility"],
+        "downloads": 300,
+        "rating": 4.2,
+        "updated_at": "2026-09-01",
+    },
+    {
+        "name": "web_scraper",
+        "version": "1.0.0",
+        "description": "Web content extraction and summarization",
+        "author": "Mai AI Team",
+        "tags": ["web", "scraper", "utility"],
+        "downloads": 200,
+        "rating": 3.8,
+        "updated_at": "2026-09-01",
+    },
+]
+
+_BUILTIN_DETAILS = {
+    "weather": {
+        **_BUILTIN_MARKETPLACE[0],
+        "permissions": {"network": "outbound", "api_access": ["weather"]},
+        "readme": "# Weather Plugin\n\nFetches current weather via OpenWeatherMap API.\n\n## Usage\n`weather London` - Get current weather in London\n\n## Configuration\nSet `OPENWEATHER_API_KEY` environment variable.",
+    },
+    "calendar": {
+        **_BUILTIN_MARKETPLACE[1],
+        "permissions": {"filesystem": "write", "api_access": ["calendar"]},
+        "readme": "# Calendar Plugin\n\nLocal event/reminder manager with recurring events.\n\n## Usage\n`event add meeting tomorrow 2pm`\n`event list`\n`event delete meeting`",
+    },
+}
+
+
+def _query_marketplace(q: str, tags: Optional[List[str]], category: Optional[str]) -> List[Dict[str, Any]]:
+    """Query the marketplace registry; fall back to the built-in catalog."""
+    try:
+        client = _get_marketplace_client()
+        plugins = client.search(query=q or "", tags=tags, category=category)
+        return [_registry_plugin_summary(p) for p in plugins]
+    except Exception as exc:
+        logger.warning(
+            "[Plugins] Marketplace registry unavailable (%s) — using built-in catalog",
+            exc,
+        )
+        results = _BUILTIN_MARKETPLACE
+        if q:
+            q_lower = q.lower()
+            results = [
+                p
+                for p in results
+                if q_lower in p["name"].lower()
+                or q_lower in p["description"].lower()
+            ]
+        if tags:
+            results = [p for p in results if any(t in p["tags"] for t in tags)]
+        if category:
+            results = [p for p in results if category in p["tags"]]
+        return results
+
+
 @router.get("/installed", response_model=List[PluginResponse])
 async def list_installed_plugins():
     """List all installed plugins with their status."""
     manager = get_lifecycle_manager()
     plugins = manager.list_plugins()
-    
+
     return [
         PluginResponse(
             name=p.manifest.name,
@@ -92,7 +251,7 @@ async def list_installed_plugins():
             description=p.manifest.description,
             author=p.manifest.author,
             state=p.state.value,
-            enabled=p.state == PluginState.ENABLED,
+            enabled=p.state == PluginState.ACTIVATED,
             permissions={
                 "filesystem": p.manifest.permissions.filesystem,
                 "network": p.manifest.permissions.network,
@@ -117,74 +276,9 @@ async def search_marketplace(
     page: int = 1,
     limit: int = 20,
 ):
-    """Search the plugin marketplace."""
-    # For now, return built-in plugins
-    # In production, this would query a remote registry
-    builtin_plugins = [
-        {
-            "name": "weather",
-            "version": "1.1.0",
-            "description": "Fetches current weather via OpenWeatherMap API",
-            "author": "Mai AI Team",
-            "tags": ["weather", "utility", "api"],
-            "downloads": 1000,
-            "rating": 4.5,
-            "updated_at": "2026-09-01",
-        },
-        {
-            "name": "calendar",
-            "version": "1.1.0",
-            "description": "Local event/reminder manager with recurring events",
-            "author": "Mai AI Team",
-            "tags": ["calendar", "utility", "reminders"],
-            "downloads": 800,
-            "rating": 4.3,
-            "updated_at": "2026-09-01",
-        },
-        {
-            "name": "news",
-            "version": "1.0.0",
-            "description": "Fetches news headlines from multiple sources",
-            "author": "Mai AI Team",
-            "tags": ["news", "utility", "api"],
-            "downloads": 500,
-            "rating": 4.0,
-            "updated_at": "2026-09-01",
-        },
-        {
-            "name": "system_monitor",
-            "version": "1.0.0",
-            "description": "System resource monitoring and alerts",
-            "author": "Mai AI Team",
-            "tags": ["system", "monitoring", "utility"],
-            "downloads": 300,
-            "rating": 4.2,
-            "updated_at": "2026-09-01",
-        },
-        {
-            "name": "web_scraper",
-            "version": "1.0.0",
-            "description": "Web content extraction and summarization",
-            "author": "Mai AI Team",
-            "tags": ["web", "scraper", "utility"],
-            "downloads": 200,
-            "rating": 3.8,
-            "updated_at": "2026-09-01",
-        },
-    ]
-    
-    # Filter by query
-    results = builtin_plugins
-    if q:
-        q_lower = q.lower()
-        results = [p for p in results if q_lower in p["name"].lower() or q_lower in p["description"].lower()]
-    
-    if tags:
-        results = [p for p in results if any(t in p["tags"] for t in tags)]
-    
-    if category:
-        results = [p for p in results if category in p["tags"]]
-    
+    """Search the plugin marketplace (local registry, built-in fallback)."""
+    results = _query_marketplace(q, tags, category)
+
     # Pagination
     start = (page - 1) * limit
     end = start + limit
@@ -193,192 +287,122 @@ async def search_marketplace(
 
 @router.get("/marketplace/{name}")
 async def get_marketplace_plugin(name: str, version: Optional[str] = None):
-    """Get detailed plugin info from marketplace."""
-    # For now, return builtin plugin info
-    builtin = {
-        "weather": {
-            "name": "weather",
-            "version": "1.1.0",
-            "description": "Fetches current weather via OpenWeatherMap API",
-            "author": "Mai AI Team",
-            "tags": ["weather", "utility", "api"],
-            "downloads": 1000,
-            "rating": 4.5,
-            "updated_at": "2026-09-01",
-            "permissions": {"network": "outbound", "api_access": ["weather"]},
-            "readme": "# Weather Plugin\n\nFetches current weather via OpenWeatherMap API.\n\n## Usage\n`weather London` - Get current weather in London\n\n## Configuration\nSet `OPENWEATHER_API_KEY` environment variable.",
-        },
-        "calendar": {
-            "name": "calendar",
-            "version": "1.1.0",
-            "description": "Local event/reminder manager with recurring events",
-            "author": "Mai AI Team",
-            "tags": ["calendar", "utility", "reminders"],
-            "downloads": 800,
-            "rating": 4.3,
-            "updated_at": "2026-09-01",
-            "permissions": {"filesystem": "write", "api_access": ["calendar"]},
-            "readme": "# Calendar Plugin\n\nLocal event/reminder manager with recurring events.\n\n## Usage\n`event add meeting tomorrow 2pm`\n`event list`\n`event delete meeting`",
-        },
-    }
-    
-    if name not in builtin:
+    """Get detailed plugin info from the marketplace registry."""
+    try:
+        client = _get_marketplace_client()
+        plugin = client.get_plugin(name, version)
+        if plugin is not None:
+            return _registry_plugin_detail(plugin)
+    except Exception as exc:
+        logger.warning(
+            "[Plugins] Marketplace registry unavailable (%s) — using built-in catalog",
+            exc,
+        )
+
+    builtin = _BUILTIN_DETAILS.get(name)
+    if builtin is None:
         raise HTTPException(status_code=404, detail="Plugin not found")
-    
-    plugin = builtin[name]
-    if version and version != "latest" and version != plugin["version"]:
+
+    if version and version != "latest" and version != builtin["version"]:
         raise HTTPException(status_code=404, detail="Version not found")
-    
-    return plugin
+
+    return builtin
 
 
 @router.post("/marketplace/install")
-async def install_plugin(request: PluginInstallRequest):
-    """Install a plugin from marketplace."""
-    # For now, install builtin plugins
-    builtin_plugins = {"weather", "calendar", "news", "system_monitor", "web_scraper"}
-    
-    if request.name not in builtin_plugins:
-        raise HTTPException(status_code=404, detail="Plugin not found in marketplace")
-    
-    # In real implementation, this would download from marketplace
-    # For now, just enable if already present
-    from run import bootstrap_system
-    components = bootstrap_system()
-    manager = components.get("lifecycle_manager")
-    
-    if not manager:
-        raise HTTPException(status_code=500, detail="Plugin system not initialized")
-    
+async def install_plugin(
+    request: PluginInstallRequest, _: None = Depends(get_current_user)
+):
+    """Install a plugin from the marketplace via the marketplace client."""
+    manager = get_lifecycle_manager()
     try:
-        record = manager.get_plugin(request.name)
-        if record:
-            if record.state == PluginState.INSTALLED:
-                manager.enable(request.name)
-            return {"success": True, "message": f"Plugin {request.name} installed/enabled"}
-        else:
-            # Would download from marketplace
-            raise HTTPException(status_code=501, detail="Marketplace download not yet implemented")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        client = _get_marketplace_client()
+        success, message, _package_path = client.install_plugin(
+            name=request.name,
+            version=request.version,
+            force=request.force,
+            lifecycle_manager=manager,
+        )
+    except PluginLifecycleError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except Exception as exc:
+        logger.warning("[Plugins] Install failed for %s: %s", request.name, exc)
+        raise HTTPException(status_code=500, detail=str(exc))
+
+    if not success:
+        status = 404 if "not found" in message.lower() else 400
+        raise HTTPException(status_code=status, detail=message)
+    return {"success": True, "message": message}
 
 
 @router.post("/marketplace/{name}/enable")
-async def enable_plugin(name: str):
+async def enable_plugin(name: str, _: None = Depends(get_current_user)):
     """Enable an installed plugin."""
-    from run import bootstrap_system
-    components = bootstrap_system()
-    manager = components.get("lifecycle_manager")
-    
-    if not manager:
-        raise HTTPException(status_code=500, detail="Plugin system not initialized")
-    
+    manager = get_lifecycle_manager()
     try:
         success = manager.enable(name)
         if success:
             return {"success": True, "message": f"Plugin {name} enabled"}
-        else:
-            raise HTTPException(status_code=500, detail="Failed to enable plugin")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to enable plugin")
+    except PluginLifecycleError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
 
 
 @router.post("/marketplace/{name}/disable")
-async def disable_plugin(name: str):
+async def disable_plugin(name: str, _: None = Depends(get_current_user)):
     """Disable an enabled plugin."""
-    from run import bootstrap_system
-    components = bootstrap_system()
-    manager = components.get("lifecycle_manager")
-    
-    if not manager:
-        raise HTTPException(status_code=500, detail="Plugin system not initialized")
-    
+    manager = get_lifecycle_manager()
     try:
         success = manager.disable(name)
         if success:
             return {"success": True, "message": f"Plugin {name} disabled"}
-        else:
-            raise HTTPException(status_code=500, detail="Failed to disable plugin")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
+        raise HTTPException(status_code=500, detail="Failed to disable plugin")
+    except PluginLifecycleError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
 
 
 @router.post("/marketplace/{name}/update")
-async def update_plugin(name: str):
+async def update_plugin(name: str, _: None = Depends(get_current_user)):
     """Update a plugin to latest version."""
     # Not yet implemented
     raise HTTPException(status_code=501, detail="Update not yet implemented")
 
 
 @router.post("/marketplace/{name}/uninstall")
-async def uninstall_plugin(name: str, purge: bool = False):
+async def uninstall_plugin(
+    name: str, purge: bool = False, _: None = Depends(get_current_user)
+):
     """Uninstall a plugin."""
-    from run import bootstrap_system
-    components = bootstrap_system()
-    manager = components.get("lifecycle_manager")
-    
-    if not manager:
-        raise HTTPException(status_code=500, detail="Plugin system not initialized")
-    
+    manager = get_lifecycle_manager()
     try:
         success = manager.uninstall(name, purge_config=purge)
         if success:
             return {"success": True, "message": f"Plugin {name} uninstalled"}
-        else:
-            raise HTTPException(status_code=500, detail="Failed to uninstall plugin")
-    except Exception as e:
-        raise HTTPException(status_code=500, detail=str(e))
-
-
-@router.get("/installed", response_model=List[Dict])
-async def list_installed_plugins():
-    """List all installed plugins with their status."""
-    from run import bootstrap_system
-    components = bootstrap_system()
-    manager = components.get("lifecycle_manager")
-    
-    if not manager:
-        raise HTTPException(status_code=500, detail="Plugin system not initialized")
-    
-    plugins = manager.list_plugins()
-    return [
-        {
-            "name": p.manifest.name,
-            "version": p.manifest.version,
-            "description": p.manifest.description,
-            "author": p.manifest.author,
-            "state": p.state.value,
-            "enabled": p.state == PluginState.ENABLED,
-            "permissions": {
-                "filesystem": p.manifest.permissions.filesystem,
-                "network": p.manifest.permissions.network,
-                "execution": p.manifest.permissions.execution,
-                "api_access": p.manifest.permissions.api_access,
-                "config": p.manifest.permissions.config,
-            },
-            "tags": p.manifest.tags,
-            "homepage": p.manifest.homepage,
-            "repository": p.manifest.repository,
-            "error": p.error,
-        }
-        for p in plugins
-    ]
+        raise HTTPException(status_code=500, detail="Failed to uninstall plugin")
+    except PluginLifecycleError as exc:
+        raise HTTPException(status_code=400, detail=str(exc))
+    except HTTPException:
+        raise
+    except Exception as exc:
+        raise HTTPException(status_code=500, detail=str(exc))
 
 
 @router.get("/installed/{name}")
 async def get_installed_plugin(name: str):
     """Get details of an installed plugin."""
-    from run import bootstrap_system
-    components = bootstrap_system()
-    manager = components.get("lifecycle_manager")
-    
-    if not manager:
-        raise HTTPException(status_code=500, detail="Plugin system not initialized")
-    
+    manager = get_lifecycle_manager()
     record = manager.get_plugin(name)
     if not record:
         raise HTTPException(status_code=404, detail="Plugin not found")
-    
+
     return {
         "name": record.manifest.name,
         "version": record.manifest.version,
@@ -405,7 +429,7 @@ async def get_installed_plugin(name: str):
         "license": record.manifest.license,
         "tags": record.manifest.tags,
         "state": record.state.value,
-        "enabled": record.state == PluginState.ENABLED,
+        "enabled": record.state == PluginState.ACTIVATED,
         "installed_at": record.installed_at,
         "updated_at": record.updated_at,
         "enabled_at": record.enabled_at,
@@ -416,19 +440,15 @@ async def get_installed_plugin(name: str):
 
 
 @router.put("/installed/{name}/config")
-async def update_plugin_config(name: str, request: PluginConfigRequest):
+async def update_plugin_config(
+    name: str, request: PluginConfigRequest, _: None = Depends(get_current_user)
+):
     """Update plugin configuration."""
-    from run import bootstrap_system
-    components = bootstrap_system()
-    manager = components.get("lifecycle_manager")
-    
-    if not manager:
-        raise HTTPException(status_code=500, detail="Plugin system not initialized")
-    
+    manager = get_lifecycle_manager()
     success = manager.set_plugin_config(name, request.config)
     if not success:
         raise HTTPException(status_code=404, detail="Plugin not found")
-    
+
     return {"success": True, "message": "Configuration updated"}
 
 
@@ -441,26 +461,26 @@ async def publish_plugin(
     # Verify API key
     if not api_key or not api_key.startswith("mai_plugins_"):
         raise HTTPException(status_code=401, detail="Invalid API key")
-    
+
     # Validate package
     if not file.filename.endswith(".mpkg"):
         raise HTTPException(status_code=400, detail="Package must be .mpkg file")
-    
+
     content = await file.read()
-    
+
     # Save to temp and validate
     import tempfile
     with tempfile.NamedTemporaryFile(suffix=".mpkg", delete=False) as tmp:
         tmp.write(content)
         tmp_path = tmp.name
-    
+
     try:
         from plugins.plugin_manifest import PluginManifestValidator
-        is_valid, errors, manifest = PluginManifestValidator.validate_package(Path(tmp.name))
-        
+        is_valid, errors, manifest = PluginManifestValidator.validate_package(Path(tmp_path))
+
         if not is_valid:
             raise HTTPException(status_code=400, detail=f"Invalid package: {errors}")
-        
+
         # In production, would upload to registry
         return {
             "success": True,
@@ -468,4 +488,4 @@ async def publish_plugin(
             "plugin": manifest.to_dict(),
         }
     finally:
-        os.unlink(tmp.name)
+        os.unlink(tmp_path)

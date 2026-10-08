@@ -1,10 +1,13 @@
 # core/state/db.py
+import logging
 import sqlite3
 import threading
 from pathlib import Path
 import json
 import time
 import uuid
+
+logger = logging.getLogger("Mai.EvidenceDB")
 
 class EvidenceDB:
     def __init__(self, db_dir: Path):

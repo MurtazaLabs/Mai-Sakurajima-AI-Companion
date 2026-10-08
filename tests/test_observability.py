@@ -319,6 +319,7 @@ class TestAPIEndpoints:
             "target": "karachi",
             "type": "lives_in",
             "label": "lives_in",
+            "relation": "lives_in",
             "weight": 0.9,
         }]
         # The payload and the breakdown must describe the same graph.
@@ -347,6 +348,37 @@ class TestAPIEndpoints:
             data = client.get("/api/graph").json()
 
         assert data["edges"] == []
+
+    def test_graph_edges_expose_the_fields_the_desktop_graph_reads(self):
+        """api/static/js/graph.js draws ``e.relation`` and dims edges by
+        ``e.weight``. Keep the payload contract explicit so a rename on either
+        side breaks here instead of silently blanking the desktop graph."""
+        kg = MagicMock()
+        person = MagicMock()
+        person.name = "murtaza"
+        person.type = "person"
+        person.created_at = 1.0
+        person.metadata = {}
+        kg.count_by_type.return_value = {"person": 1}
+        kg.all_entities.return_value = [person]
+        relation = MagicMock()
+        relation.source = "murtaza"
+        relation.target = "murtaza"
+        relation.relation = "reflects_on"
+        relation.weight = 0.42
+        kg.all_relations.return_value = [relation]
+        brain_graph = MagicMock()
+        brain_graph.graph = kg
+
+        with _patch_mai(brain=None, brain_graph=brain_graph, world_model=None):
+            data = client.get("/api/graph").json()
+
+        assert len(data["edges"]) == 1
+        edge = data["edges"][0]
+        for field in ("source", "target", "relation", "label", "weight"):
+            assert field in edge, f"/api/graph edge missing {field!r}"
+        assert edge["relation"] == "reflects_on"
+        assert edge["weight"] == 0.42
 
     def test_graph_endpoint_merges_world_entities_without_duplicates(self):
         kg = MagicMock()

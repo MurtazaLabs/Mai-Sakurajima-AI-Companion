@@ -4,19 +4,28 @@ import threading
 import logging
 from typing import Any
 
+from core.event_specs import VERTEX_SPECS
+
 logger = logging.getLogger("api.stream")
 
-STREAM_TOPICS = [
-    "state.voice.listening", "state.voice.speaking", "state.voice.idle", "state.voice.wake",
-    "state.emotion.changed",
-    "state.memory.updated",
-    "state.reasoning.busy", "state.reasoning.complete", "state.reasoning.reflection",
-    "state.dreaming.started", "state.dreaming.finished",
-    "state.knowledge.updated",
-    "state.belief.updated",
-    "state.goal.updated",
-    "state.agent.completed",
-]
+_STATE_PREFIX = "state."
+
+
+def _state_topics() -> list:
+    """Every ``state.*`` topic in the event catalog.
+
+    Derived from ``VERTEX_SPECS`` instead of being hand-listed. A state topic
+    missing from this list is a silent connection bug: the publisher succeeds
+    and logs, but no SSE/WebSocket client ever receives it, so the UI shows a
+    stale or empty picture with nothing in any log to explain why.
+    """
+    return [
+        spec.name for spec in VERTEX_SPECS
+        if spec.name.startswith(_STATE_PREFIX)
+    ]
+
+
+STREAM_TOPICS = _state_topics()
 
 class StreamManager:
     """Bridges sync EventBus events to async SSE clients."""

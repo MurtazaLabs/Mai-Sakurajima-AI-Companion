@@ -2,6 +2,7 @@
 request/response, telemetry) and legacy compatibility."""
 import threading
 import time
+import json
 
 import pytest
 
@@ -643,6 +644,62 @@ class TestRegistryEnforcement:
         bus.subscribe("data.v", lambda d: seen.append(d))
         bus.publish_message(MaiMessage(type="data.v", version=2, payload={}), wait=True)
         assert seen == [{}]
+
+
+class TestStreamTopicCoverage:
+    """The SSE/WebSocket bridge must forward *every* ``state.*`` topic.
+
+    Regression: STREAM_TOPICS was a hand-maintained list, so newly catalogued
+    state topics (``state.monologue.generated``,
+    ``state.needs.updated``, then the retrieval/tool pair) were published
+    successfully yet silently dropped for every streaming client — the UI went
+    stale with nothing in any log to explain why. It is now derived from the
+    catalog; these tests pin that derivation.
+    """
+
+    def test_every_catalog_state_topic_is_forwarded(self):
+        from api.stream_manager import STREAM_TOPICS
+        from core.event_specs import VERTEX_SPECS
+
+        catalog = {s.name for s in VERTEX_SPECS if s.name.startswith("state.")}
+        assert catalog, "no state topics in the catalog"
+        assert catalog <= set(STREAM_TOPICS)
+
+    def test_no_non_state_topic_leaks_into_the_ui_stream(self):
+        from api.stream_manager import STREAM_TOPICS
+
+        assert [t for t in STREAM_TOPICS if not t.startswith("state.")] == []
+
+    def test_wired_bus_delivers_every_state_topic_to_a_client(self):
+        import asyncio
+
+        from api.stream_manager import STREAM_TOPICS, StreamManager
+        from core.event_specs import register_event_specs
+
+        bus = EventBus(worker_count=2)
+        register_event_specs(bus)
+        mgr = StreamManager()
+        mgr.wire(bus)
+
+        queue = asyncio.Queue()
+
+        class _Loop:
+            @staticmethod
+            def call_soon_threadsafe(fn, *args):
+                fn(*args)
+
+        mgr.add_queue(queue, _Loop)
+
+        for topic in STREAM_TOPICS:
+            bus.publish(topic, {})
+
+        received = []
+        for _ in STREAM_TOPICS:
+            item = queue.get_nowait()
+            received.append(json.loads(item)["topic"])
+
+        assert sorted(received) == sorted(STREAM_TOPICS)
+        bus.shutdown()
 
 
 class TestLifecycle:

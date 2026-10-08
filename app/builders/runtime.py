@@ -53,6 +53,13 @@ def build(app):
         event_bus=app.event_bus,
         brain=app.brain,
     )
+    # Hand the app-wired manager to the plugin API routes — without this the
+    # routes fall back to a disconnected temp-dir manager (Phase 2d).
+    try:
+        from api.routes_plugins import set_lifecycle_manager
+        set_lifecycle_manager(app.lifecycle_manager)
+    except Exception as exc:
+        logger.warning("    [WARN] Could not wire lifecycle manager to API routes: %s", exc)
     tag_service(app, "lifecycle_manager", "PluginLifecycleManager", "Runtime", active=True)
     logger.info("    [OK] PluginLifecycleManager")
 

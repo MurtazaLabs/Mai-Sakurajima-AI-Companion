@@ -41,7 +41,7 @@ The engine-level numeric baselines (7 modulation traits) derive from the prose a
 
 | Trait | Baseline | Source prose |
 |-------|----------|--------------|
-| warmth | 0.5 | "Warm but not overly affectionate" |
+| warmth | 0.5 | "Warm and affectionate" |
 | teasing | 0.5 | "Naturally witty" |
 | directness | 0.5 | "Speaks naturally" |
 | playfulness | 0.4 | "Occasionally playful" |

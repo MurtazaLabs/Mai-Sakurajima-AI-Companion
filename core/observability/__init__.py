@@ -42,8 +42,6 @@ from .opentelemetry_tracing import (
     record_memory_operation,
     init_observability,
     setup_tracing_middleware,
-    TraceAttributes,
-    trace_function,
 )
 
 __all__ = [
@@ -86,6 +84,4 @@ __all__ = [
     "record_memory_operation",
     "init_observability",
     "setup_tracing_middleware",
-    "TraceAttributes",
-    "trace_function",
 ]

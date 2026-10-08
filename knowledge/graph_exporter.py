@@ -1,5 +1,6 @@
 import time
 import json
+import hashlib
 import threading
 import logging
 from pathlib import Path
@@ -8,6 +9,29 @@ from datetime import datetime
 from knowledge.link_integrity import LinkIntegrity
 
 logger = logging.getLogger(__name__)
+
+# Windows caps a full path at MAX_PATH (260 chars). An entity note filename is
+# the sanitized entity name, so a name that came from a whole memory dump
+# produces a path the OS refuses. Truncation keeps the note writable; the
+# digest keeps two long names that share a prefix from colliding.
+MAX_NAME_STEM = 80
+
+
+def sanitize_entity_stem(name):
+    """Filename stem for an entity note.
+
+    Single source of truth: the graph exporter writes ``<stem>.md`` and the
+    memory writer resolves ``[[links]]`` against the same name, so the two must
+    never drift.
+    """
+    raw = (name or "").strip().lower().replace(" ", "_")
+    safe = "".join(c for c in raw if c.isalnum() or c in ("_", "-"))
+    if len(safe) > MAX_NAME_STEM:
+        # Keep a readable prefix, then disambiguate on the *full* name so two
+        # long names sharing a prefix stay distinct files.
+        digest = hashlib.sha256(raw.encode("utf-8", "replace")).hexdigest()[:8]
+        safe = f"{safe[:MAX_NAME_STEM]}_{digest}"
+    return safe or "unnamed"
 
 
 class GraphExporter:
@@ -31,14 +55,24 @@ class GraphExporter:
         # Filter out memory-type entities (raw memory nodes with no semantic content)
         all_entities = [e for e in all_entities if getattr(e, "type", "") != "memory"]
         current = set()
+        failed = 0
         for entity in all_entities:
-            self.write_entity(entity)
-            current.add(self._sanitize(entity.name))
+            # One unwritable entity must not abort the whole export: a single
+            # bad name used to raise out of sync() and silently zero out every
+            # other entity note.
+            try:
+                self.write_entity(entity)
+                current.add(self._sanitize(entity.name))
+            except Exception as e:
+                failed += 1
+                logger.warning("[GraphExporter] entity note failed for %r: %s",
+                               str(getattr(entity, "name", ""))[:80], e)
         self._delete_stale(current)
         stats = {
             "written": self._write_count,
             "deleted": self._delete_count,
             "total": len(all_entities),
+            "failed": failed,
             "path": str(self.entity_dir),
         }
         try:
@@ -127,9 +161,7 @@ class GraphExporter:
                     logger.warning("[GraphExporter] failed to delete %s: %s", fpath, e)
 
     def _sanitize(self, name):
-        safe = name.strip().lower().replace(" ", "_")
-        safe = "".join(c for c in safe if c.isalnum() or c in ("_", "-"))
-        return safe or "unnamed"
+        return sanitize_entity_stem(name)
 
     def export_graph(self, graph_dir, graph_manager=None):
         graph_dir = Path(graph_dir)

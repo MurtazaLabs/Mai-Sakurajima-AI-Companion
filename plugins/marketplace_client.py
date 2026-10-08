@@ -126,8 +126,17 @@ class MarketplaceClient:
         if not force_refresh and self._registry_cache is not None:
             return self._registry_cache
 
-        # Try to load from local cache first
-        if self.LOCAL_REGISTRY_PATH.exists() and not force_refresh:
+        # An explicitly configured file:// registry is authoritative — never
+        # shadow it with the remote-fetch cache (which may hold stale or
+        # placeholder entries).
+        is_local_registry = self.registry_url.startswith("file://")
+
+        # Try to load from local cache first (remote registries only)
+        if (
+            not is_local_registry
+            and self.LOCAL_REGISTRY_PATH.exists()
+            and not force_refresh
+        ):
             try:
                 with open(self.LOCAL_REGISTRY_PATH) as f:
                     self._registry_cache = json.load(f)

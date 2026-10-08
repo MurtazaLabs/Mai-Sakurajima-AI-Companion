@@ -8,8 +8,13 @@ class AIApplication:
     def __init__(self):
         self.boot_start = 0.0
         self.event_bus = None
+        self.event_bus_backend = None  # "redis" | "in-process" (Phase 2a)
         self.health_registry = None
         self.shared_state = None
+        self.shared_state_backend = None  # "redis" | "in-process" (Phase 2a)
+        self.database = None  # SQLAlchemy Engine (Phase 2c)
+        self.database_url = None
+        self.database_migrations_applied = False  # MAI_DB_AUTO_MIGRATE
         self.llm = None
         self.relationship_engine = None
         self.knowledge_graph = None

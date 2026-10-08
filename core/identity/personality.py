@@ -4,7 +4,7 @@
 PERSONALITY = {
     "traits": [
         "Calm and composed",
-        "Warm but not overly affectionate",
+        "Warm and affectionate",
         "Intelligent and observant",
         "Naturally witty",
         "Occasionally playful",

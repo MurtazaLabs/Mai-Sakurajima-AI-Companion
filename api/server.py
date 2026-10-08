@@ -331,6 +331,40 @@ async def lifespan(app_lifespan):
     mai.cleanup()
 
 
+# ── OpenTelemetry tracing — strictly opt-in (Phase 2b) ────────────────
+def _maybe_init_otel() -> bool:
+    """Initialize OpenTelemetry only when MAI_OTEL_ENABLED is truthy
+    (1/true/yes/on). Default is OFF — boot behavior is unchanged.
+
+    Optional env: MAI_OTEL_ENDPOINT (OTLP collector, e.g.
+    http://localhost:4317) and MAI_OTEL_SAMPLE_RATE (default 0.1).
+    Missing opentelemetry-instrumentation-* packages degrade to
+    tracing-without-auto-instrumentation — never a boot failure.
+    """
+    if os.getenv("MAI_OTEL_ENABLED", "").strip().lower() not in ("1", "true", "yes", "on"):
+        return False
+    try:
+        from core.observability.opentelemetry_tracing import init_tracing
+        endpoint = (os.getenv("MAI_OTEL_ENDPOINT") or "").strip() or None
+        try:
+            sample_rate = max(0.0, min(1.0, float(os.getenv("MAI_OTEL_SAMPLE_RATE", "0.1"))))
+        except ValueError:
+            sample_rate = 0.1
+        init_tracing(service_name="mai-ai", otlp_endpoint=endpoint, sample_rate=sample_rate)
+        logger.info(
+            "[API] OpenTelemetry tracing enabled (endpoint=%s, sample_rate=%.2f)",
+            endpoint or "local-only", sample_rate,
+        )
+        return True
+    except Exception as exc:
+        logger.warning("[API] OpenTelemetry requested but unavailable: %s", exc)
+        return False
+
+
+# Runs before FastAPI() is constructed so global instrumentation hooks
+# (when the opentelemetry-instrumentation extras are installed) see the app.
+_otel_active = _maybe_init_otel()
+
 app = FastAPI(title="Mai AI API", version="2.0.0", lifespan=lifespan)
 app.include_router(routes_auth.router)
 app.include_router(routes_profile.router)
@@ -355,6 +389,17 @@ if _cors_origins != ["*"]:
     if "pytest" in sys.modules and "testserver" not in _trusted:
         _trusted.append("testserver")
     app.add_middleware(TrustedHostMiddleware, allowed_hosts=_trusted)
+
+
+# ── Prometheus HTTP metrics (Phase 2b) ────────────────────────────────────
+try:
+    from core.observability.prometheus_metrics import PrometheusMiddleware
+
+    app.add_middleware(PrometheusMiddleware)
+    _prometheus_active = True
+except Exception as _prom_exc:  # prometheus_client missing — API still boots
+    _prometheus_active = False
+    logger.warning("[API] Prometheus metrics middleware unavailable: %s", _prom_exc)
 
 
 _CSP = (
@@ -533,6 +578,30 @@ def health_metrics():
     if getattr(mai, "profile_store", None) and hasattr(mai.profile_store, "count_users"):
         metrics["users"] = {"total": mai.profile_store.count_users()}
     return metrics
+
+
+# ── Prometheus scrape endpoint (Phase 2b) ─────────────────────────────────
+@app.get("/metrics")
+def prometheus_metrics_endpoint(request: Request, _: None = Depends(_require_auth)):
+    """Prometheus scrape endpoint — auth-gated via ``_require_auth``.
+
+    Returns the text exposition format for the ``mai_*`` metric families.
+    Degrades to 503 with a stable error when ``prometheus_client`` is not
+    installed; the API itself always boots.
+    """
+    try:
+        from core.observability.prometheus_metrics import (
+            get_metrics,
+            update_system_metrics,
+        )
+        try:
+            update_system_metrics()  # refresh CPU/memory gauges (psutil optional)
+        except Exception as exc:
+            logger.debug("[API] system metrics refresh skipped: %s", exc)
+        return get_metrics()
+    except Exception as exc:
+        logger.warning("[API] /metrics unavailable: %s", exc)
+        return JSONResponse(status_code=503, content={"error": "metrics_unavailable"})
 
 
 @app.websocket("/ws")

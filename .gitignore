@@ -27,6 +27,7 @@ logs/
 # OS
 .DS_Store
 Thumbs.db
+mai.db
 
 # Test / coverage
 .coverage

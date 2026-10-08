@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "00-Overview/Project Charter.md",
+                "file": "01-Architecture/Bug_Summary_and_Fix_Plan_2026-09-21.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "Project Charter"
+              "title": "Bug_Summary_and_Fix_Plan_2026-09-21"
             }
           }
         ]
@@ -187,15 +187,15 @@
   },
   "active": "e5b4f3596beb254f",
   "lastOpenFiles": [
-    "00-Overview/README.md",
-    "00-Overview/Project Charter.md",
-    "03-Features/Complete Redesign Implementation Plan.md",
     "01-Architecture/ADR Presentation Layer Restructure.md",
+    "01-Architecture/Bug_Summary_and_Fix_Plan_2026-09-21.md",
+    "00-Overview/Project Charter.md",
+    "00-Overview/README.md",
+    "03-Features/Complete Redesign Implementation Plan.md",
     "03-Features/MAI Cognitive Entity Interface Plan.md",
     "03-Features/Native OS Bridge Architecture.md",
     "03-Features/Event Fabric Architecture.md",
     "03-Features/Character Rename PRD.md",
-    "01-Architecture/Bug_Summary_and_Fix_Plan_2026-09-21.md",
     "01-Architecture/10-Status & Debt.md",
     "06-Operations/Maintenance/README.md",
     "02-Subsystems/Memory Pipeline.md",

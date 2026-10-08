@@ -7,6 +7,8 @@ import threading
 from pathlib import Path
 from datetime import datetime
 
+from knowledge.graph_exporter import sanitize_entity_stem
+
 logger = logging.getLogger(__name__)
 
 _REINFORCEMENT_RE = re.compile(r"reinforcement_count(['\"]?)\s*:\s*(\d+)")
@@ -58,8 +60,7 @@ class MemoryWriter:
             graph_dir = self.vault_root / "graph"
             if not graph_dir.is_dir():
                 return False
-            safe = name.strip().lower().replace(" ", "_")
-            safe = "".join(c for c in safe if c.isalnum() or c in ("_", "-"))
+            safe = sanitize_entity_stem(name)
             filepath = graph_dir / f"{safe}.md"
             # Atomic check: try to open the file
             with filepath.open("r", encoding="utf-8") as f:

@@ -38,13 +38,19 @@ _init_lock = threading.Lock()
 
 
 def get_database_url() -> str:
-    """Get database URL from environment or fallback to SQLite."""
+    """Get database URL from environment or fallback to SQLite.
+
+    Reads config attributes dynamically (instead of module-import-time
+    bindings) so Alembic's env.py and the runtime engine always agree, even
+    when config is patched after import (tests, runtime overrides).
+    """
+    import app.config_loader as config_loader
     # Try PostgreSQL first
-    if POSTGRES_DSN:
-        return POSTGRES_DSN
+    if config_loader.POSTGRES_DSN:
+        return config_loader.POSTGRES_DSN
     # Fallback to DATABASE_URL (could be postgres or sqlite)
-    if DATABASE_URL:
-        return DATABASE_URL
+    if config_loader.DATABASE_URL:
+        return config_loader.DATABASE_URL
     # Fallback to local SQLite
     from config.paths import MEMORY_DIR
     db_path = Path(MEMORY_DIR) / "mai.db"

@@ -2441,3 +2441,68 @@ class TestRelationshipUpdaterGuard:
         assert updater.state.closeness == 0.5
         assert updater.state.trust == 0.5
 
+
+class TestGraphExporterLongNames:
+    """A memory dump used as an entity name must not abort the graph export.
+
+    Live failure (2026-10-03 boot): an entity named after an entire pasted
+    memory (~1,900 chars) produced a filename past Windows MAX_PATH, so
+    write_entity raised, and because sync() called it unguarded the exception
+    escaped to VaultCompiler.compile_graph -> {"written": 0}. Every other
+    entity note was silently skipped.
+    """
+
+    LONG = ("theres_more_when_i_was_7_years_old " * 60).strip()
+
+    def _exporter(self, tmp_path, names):
+        from knowledge.graph_exporter import GraphExporter
+
+        class _Ent:
+            def __init__(self, name):
+                self.name = name
+                self.type = "person"
+                self.created_at = 1000.0
+                self.metadata = {}
+
+        class _Graph:
+            def all_entities(self):
+                return [_Ent(n) for n in names]
+
+            def get_relations_for(self, name):
+                return []
+
+        return GraphExporter(graph_manager=_Graph(), vault_path=str(tmp_path / "vault"))
+
+    def test_long_name_filename_stays_within_path_limits(self, tmp_path):
+        exp = self._exporter(tmp_path, [self.LONG])
+        stem = exp._sanitize(self.LONG)
+        assert len(stem) <= 96
+        assert (exp.entity_dir / f"{stem}.md").parent == exp.entity_dir
+
+    def test_sync_writes_the_note_instead_of_raising(self, tmp_path):
+        exp = self._exporter(tmp_path, [self.LONG])
+        stats = exp.sync()
+        assert stats["written"] == 1
+        assert stats["failed"] == 0
+        assert len(list(exp.entity_dir.glob("*.md"))) == 1
+
+    def test_one_bad_entity_does_not_zero_out_the_export(self, tmp_path):
+        exp = self._exporter(tmp_path, ["murtaza", self.LONG, "karachi"])
+        original = exp.write_entity
+
+        def exploding(entity):
+            if len(entity.name) > 500:
+                raise OSError(2, "No such file or directory")
+            return original(entity)
+
+        exp.write_entity = exploding
+        stats = exp.sync()
+        assert stats["written"] == 2
+        assert stats["failed"] == 1
+        assert stats["total"] == 3
+
+    def test_long_names_sharing_a_prefix_do_not_collide(self, tmp_path):
+        exp = self._exporter(tmp_path, [])
+        assert exp._sanitize(self.LONG + "alpha") != exp._sanitize(self.LONG + "beta")
+        assert exp._sanitize("Murtaza") == "murtaza"
+

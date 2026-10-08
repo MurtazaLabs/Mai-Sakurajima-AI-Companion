@@ -235,7 +235,7 @@ class PluginLifecycleManager:
                 # Get available packages from installed plugins
                 available_packages = {}
                 for name, data in self.registry._registry.items():
-                    if data.get("state") == PluginState.ENABLED.value:
+                    if data.get("state") == PluginState.ACTIVATED.value:
                         manifest_data = data.get("manifest")
                         if manifest_data:
                             dep_manifest = PluginManifest.from_dict(manifest_data)
@@ -246,7 +246,7 @@ class PluginLifecycleManager:
                     manifest,
                     {name: PluginManifest.from_dict(data["manifest"]) 
                      for name, data in self.registry._registry.items() 
-                     if data.get("state") == PluginState.ENABLED.value},
+                     if data.get("state") == PluginState.ACTIVATED.value},
                     available_packages
                 )
             except DependencyResolutionError as e:
@@ -396,7 +396,7 @@ class PluginLifecycleManager:
                 raise PluginLifecycleError(f"Plugin '{name}' not installed")
 
             record_obj = PluginRecord.from_dict(record)
-            was_enabled = record_obj.state == PluginState.ENABLED
+            was_enabled = record_obj.state == PluginState.ACTIVATED
 
             # 1. Disable if enabled
             if was_enabled:
@@ -480,7 +480,7 @@ class PluginLifecycleManager:
 
     def get_enabled_plugins(self) -> List["PluginRecord"]:
         """Get list of enabled plugins."""
-        return [p for p in self.list_plugins() if p.state == PluginState.ENABLED]
+        return [p for p in self.list_plugins() if p.state == PluginState.ACTIVATED]
 
     def get_plugin_config(self, name: str) -> Optional[Dict[str, Any]]:
         """Get plugin configuration."""
@@ -588,7 +588,10 @@ def create_plugin_lifecycle_manager(
     brain: Any = None,
 ) -> PluginLifecycleManager:
     """Factory function to create a fully configured PluginLifecycleManager."""
-    registry_path = plugin_dir / "registry.json"
+    # Lifecycle registry lives under data/ — plugin_dir/registry.json is the
+    # MARKETPLACE registry (registry_url + plugin catalog), a different file
+    # format that must not be parsed as installed-plugin records.
+    registry_path = plugin_dir / "data" / "lifecycle_registry.json"
     registry = PluginRegistry(registry_path)
     return PluginLifecycleManager(
         plugin_dir=plugin_dir,

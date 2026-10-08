@@ -59,7 +59,8 @@ sa.Column('timestamp', sa.Float(), nullable=False, server_default=sa.text('(strf
         sa.Column('schema_version', sa.Integer(), nullable=False, server_default='1'),
     )
     op.create_index('ix_memory_nodes_memory_type', 'memory_nodes', ['memory_type'])
-    op.create_index('ix_memory_nodes_user_id', 'memory_nodes', ['user_id'])
+    # NOTE: ix_memory_nodes_user_id is created automatically by the column's
+    # index=True above — an explicit create_index here would duplicate it.
     op.create_index('ix_memory_nodes_timestamp', 'memory_nodes', ['timestamp'])
     
     # Create relationship_evidence table
@@ -73,7 +74,8 @@ sa.Column('timestamp', sa.Float(), nullable=False, server_default=sa.text('(strf
         sa.Column('weight', sa.Float(), nullable=False, server_default='1.0'),
         sa.Column('created_at', sa.DateTime(), nullable=False, server_default=sa.text('CURRENT_TIMESTAMP')),
     )
-    op.create_index('ix_relationship_evidence_timestamp', 'relationship_evidence', ['timestamp'])
+    # NOTE: ix_relationship_evidence_timestamp is created automatically by the
+    # column's index=True above — an explicit create_index here would duplicate it.
     
     # Create shared_state table (singleton)
     op.create_table(

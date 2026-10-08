@@ -14,9 +14,6 @@ from contextlib import contextmanager
 from prometheus_client import Counter, Histogram, Gauge, CollectorRegistry, generate_latest, CONTENT_TYPE_LATEST
 from fastapi import Response
 
-from core.mai_message import new_correlation_id
-from core.mai_message import get_correlation_id
-
 # Global registry
 REGISTRY = CollectorRegistry()
 
@@ -331,15 +328,28 @@ def set_cache_size(cache_name: str, size: int):
     cache_size.labels(cache_name=cache_name).set(size)
 
 
+_cpu_baseline = {"total": None}
+
+
 def update_system_metrics():
-    """Update system-level metrics (CPU, memory)."""
+    """Update system-level metrics (CPU, memory).
+
+    ``process_cpu_seconds`` is a Counter, so successive observations must
+    increment by the *delta* since the previous one — pushing the raw
+    cumulative total each scrape would inflate every ``rate()`` by the
+    process lifetime.
+    """
     import psutil
     process = psutil.Process()
-    
-    # CPU
-    cpu_times = process.cpu_times()
-    process_cpu_seconds.inc(cpu_times.user + cpu_times.system)
-    
+
+    cpu_total = process.cpu_times().user + process.cpu_times().system
+    previous = _cpu_baseline["total"]
+    if previous is None:
+        _cpu_baseline["total"] = cpu_total  # baseline only — no initial jump
+    elif cpu_total > previous:
+        process_cpu_seconds.inc(cpu_total - previous)
+        _cpu_baseline["total"] = cpu_total
+
     # Memory
     mem_info = process.memory_info()
     process_memory_bytes.labels(type="rss").set(mem_info.rss)
@@ -357,15 +367,11 @@ class PrometheusMiddleware(BaseHTTPMiddleware):
     
     async def dispatch(self, request: Request, call_next):
         start_time = time.time()
-        
-        # Read request body size
+
+        # NOTE: deliberately NOT reading the request body here — consuming the
+        # stream inside BaseHTTPMiddleware can break downstream body parsing
+        # (e.g. POST /api/chat). Request size stays 0.
         request_size = 0
-        if hasattr(request, "body"):
-            try:
-                body = await request.body()
-                request_size = len(body)
-            except Exception:
-                request_size = 0
         
         # Process request
         response = await call_next(request)

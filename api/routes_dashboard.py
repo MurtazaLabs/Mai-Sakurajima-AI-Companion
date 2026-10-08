@@ -170,6 +170,7 @@ class DashboardMixin:
                         "target": relation.target,
                         "type": relation.relation,
                         "label": relation.relation,
+                        "relation": relation.relation,
                         "weight": relation.weight,
                     })
             except Exception as e:

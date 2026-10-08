@@ -265,6 +265,10 @@ class PluginCLI:
 
 
 def main():
+    # CLI output goes through logger.info/error — without a handler, Python
+    # drops INFO lines and the tool appears silent.
+    logging.basicConfig(level=logging.INFO, format="%(message)s")
+
     parser = argparse.ArgumentParser(
         prog="mai plugin",
         description="Mai AI Plugin Manager",

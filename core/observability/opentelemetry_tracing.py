@@ -2,6 +2,7 @@
 OpenTelemetry tracing configuration for Mai AI.
 Provides distributed tracing for all services and components.
 """
+import importlib
 import os
 import logging
 from typing import Optional
@@ -11,22 +12,33 @@ from opentelemetry import trace
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
 from opentelemetry.sdk.resources import SERVICE_NAME, Resource
-from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
-from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
-from opentelemetry.instrumentation.logging import LoggingInstrumentor
-from opentelemetry.instrumentation.redis import RedisInstrumentor
-from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
-from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
-from opentelemetry.instrumentation.requests import RequestsInstrumentor
-from opentelemetry.instrumentation.aiohttp_client import AioHttpClientInstrumentor
-from opentelemetry.instrumentation.sqlalchemy import SQLAlchemyInstrumentor
-from opentelemetry.instrumentation.redis import RedisInstrumentor
-from opentelemetry.instrumentation.httpx import HTTPXClientInstrumentor
 from opentelemetry.sdk.trace.sampling import TraceIdRatioBased
-from opentelemetry.exporter.prometheus import PrometheusMetricReader
-from opentelemetry.metrics import set_meter_provider
-from opentelemetry.sdk.metrics import MeterProvider
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+
+
+def _optional_import(module: str, attr: str):
+    """Import ``module.attr`` or return None when the package is not installed.
+
+    The opentelemetry-instrumentation-* extras (and the Prometheus exporter)
+    are optional: their absence must not break module import — init_tracing()
+    works with the OTel core (SDK + OTLP exporter) alone.
+    """
+    try:
+        return getattr(importlib.import_module(module), attr)
+    except Exception:
+        return None
+
+
+FastAPIInstrumentor = _optional_import("opentelemetry.instrumentation.fastapi", "FastAPIInstrumentor")
+HTTPXClientInstrumentor = _optional_import("opentelemetry.instrumentation.httpx", "HTTPXClientInstrumentor")
+LoggingInstrumentor = _optional_import("opentelemetry.instrumentation.logging", "LoggingInstrumentor")
+RedisInstrumentor = _optional_import("opentelemetry.instrumentation.redis", "RedisInstrumentor")
+SQLAlchemyInstrumentor = _optional_import("opentelemetry.instrumentation.sqlalchemy", "SQLAlchemyInstrumentor")
+RequestsInstrumentor = _optional_import("opentelemetry.instrumentation.requests", "RequestsInstrumentor")
+AioHttpClientInstrumentor = _optional_import("opentelemetry.instrumentation.aiohttp_client", "AioHttpClientInstrumentor")
+PrometheusMetricReader = _optional_import("opentelemetry.exporter.prometheus", "PrometheusMetricReader")
+set_meter_provider = _optional_import("opentelemetry.metrics", "set_meter_provider")
+MeterProvider = _optional_import("opentelemetry.sdk.metrics", "MeterProvider")
 
 logger = logging.getLogger(__name__)
 
@@ -99,48 +111,24 @@ def init_tracing(
 
 
 def _auto_instrument() -> None:
-    """Auto-instrument common libraries."""
-    try:
-        FastAPIInstrumentor.instrument()
-        logger.info("FastAPI instrumentation enabled")
-    except Exception as e:
-        logger.warning(f"FastAPI instrumentation failed: {e}")
-    
-    try:
-        HTTPXClientInstrumentor().instrument()
-        logger.info("HTTPX instrumentation enabled")
-    except Exception as e:
-        logger.warning(f"HTTPX instrumentation failed: {e}")
-    
-    try:
-        RequestsInstrumentor().instrument()
-        logger.info("Requests instrumentation enabled")
-    except Exception as e:
-        logger.warning(f"Requests instrumentation failed: {e}")
-    
-    try:
-        AioHttpClientInstrumentor().instrument()
-        logger.info("aiohttp instrumentation enabled")
-    except Exception as e:
-        logger.warning(f"aiohttp instrumentation failed: {e}")
-    
-    try:
-        SQLAlchemyInstrumentor().instrument()
-        logger.info("SQLAlchemy instrumentation enabled")
-    except Exception as e:
-        logger.warning(f"SQLAlchemy instrumentation failed: {e}")
-    
-    try:
-        RedisInstrumentor().instrument()
-        logger.info("Redis instrumentation enabled")
-    except Exception as e:
-        logger.warning(f"Redis instrumentation failed: {e}")
-    
-    try:
-        LoggingInstrumentor().instrument(set_logging_format=True)
-        logger.info("Logging instrumentation enabled")
-    except Exception as e:
-        logger.warning(f"Logging instrumentation failed: {e}")
+    """Auto-instrument common libraries. Missing optional packages are skipped."""
+    for name, instrumentor, kwargs in (
+        ("FastAPI", FastAPIInstrumentor, {}),
+        ("HTTPX", HTTPXClientInstrumentor, {}),
+        ("Requests", RequestsInstrumentor, {}),
+        ("aiohttp", AioHttpClientInstrumentor, {}),
+        ("SQLAlchemy", SQLAlchemyInstrumentor, {}),
+        ("Redis", RedisInstrumentor, {}),
+        ("Logging", LoggingInstrumentor, {"set_logging_format": True}),
+    ):
+        if instrumentor is None:
+            logger.debug("[OTel] instrumentation package for %s not installed — skipped", name)
+            continue
+        try:
+            instrumentor().instrument(**kwargs)
+            logger.info("%s instrumentation enabled", name)
+        except Exception as e:
+            logger.warning("%s instrumentation failed: %s", name, e)
 
 
 def get_tracer() -> trace.Tracer:
@@ -435,8 +423,13 @@ def init_observability(
 # FastAPI integration
 def setup_tracing_middleware(app):
     """Setup FastAPI middleware for tracing."""
-    from opentelemetry.instrumentation.fastapi import FastAPIInstrumentor
-    FastAPIInstrumentor.instrument_app(app)
+    if FastAPIInstrumentor is None:
+        logger.warning(
+            "opentelemetry-instrumentation-fastapi not installed — "
+            "FastAPI app tracing skipped"
+        )
+    else:
+        FastAPIInstrumentor.instrument_app(app)
     
     @app.middleware("http")
     async def add_trace_id_header(request, call_next):

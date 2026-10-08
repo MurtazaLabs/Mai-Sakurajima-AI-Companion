@@ -2,10 +2,12 @@ import hashlib
 import logging
 import os
 import threading
+from pathlib import Path
 from collections import OrderedDict
 from typing import Optional
 
-os.environ.setdefault("HF_HUB_DOWNLOAD_TIMEOUT", "5")
+os.environ.setdefault("HF_HUB_OFFLINE", "1")
+os.environ.setdefault("HF_HUB_DISABLE_TELEMETRY", "1")
 
 from sentence_transformers import SentenceTransformer
 
@@ -16,10 +18,24 @@ from app.config_loader import EMBEDDING_MODEL, ENABLE_CACHE
 
 class EmbeddingService:
 
-    def __init__(self, model_name: Optional[str] = None, cache_enabled: bool = True, cache_max: int = 20000):
+    def __init__(
+        self,
+        model_name: Optional[str] = None,
+        cache_enabled: bool = True,
+        cache_max: int = 20000
+    ):
         self.model_name = model_name or EMBEDDING_MODEL
         self.model: Optional[SentenceTransformer] = None
         self.is_available = False
+
+        model_path = Path(self.model_name)
+
+        if not model_path.exists():
+            logger.error(
+                "[EmbeddingService] Local embedding model not found: %s",
+                model_path
+            )
+            return
 
         try:
             self.model = SentenceTransformer(self.model_name)
@@ -31,13 +47,21 @@ class EmbeddingService:
         self._cache_max = cache_max
         self._cache_enabled = cache_enabled and bool(ENABLE_CACHE)
         self._cache: OrderedDict[str, list] = OrderedDict()
+
         try:
             cfg = str(self.model.get_config_dict())
         except Exception as e:
             logger.debug("Embedding model config unavailable: %s", e)
             cfg = self.model_name
-        self._model_fingerprint = hashlib.sha256(cfg.encode()).hexdigest()[:8]
-        self._cache_tag = f"{self.model_name}:{self._model_fingerprint}"
+
+        self._model_fingerprint = hashlib.sha256(
+            cfg.encode()
+        ).hexdigest()[:8]
+
+        self._cache_tag = (
+            f"{self.model_name}:{self._model_fingerprint}"
+        )
+
         self._cache_lock = threading.RLock()
 
     def embed(self, text: str) -> Optional[list]:
@@ -49,15 +73,23 @@ class EmbeddingService:
         if self._cache_enabled:
             with self._cache_lock:
                 cached = self._cache.get(key)
+
                 if cached is not None:
                     self._cache.move_to_end(key)
                     return cached
 
         try:
-            result = self.model.encode(text, convert_to_numpy=True)
+            result = self.model.encode(
+                text,
+                convert_to_numpy=True
+            )
             emb = result.tolist()
+
         except Exception as e:
-            logger.error("[EmbeddingService] Encode error: %s", e)
+            logger.error(
+                "[EmbeddingService] Encode error: %s",
+                e
+            )
             return None
 
         if self._cache_enabled:
@@ -67,6 +99,7 @@ class EmbeddingService:
                 else:
                     while len(self._cache) >= self._cache_max:
                         self._cache.popitem(last=False)
+
                 self._cache[key] = emb
 
         return emb
@@ -74,16 +107,24 @@ class EmbeddingService:
     def warmup(self, texts: list[str]) -> int:
         if not self.is_available or not texts:
             return 0
+
         count = 0
+
         for t in texts:
             if self.embed(t) is not None:
                 count += 1
-        logger.info("[EmbeddingService] Warmed up %s embeddings", count)
+
+        logger.info(
+            "[EmbeddingService] Warmed up %s embeddings",
+            count
+        )
+
         return count
 
     def stats(self) -> dict:
         with self._cache_lock:
             cache_size = len(self._cache)
+
         return {
             "model": self.model_name,
             "available": self.is_available,

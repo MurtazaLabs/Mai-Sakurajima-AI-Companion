@@ -17,18 +17,23 @@ config = context.config
 
 # Interpret the config file for Python logging
 if config.config_file_name is not None:
-    fileConfig(config.config_file_name)
+    # disable_existing_loggers=False so running migrations (e.g. via
+    # MAI_DB_AUTO_MIGRATE at boot) does not silence Mai's own loggers.
+    fileConfig(config.config_file_name, disable_existing_loggers=False)
 
 # Set target metadata for autogenerate
 target_metadata = Base.metadata
 
-# Get database URL from environment
-import os
-from app.config_loader import POSTGRES_DSN, DATABASE_URL
 
 def get_database_url():
-    """Get database URL from environment or config."""
-    return POSTGRES_DSN or DATABASE_URL or "sqlite:///./memory/mai.db"
+    """Single source of truth — the same URL the runtime engine uses.
+
+    Delegates to core.state.database so migrations and the application always
+    target the same database (POSTGRES_DSN -> DATABASE_URL ->
+    sqlite:///{MEMORY_DIR}/mai.db).
+    """
+    from core.state.database import get_database_url as _runtime_url
+    return _runtime_url()
 
 def run_migrations_offline() -> None:
     """Run migrations in 'offline' mode."""

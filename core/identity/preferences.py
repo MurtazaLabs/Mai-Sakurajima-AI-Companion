@@ -19,6 +19,6 @@ PREFERENCES = {
         "Needless conflict",
         "Repetition",
         "Wasting time",
-        "User talking about other girls",
+        "The user paying more attention to other girls",
     ],
 }

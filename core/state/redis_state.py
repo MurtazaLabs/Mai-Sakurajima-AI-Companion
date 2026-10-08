@@ -63,6 +63,14 @@ class RedisSharedState:
         self._lock = threading.RLock()
         self._available = False
         self._fallback = InMemoryState()
+
+        # Interface parity with core.state.shared_state.SharedState:
+        # RelationshipEngineV2, Brain and OsKernel access `state.lock`,
+        # `state.db` (SQLite evidence store) and `state.state_dir`.
+        self.lock = self._lock
+        self.state_dir = Path(persistence_dir) / "state"
+        self.state_dir.mkdir(parents=True, exist_ok=True)
+        self.db = EvidenceDB(self.state_dir)
         
         # Local state cache
         self.emotion = EmotionState()
@@ -221,8 +229,10 @@ class RedisSharedState:
                         logger.info("[RedisSharedState] Loaded state from Redis")
                         return
                 except Exception as e:
+                    # Corrupt/unparsable Redis value — the connection itself is
+                    # fine (_get_redis() already flips _available on connection
+                    # loss). Keep Redis enabled; fall back to the local file.
                     logger.warning("[RedisSharedState] Redis load failed: %s", e)
-                    self._available = False
 
         # Fallback to local file
         target_path = Path(self.persistence_dir) / "state" / "master_state.json"
@@ -378,7 +388,3 @@ class InMemoryState:
                 del self._locks[name]
                 return True
             return False
-
-
-# Backward compatibility
-EvidenceDB = RedisSharedState  # Legacy alias
