@@ -1,5 +1,3 @@
-import json
-import os
 import tempfile
 from unittest.mock import MagicMock, patch
 
@@ -75,7 +73,7 @@ class TestPerPersonRelationshipManager:
 class TestUserProfiles:
 
     def test_get_default(self):
-        from core.identity.profiles import get_profile, delete_profile
+        from core.identity.profiles import delete_profile, get_profile
         profile = get_profile("TestUser")
         assert profile["name"] == "TestUser"
         assert profile["interaction_count"] == 0
@@ -83,7 +81,7 @@ class TestUserProfiles:
         delete_profile("TestUser")
 
     def test_update_profile(self):
-        from core.identity.profiles import get_profile, update_profile, delete_profile
+        from core.identity.profiles import delete_profile, get_profile, update_profile
         update_profile("TestUser", mood="happy")
         profile = get_profile("TestUser")
         assert profile["mood"] == "happy"
@@ -91,21 +89,21 @@ class TestUserProfiles:
         delete_profile("TestUser")
 
     def test_add_fact(self):
-        from core.identity.profiles import get_profile, add_fact, delete_profile
+        from core.identity.profiles import add_fact, delete_profile, get_profile
         add_fact("TestUser", "likes anime")
         profile = get_profile("TestUser")
         assert "likes anime" in profile["known_facts"]
         delete_profile("TestUser")
 
     def test_add_preference(self):
-        from core.identity.profiles import get_profile, add_preference, delete_profile
+        from core.identity.profiles import add_preference, delete_profile, get_profile
         add_preference("TestUser", "likes", "pizza")
         profile = get_profile("TestUser")
         assert "pizza" in profile["preferences"]["likes"]
         delete_profile("TestUser")
 
     def test_list_profiles(self):
-        from core.identity.profiles import update_profile, list_profiles, delete_profile
+        from core.identity.profiles import delete_profile, list_profiles, update_profile
         update_profile("UserA")
         update_profile("UserB")
         profiles = list_profiles()

@@ -2,13 +2,14 @@
 Gradual Rollout Management for Mai AI.
 Implements canary, blue-green, and progressive rollout strategies.
 """
-import time
-import threading
-from enum import Enum
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Callable, Any
-from datetime import datetime
 import logging
+import threading
+import time
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from datetime import datetime
+from enum import Enum
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -38,7 +39,7 @@ class RolloutStep:
     phase: RolloutPhase
     percentage: float
     duration_seconds: int
-    success_criteria: Dict[str, Any]
+    success_criteria: dict[str, Any]
     description: str
 
 
@@ -48,9 +49,9 @@ class RolloutPlan:
     model_id: str
     version: str
     strategy: RolloutStrategy
-    steps: List[RolloutStep]
+    steps: list[RolloutStep]
     created_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -59,11 +60,11 @@ class RolloutState:
     plan: RolloutPlan
     current_step: int = 0
     phase: RolloutPhase = RolloutPhase.PENDING
-    started_at: Optional[str] = None
-    updated_at: Optional[str] = None
-    completed_at: Optional[str] = None
-    error: Optional[str] = None
-    metrics: Dict[str, Any] = field(default_factory=dict)
+    started_at: str | None = None
+    updated_at: str | None = None
+    completed_at: str | None = None
+    error: str | None = None
+    metrics: dict[str, Any] = field(default_factory=dict)
 
 
 class RolloutManager:
@@ -80,10 +81,10 @@ class RolloutManager:
         self.metrics_collector = metrics_collector
         self.health_checker = health_checker
         self.notifier = notifier
-        self._rollouts: Dict[str, RolloutState] = {}
+        self._rollouts: dict[str, RolloutState] = {}
         self._lock = threading.RLock()
-        self._monitor_threads: Dict[str, threading.Thread] = {}
-        self._stop_events: Dict[str, threading.Event] = {}
+        self._monitor_threads: dict[str, threading.Thread] = {}
+        self._stop_events: dict[str, threading.Event] = {}
     
     def create_canary_plan(
         self,
@@ -91,7 +92,7 @@ class RolloutManager:
         version: str,
         canary_percentage: float = 5.0,
         canary_duration: int = 300,
-        progressive_steps: List[float] = None,
+        progressive_steps: list[float] = None,
         step_duration: int = 300,
         error_threshold: float = 0.01,
         latency_threshold: float = 2.0
@@ -189,7 +190,7 @@ class RolloutManager:
         self,
         model_id: str,
         version: str,
-        steps: List[float] = None,
+        steps: list[float] = None,
         step_duration: int = 300,
         error_threshold: float = 0.01,
         latency_threshold: float = 2.0
@@ -379,7 +380,7 @@ class RolloutManager:
         
         return False
     
-    def _get_step_start_time(self, state: RolloutState) -> Optional[float]:
+    def _get_step_start_time(self, state: RolloutState) -> float | None:
         """Get start time of current step."""
         # Simplified - in production would track per-step timing
         if state.started_at:
@@ -445,7 +446,7 @@ class RolloutManager:
             except Exception as e:
                 logger.warning(f"Notification failed: {e}")
     
-    def get_rollout_state(self, model_id: str, version: str) -> Optional[RolloutState]:
+    def get_rollout_state(self, model_id: str, version: str) -> RolloutState | None:
         """Get current rollout state."""
         with self._lock:
             return self._rollouts.get(f"{model_id}:{version}")
@@ -490,7 +491,7 @@ class RolloutManager:
                 logger.warning(f"Rollout aborted: {rollout_key} - {reason}")
                 self._cleanup_rollout(rollout_key)
     
-    def list_active_rollouts(self) -> List[RolloutState]:
+    def list_active_rollouts(self) -> list[RolloutState]:
         """List all active rollouts."""
         with self._lock:
             return [
@@ -502,7 +503,7 @@ class RolloutManager:
 def create_default_rollout_manager(registry) -> RolloutManager:
     """Create rollout manager with default callbacks."""
     
-    def default_metrics_collector(model_id: str, version: str) -> Dict[str, Any]:
+    def default_metrics_collector(model_id: str, version: str) -> dict[str, Any]:
         # In production, collect from Prometheus
         mv = registry.get(model_id, version)
         if mv:

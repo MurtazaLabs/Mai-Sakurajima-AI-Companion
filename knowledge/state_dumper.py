@@ -1,8 +1,8 @@
-import time
-import threading
 import logging
-from pathlib import Path
+import threading
+import time
 from datetime import datetime
+from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -15,7 +15,6 @@ class StateDumper:
     def dump(self, state, date_str):
         if not self.vault_root:
             return
-        from memory.state import MemoryState
         self._dump_identity(state, date_str)
         self._dump_preferences(state, date_str)
         self._dump_knowledge(state, date_str)
@@ -285,9 +284,8 @@ LastInteractionUnix: {now}
 """
             path = self.vault_root / "relationship" / "relationship.md"
             path.parent.mkdir(parents=True, exist_ok=True)
-            with self._lock:
-                with open(path, "w", encoding="utf-8") as f:
-                    f.write(content.strip())
+            with self._lock, open(path, "w", encoding="utf-8") as f:
+                f.write(content.strip())
         except Exception as e:
             logger.error("[StateDumper] write_relationship: %s", e)
 
@@ -326,9 +324,8 @@ days_together: {total_days or 1}
 | Days Together | {total_days or 1} |
 """
             path = self.vault_root / "statistics" / "stats.md"
-            with self._lock:
-                with open(path, "w", encoding="utf-8") as f:
-                    f.write(entry.strip())
+            with self._lock, open(path, "w", encoding="utf-8") as f:
+                f.write(entry.strip())
             return True
         except Exception as e:
             logger.error("[StateDumper] statistics write error: %s", e)

@@ -2,8 +2,9 @@ import logging
 import threading
 import time
 from collections import OrderedDict
+from collections.abc import Callable
 from enum import Enum
-from typing import Any, Callable, Optional, TypeVar
+from typing import Any, TypeVar
 
 logger = logging.getLogger(__name__)
 
@@ -78,7 +79,7 @@ def safe_attr(obj: Any, attr: str, fallback: T = None, log_name: str = "") -> T:
         return fallback
 
 
-def safe_call_fn(fn: Optional[Callable], *args, fallback: T = None, log_name: str = "", **kwargs) -> T:
+def safe_call_fn(fn: Callable | None, *args, fallback: T = None, log_name: str = "", **kwargs) -> T:
     if fn is None:
         return fallback
     try:
@@ -104,7 +105,7 @@ class TTLCache:
         self._cache: OrderedDict = OrderedDict()
         self._lock = threading.RLock()
 
-    def get(self, key: str) -> Optional[str]:
+    def get(self, key: str) -> str | None:
         with self._lock:
             if key not in self._cache:
                 return None

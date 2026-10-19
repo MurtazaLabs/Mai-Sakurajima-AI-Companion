@@ -15,16 +15,15 @@ Phase 2d wiring:
 import logging
 import os
 from pathlib import Path
-from typing import List, Optional, Dict, Any
+from typing import Any, Optional
 
-from fastapi import APIRouter, Depends, HTTPException, UploadFile, File, Header, Query
+from fastapi import APIRouter, Depends, File, Header, HTTPException, Query, UploadFile
 from pydantic import BaseModel
 
 from api.auth import get_current_user
 from plugins.lifecycle import (
     PluginLifecycleError,
     PluginLifecycleManager,
-    PluginRecord,
     PluginState,
 )
 
@@ -41,7 +40,7 @@ class PluginInstallRequest(BaseModel):
 
 
 class PluginConfigRequest(BaseModel):
-    config: Dict[str, Any]
+    config: dict[str, Any]
 
 
 class PluginResponse(BaseModel):
@@ -51,11 +50,11 @@ class PluginResponse(BaseModel):
     author: str
     state: str
     enabled: bool
-    permissions: Dict[str, Any]
-    tags: List[str]
-    homepage: Optional[str]
-    repository: Optional[str]
-    error: Optional[str] = None
+    permissions: dict[str, Any]
+    tags: list[str]
+    homepage: str | None
+    repository: str | None
+    error: str | None = None
 
 
 class MarketplacePluginResponse(BaseModel):
@@ -63,7 +62,7 @@ class MarketplacePluginResponse(BaseModel):
     version: str
     description: str
     author: str
-    tags: List[str]
+    tags: list[str]
     downloads: int = 0
     rating: float = 0.0
     updated_at: str
@@ -109,7 +108,7 @@ def _get_marketplace_client():
     return _marketplace_client
 
 
-def _registry_plugin_summary(p) -> Dict[str, Any]:
+def _registry_plugin_summary(p) -> dict[str, Any]:
     return {
         "name": p.name,
         "version": p.version,
@@ -122,7 +121,7 @@ def _registry_plugin_summary(p) -> Dict[str, Any]:
     }
 
 
-def _registry_plugin_detail(p) -> Dict[str, Any]:
+def _registry_plugin_detail(p) -> dict[str, Any]:
     data = _registry_plugin_summary(p)
     data.update(
         {
@@ -211,7 +210,7 @@ _BUILTIN_DETAILS = {
 }
 
 
-def _query_marketplace(q: str, tags: Optional[List[str]], category: Optional[str]) -> List[Dict[str, Any]]:
+def _query_marketplace(q: str, tags: list[str] | None, category: str | None) -> list[dict[str, Any]]:
     """Query the marketplace registry; fall back to the built-in catalog."""
     try:
         client = _get_marketplace_client()
@@ -238,7 +237,7 @@ def _query_marketplace(q: str, tags: Optional[List[str]], category: Optional[str
         return results
 
 
-@router.get("/installed", response_model=List[PluginResponse])
+@router.get("/installed", response_model=list[PluginResponse])
 async def list_installed_plugins():
     """List all installed plugins with their status."""
     manager = get_lifecycle_manager()
@@ -271,8 +270,8 @@ async def list_installed_plugins():
 @router.get("/marketplace/search")
 async def search_marketplace(
     q: str = "",
-    tags: Optional[List[str]] = Query(None),
-    category: Optional[str] = None,
+    tags: list[str] | None = Query(None),
+    category: str | None = None,
     page: int = 1,
     limit: int = 20,
 ):
@@ -286,7 +285,7 @@ async def search_marketplace(
 
 
 @router.get("/marketplace/{name}")
-async def get_marketplace_plugin(name: str, version: Optional[str] = None):
+async def get_marketplace_plugin(name: str, version: str | None = None):
     """Get detailed plugin info from the marketplace registry."""
     try:
         client = _get_marketplace_client()

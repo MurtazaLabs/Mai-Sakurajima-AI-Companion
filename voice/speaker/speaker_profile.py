@@ -1,7 +1,8 @@
 from __future__ import annotations
-import uuid
+
 import time
-from dataclasses import dataclass, field, asdict
+import uuid
+from dataclasses import asdict, dataclass, field
 
 
 @dataclass
@@ -18,5 +19,5 @@ class SpeakerProfile:
         return asdict(self)
 
     @classmethod
-    def from_dict(cls, data: dict) -> "SpeakerProfile":
+    def from_dict(cls, data: dict) -> SpeakerProfile:
         return cls(**data)

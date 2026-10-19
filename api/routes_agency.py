@@ -5,6 +5,7 @@ call sites. See ``api.server`` for how this is composed.
 """
 import logging
 from typing import Any
+
 from api.errors import safe_error
 
 logger = logging.getLogger("api.server")

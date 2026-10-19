@@ -1,11 +1,10 @@
 # core/state/relationship.py
-import uuid
-import time
-import math
-import logging
 import json
+import logging
+import math
 import re
-from typing import Dict
+import time
+import uuid
 
 from config.settings import Settings
 
@@ -17,7 +16,7 @@ logger = logging.getLogger("Mai.RelationshipEngine")
 _BASE_DIMS = ("trust", "comfort", "respect", "affection", "familiarity")
 
 
-def _deterministic_deltas(user_message: str, mai_response: str = "") -> Dict[str, float]:
+def _deterministic_deltas(user_message: str, mai_response: str = "") -> dict[str, float]:
     """Lexicon-driven relationship deltas for a single exchange.
 
     Mirrors the LLM deep evaluator's guidance band (|delta| <= 0.04 per
@@ -148,7 +147,7 @@ class RelationshipEngineV2:
     # 🧭 DETERMINISTIC CHAT-PATH ANALYSIS (M10)
     # ==================================================
     def analyze_turn(self, user_message: str, mai_response: str = "",
-                     weight: float = 1.0) -> Dict[str, float]:
+                     weight: float = 1.0) -> dict[str, float]:
         """Deterministic relationship update for a chat-path turn.
 
         No LLM, no database — runs on every think() exchange so trust /
@@ -166,7 +165,7 @@ class RelationshipEngineV2:
         self.apply_deltas(deltas)
         return deltas
 
-    def apply_deltas(self, deltas: Dict[str, float], save: bool = True):
+    def apply_deltas(self, deltas: dict[str, float], save: bool = True):
         """Write relationship deltas into SharedState, clamped to [0, 1].
 
         Handles pydantic RelationshipValues (app), plain attribute objects
@@ -205,7 +204,7 @@ class RelationshipEngineV2:
                 except Exception as e:
                     logger.debug("Relationship save skipped: %s", e)
 
-    def _write_scores(self, values: Dict[str, float]):
+    def _write_scores(self, values: dict[str, float]):
         current = self.state.relationship_scores
         if hasattr(current, "model_dump"):
             try:
@@ -225,7 +224,7 @@ class RelationshipEngineV2:
     # ==================================================
     # 🗄️ DATABASE & MATH (Your existing code)
     # ==================================================
-    def log_interaction_evidence(self, event_type: str, description: str, impacts: Dict[str, float], weight: float = 1.0):
+    def log_interaction_evidence(self, event_type: str, description: str, impacts: dict[str, float], weight: float = 1.0):
         """
         Logs an interaction event into the SQLite database primitive and triggers a score recalculation.
         """
@@ -258,7 +257,7 @@ class RelationshipEngineV2:
         
         base_scores = {"trust": 0.5, "comfort": 0.5, "respect": 0.5, "affection": 0.3, "familiarity": 0.1}
         totals = {k: v for k, v in base_scores.items()}
-        weights = {k: 1.0 for k in base_scores.keys()}
+        weights = {k: 1.0 for k in base_scores}
         
         for ev in raw_evidence:
             elapsed = now - ev["timestamp"]
@@ -274,7 +273,7 @@ class RelationshipEngineV2:
                     weights[dim] += effective_weight
 
         updated_dict = {}
-        for dim in base_scores.keys():
+        for dim in base_scores:
             normalized_val = totals[dim] / (weights[dim] if weights[dim] > 0 else 1.0)
             updated_dict[dim] = max(0.0, min(1.0, normalized_val))
             

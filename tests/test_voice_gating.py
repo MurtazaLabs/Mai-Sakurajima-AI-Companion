@@ -4,13 +4,14 @@ Rejects fan/hiss-only recordings before they reach Whisper at both queue
 consumers (_handle_wake_audio, _transcribe). The gate must fail open when
 the VAD is unavailable so voice never bricks.
 """
-import numpy as np
-import pytest
 from unittest.mock import MagicMock
 
+import numpy as np
+import pytest
+
+from voice.vad import VAD
 from voice.voice_event import VoiceEvent
 from voice.voice_manager import VoiceManager
-from voice.vad import VAD
 
 
 class FixedVad(VAD):

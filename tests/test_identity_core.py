@@ -1,12 +1,8 @@
 # Tests for the Identity Core facade (M1) and the book↔code drift check (M0).
 import threading
 
-import pytest
-
 from core.identity import (
     BOUNDARIES,
-    IDENTITY,
-    PERSONALITY,
     PREFERENCES,
     SPEECH,
     VALUES,
@@ -16,7 +12,6 @@ from core.identity.canonical import (
     CANON_KEYS,
     VOLUME_SECTIONS,
     check_drift,
-    _section_keys_from_markdown,
 )
 from core.identity.identity_core import IdentityCore
 

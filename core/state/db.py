@@ -1,11 +1,9 @@
 # core/state/db.py
+import json
 import logging
 import sqlite3
 import threading
 from pathlib import Path
-import json
-import time
-import uuid
 
 logger = logging.getLogger("Mai.EvidenceDB")
 

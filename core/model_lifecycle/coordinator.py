@@ -2,15 +2,28 @@
 Model Lifecycle Coordinator for Mai AI.
 Integrates registry, rollout, and rollback into a unified interface.
 """
-import threading
-from typing import Dict, List, Optional, Any, Callable
-from datetime import datetime
 import logging
+import threading
+from typing import Any
 
-from .model_registry import ModelRegistry, ModelMetadata, ModelVersion, ModelStatus, ModelType, get_registry
-from .rollout import RolloutManager, RolloutPlan, RolloutStrategy, RolloutPhase, create_default_rollout_manager
-from .rollback import AutoRollbackManager, RollbackRule, RollbackReason, RollbackTrigger, create_default_rollback_manager
-from .fingerprinting import compute_model_fingerprint, verify_fingerprint
+from .fingerprinting import verify_fingerprint
+from .model_registry import (
+    ModelRegistry,
+    ModelStatus,
+    ModelType,
+    ModelVersion,
+    get_registry,
+)
+from .rollback import (
+    AutoRollbackManager,
+    RollbackRule,
+    create_default_rollback_manager,
+)
+from .rollout import (
+    RolloutManager,
+    RolloutPlan,
+    create_default_rollout_manager,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -75,10 +88,10 @@ class ModelLifecycleCoordinator:
         source_url: str = "",
         framework: str = "unknown",
         framework_version: str = "unknown",
-        input_schema: Dict[str, Any] = None,
-        output_schema: Dict[str, Any] = None,
-        tags: List[str] = None,
-        config: Dict[str, Any] = None,
+        input_schema: dict[str, Any] = None,
+        output_schema: dict[str, Any] = None,
+        tags: list[str] = None,
+        config: dict[str, Any] = None,
     ) -> ModelVersion:
         """Register a new model version."""
         return self.registry.register(
@@ -97,19 +110,19 @@ class ModelLifecycleCoordinator:
             config=config,
         )
     
-    def get_model(self, model_id: str, version: str) -> Optional[ModelVersion]:
+    def get_model(self, model_id: str, version: str) -> ModelVersion | None:
         """Get a specific model version."""
         return self.registry.get(model_id, version)
     
-    def get_production_model(self, model_id: str) -> Optional[ModelVersion]:
+    def get_production_model(self, model_id: str) -> ModelVersion | None:
         """Get current production model."""
         return self.registry.get_production(model_id)
     
-    def get_staging_model(self, model_id: str) -> Optional[ModelVersion]:
+    def get_staging_model(self, model_id: str) -> ModelVersion | None:
         """Get current staging model."""
         return self.registry.get_staging(model_id)
     
-    def list_model_versions(self, model_id: str) -> List[ModelVersion]:
+    def list_model_versions(self, model_id: str) -> list[ModelVersion]:
         """List all versions of a model."""
         return self.registry.list_versions(model_id)
     
@@ -128,7 +141,7 @@ class ModelLifecycleCoordinator:
         version: str,
         canary_percentage: float = 5.0,
         canary_duration: int = 300,
-        progressive_steps: List[float] = None,
+        progressive_steps: list[float] = None,
         step_duration: int = 300,
         error_threshold: float = 0.01,
         latency_threshold: float = 2.0
@@ -174,7 +187,7 @@ class ModelLifecycleCoordinator:
         self,
         model_id: str,
         version: str,
-        steps: List[float] = None,
+        steps: list[float] = None,
         step_duration: int = 300,
         error_threshold: float = 0.01,
         latency_threshold: float = 2.0
@@ -192,7 +205,7 @@ class ModelLifecycleCoordinator:
         self.registry.update_status(model_id, version, ModelStatus.STAGING)
         return self.rollout_manager.start_rollout(plan)
     
-    def get_rollout_status(self, model_id: str, version: str) -> Optional[Any]:
+    def get_rollout_status(self, model_id: str, version: str) -> Any | None:
         """Get rollout status."""
         return self.rollout_manager.get_rollout_state(model_id, version)
     
@@ -208,7 +221,7 @@ class ModelLifecycleCoordinator:
         """Abort rollout."""
         self.rollout_manager.abort_rollout(model_id, version, reason)
     
-    def list_active_rollouts(self) -> List[Any]:
+    def list_active_rollouts(self) -> list[Any]:
         """List all active rollouts."""
         return self.rollout_manager.list_active_rollouts()
     
@@ -234,11 +247,11 @@ class ModelLifecycleCoordinator:
         """Manually trigger rollback."""
         self.rollback_manager.manual_rollback(model_id, version, reason)
     
-    def get_rollback_history(self, model_id: str = None, limit: int = 100) -> List[Any]:
+    def get_rollback_history(self, model_id: str = None, limit: int = 100) -> list[Any]:
         """Get rollback history."""
         return self.rollback_manager.get_rollback_history(model_id, limit)
     
-    def get_model_monitoring_status(self, model_id: str) -> Dict[str, Any]:
+    def get_model_monitoring_status(self, model_id: str) -> dict[str, Any]:
         """Get monitoring status for a model."""
         return self.rollback_manager.get_model_status(model_id)
     
@@ -251,7 +264,7 @@ class ModelLifecycleCoordinator:
         error_rate: float = None,
         latency_p99: float = None,
         request_count: int = None,
-        custom_metrics: Dict[str, float] = None
+        custom_metrics: dict[str, float] = None
     ):
         """Record model metrics for monitoring."""
         self.registry.update_metrics(
@@ -283,7 +296,7 @@ class ModelLifecycleCoordinator:
         """Archive a model version."""
         self.registry.archive(model_id, version)
     
-    def get_model_summary(self, model_id: str) -> Dict[str, Any]:
+    def get_model_summary(self, model_id: str) -> dict[str, Any]:
         """Get comprehensive model summary."""
         versions = self.list_model_versions(model_id)
         production = self.get_production_model(model_id)
@@ -323,7 +336,7 @@ class ModelLifecycleCoordinator:
             ]
         }
     
-    def get_system_summary(self) -> Dict[str, Any]:
+    def get_system_summary(self) -> dict[str, Any]:
         """Get system-wide model lifecycle summary."""
         # This would need a way to list all model_ids
         # For now, return active rollouts and recent rollbacks
@@ -358,7 +371,7 @@ class ModelLifecycleCoordinator:
 
 
 # Global coordinator instance
-_coordinator: Optional[ModelLifecycleCoordinator] = None
+_coordinator: ModelLifecycleCoordinator | None = None
 _coordinator_lock = threading.Lock()
 
 

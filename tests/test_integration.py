@@ -1,6 +1,6 @@
+import pathlib
 import shutil
 import tempfile
-import pathlib
 from unittest.mock import MagicMock, patch
 
 import pytest
@@ -30,10 +30,10 @@ class TestKnowledgePipelineIntegration:
         return SharedState(persistence_dir=state_dir)
 
     def _make_memory(self):
+        from core.event_bus import EventBus
+        from memory.manager import MemoryManager
         from memory.memory import Memory
         from memory.pipeline import MemoryPipeline
-        from memory.manager import MemoryManager
-        from core.event_bus import EventBus
         event_bus = EventBus()
         mem = Memory()
         pipeline = MemoryPipeline(event_bus=event_bus)
@@ -45,17 +45,17 @@ class TestKnowledgePipelineIntegration:
         return manager, event_bus
 
     def test_think_populates_graph_retriever_and_beliefs(self, temp_state):
+        from agency.agent import Agent
+        from agency.registry import ToolRegistry
         from core.brain import Brain
         from core.event_bus import EventBus
-        from knowledge.graph import KnowledgeGraph
-        from knowledge.belief_engine import BeliefEngine
         from knowledge.attention import AttentionSystem
-        from knowledge.extractor import EntityExtractor
+        from knowledge.belief_engine import BeliefEngine
         from knowledge.consolidation import ConsolidationEngine
+        from knowledge.extractor import EntityExtractor
+        from knowledge.graph import KnowledgeGraph
         from knowledge.graph_manager import GraphManager
         from knowledge.retriever import AdvancedRetriever
-        from agency.registry import ToolRegistry
-        from agency.agent import Agent
 
         # --- Wire real knowledge subsystems ---
         event_bus = EventBus()
@@ -149,14 +149,14 @@ class TestKnowledgePipelineIntegration:
         assert stats["edges"] >= 1, f"Expected >= 1 edges, got {stats['edges']}"
 
     def test_graph_manager_process_conversation_updates_everything(self):
-        from knowledge.graph import KnowledgeGraph
-        from knowledge.belief_engine import BeliefEngine
+        from core.event_bus import EventBus
         from knowledge.attention import AttentionSystem
-        from knowledge.extractor import EntityExtractor
+        from knowledge.belief_engine import BeliefEngine
         from knowledge.consolidation import ConsolidationEngine
+        from knowledge.extractor import EntityExtractor
+        from knowledge.graph import KnowledgeGraph
         from knowledge.graph_manager import GraphManager
         from knowledge.retriever import AdvancedRetriever
-        from core.event_bus import EventBus
 
         event_bus = EventBus()
         belief_engine = BeliefEngine(event_bus=event_bus)
@@ -217,15 +217,13 @@ class TestKnowledgePipelineIntegration:
     def test_empty_conversation_does_not_crash(self, temp_state):
         from core.brain import Brain
         from core.event_bus import EventBus
-        from knowledge.graph import KnowledgeGraph
-        from knowledge.belief_engine import BeliefEngine
         from knowledge.attention import AttentionSystem
-        from knowledge.extractor import EntityExtractor
+        from knowledge.belief_engine import BeliefEngine
         from knowledge.consolidation import ConsolidationEngine
+        from knowledge.extractor import EntityExtractor
+        from knowledge.graph import KnowledgeGraph
         from knowledge.graph_manager import GraphManager
         from knowledge.retriever import AdvancedRetriever
-        from agency.registry import ToolRegistry
-        from agency.agent import Agent
 
         event_bus = EventBus()
         belief_engine = BeliefEngine()

@@ -9,6 +9,7 @@ logger = logging.getLogger(__name__)
 
 from memory.node import MemoryNode
 
+
 class MemoryGraph:
 
     MAX_NODES = 10000

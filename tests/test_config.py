@@ -2,9 +2,6 @@ import os
 from pathlib import Path
 from unittest.mock import patch
 
-import pytest
-
-
 # ──────────────────────────────────────────────
 #  Paths
 # ──────────────────────────────────────────────
@@ -12,7 +9,15 @@ import pytest
 class TestPaths:
 
     def test_paths_are_resolved_correctly(self):
-        from config.paths import ROOT_DIR, MEMORY_DIR, VECTOR_DB_DIR, TEMP_AUDIO_DIR, LOG_DIR, CACHE_DIR, OBSIDIAN_VAULT
+        from config.paths import (
+            CACHE_DIR,
+            LOG_DIR,
+            MEMORY_DIR,
+            OBSIDIAN_VAULT,
+            ROOT_DIR,
+            TEMP_AUDIO_DIR,
+            VECTOR_DB_DIR,
+        )
 
         assert isinstance(ROOT_DIR, Path)
         assert ROOT_DIR.exists()
@@ -70,8 +75,14 @@ class TestLLMConfig:
 
     def test_constants_exist(self):
         from config.llm import (
-            OPENROUTER_API_KEY, LLM_MODEL, LLM_TEMPERATURE, LLM_TOP_P,
-            LLM_STREAM, LLM_MAX_CONTEXT, LLM_TIMEOUT, LLM_RETRY_COUNT, LLM_STOP_TOKENS,
+            LLM_MAX_CONTEXT,
+            LLM_MODEL,
+            LLM_RETRY_COUNT,
+            LLM_STOP_TOKENS,
+            LLM_STREAM,
+            LLM_TEMPERATURE,
+            LLM_TIMEOUT,
+            LLM_TOP_P,
         )
 
         assert isinstance(LLM_MODEL, str) and len(LLM_MODEL) > 0
@@ -96,8 +107,12 @@ class TestMemoryConfig:
 
     def test_constants_exist(self):
         from config.memory import (
-            EMBEDDING_MODEL, MEMORY_RECALL_LIMIT, MEMORY_SIMILARITY,
-            MAX_MEMORY_RESULTS, MEMORY_MAX_NODES, MEMORY_AUTOSAVE,
+            EMBEDDING_MODEL,
+            MAX_MEMORY_RESULTS,
+            MEMORY_AUTOSAVE,
+            MEMORY_MAX_NODES,
+            MEMORY_RECALL_LIMIT,
+            MEMORY_SIMILARITY,
         )
 
         assert isinstance(EMBEDDING_MODEL, str) and len(EMBEDDING_MODEL) > 0
@@ -109,8 +124,13 @@ class TestMemoryConfig:
 
     def test_decay_values_are_floats(self):
         from config.memory import (
-            DECAY_CONVERSATION, DECAY_EMOTION, DECAY_RELATIONSHIP,
-            DECAY_IDENTITY, DECAY_REFLECTION, DECAY_IMPORTANT, DECAY_GENERAL,
+            DECAY_CONVERSATION,
+            DECAY_EMOTION,
+            DECAY_GENERAL,
+            DECAY_IDENTITY,
+            DECAY_IMPORTANT,
+            DECAY_REFLECTION,
+            DECAY_RELATIONSHIP,
         )
 
         for d in [DECAY_CONVERSATION, DECAY_EMOTION, DECAY_RELATIONSHIP,
@@ -119,8 +139,10 @@ class TestMemoryConfig:
 
     def test_node_defaults_exist(self):
         from config.memory import (
-            MEMORY_NODE_DEFAULT_SCORE, MEMORY_NODE_DEFAULT_IMPORTANCE,
-            MEMORY_NODE_DEFAULT_CONFIDENCE, MEMORY_NODE_DEFAULT_EMOTION_TYPE,
+            MEMORY_NODE_DEFAULT_CONFIDENCE,
+            MEMORY_NODE_DEFAULT_EMOTION_TYPE,
+            MEMORY_NODE_DEFAULT_IMPORTANCE,
+            MEMORY_NODE_DEFAULT_SCORE,
         )
         assert 0.0 <= MEMORY_NODE_DEFAULT_SCORE <= 1.0
         assert 0.0 <= MEMORY_NODE_DEFAULT_IMPORTANCE <= 1.0
@@ -129,8 +151,10 @@ class TestMemoryConfig:
 
     def test_memory_protection_values(self):
         from config.memory import (
-            MEMORY_EMOTIONAL_PROTECTION, MEMORY_IMPORTANCE_PROTECTION,
-            MEMORY_REINFORCEMENT_PROTECTION, MEMORY_MAX_REINFORCEMENT_PROTECTION,
+            MEMORY_EMOTIONAL_PROTECTION,
+            MEMORY_IMPORTANCE_PROTECTION,
+            MEMORY_MAX_REINFORCEMENT_PROTECTION,
+            MEMORY_REINFORCEMENT_PROTECTION,
         )
         assert 0.0 <= MEMORY_EMOTIONAL_PROTECTION <= 1.0
         assert 0.0 <= MEMORY_IMPORTANCE_PROTECTION <= 1.0
@@ -146,9 +170,14 @@ class TestEmotionConfig:
 
     def test_defaults_in_range(self):
         from config.emotion import (
-            EMOTION_DEFAULT_HAPPY, EMOTION_DEFAULT_LONELY, EMOTION_DEFAULT_ANNOYED,
-            EMOTION_DEFAULT_AFFECTION, EMOTION_DEFAULT_ENERGY, EMOTION_DEFAULT_STRESS,
-            EMOTION_MIN_VALUE, EMOTION_MAX_VALUE,
+            EMOTION_DEFAULT_AFFECTION,
+            EMOTION_DEFAULT_ANNOYED,
+            EMOTION_DEFAULT_ENERGY,
+            EMOTION_DEFAULT_HAPPY,
+            EMOTION_DEFAULT_LONELY,
+            EMOTION_DEFAULT_STRESS,
+            EMOTION_MAX_VALUE,
+            EMOTION_MIN_VALUE,
         )
         for v in [EMOTION_DEFAULT_HAPPY, EMOTION_DEFAULT_LONELY, EMOTION_DEFAULT_ANNOYED,
                   EMOTION_DEFAULT_AFFECTION, EMOTION_DEFAULT_ENERGY, EMOTION_DEFAULT_STRESS]:
@@ -156,9 +185,13 @@ class TestEmotionConfig:
 
     def test_word_lists_non_empty(self):
         from config.emotion import (
-            EMOTION_GRATITUDE_WORDS, EMOTION_ANNOYANCE_WORDS,
-            EMOTION_AFFECTION_WORDS, EMOTION_ABSENCE_WORDS,
-            EMOTION_POSITIVE_WORDS, EMOTION_NEGATIVE_WORDS, EMOTION_ENERGY_WORDS,
+            EMOTION_ABSENCE_WORDS,
+            EMOTION_AFFECTION_WORDS,
+            EMOTION_ANNOYANCE_WORDS,
+            EMOTION_ENERGY_WORDS,
+            EMOTION_GRATITUDE_WORDS,
+            EMOTION_NEGATIVE_WORDS,
+            EMOTION_POSITIVE_WORDS,
         )
         for lst in [EMOTION_GRATITUDE_WORDS, EMOTION_ANNOYANCE_WORDS,
                     EMOTION_AFFECTION_WORDS, EMOTION_ABSENCE_WORDS,
@@ -167,7 +200,8 @@ class TestEmotionConfig:
 
     def test_relationship_defaults(self):
         from config.emotion import (
-            DEFAULT_RELATIONSHIP_CLOSENESS, DEFAULT_RELATIONSHIP_ATTACHMENT,
+            DEFAULT_RELATIONSHIP_ATTACHMENT,
+            DEFAULT_RELATIONSHIP_CLOSENESS,
             DEFAULT_RELATIONSHIP_TRUST,
         )
         assert 0.0 <= DEFAULT_RELATIONSHIP_CLOSENESS <= 1.0
@@ -183,8 +217,12 @@ class TestAutonomyConfig:
 
     def test_constants_exist(self):
         from config.autonomy import (
-            ENABLE_AUTONOMY, AUTONOMY_INTERVAL, AUTONOMY_IDLE_THRESHOLD,
-            AUTONOMY_MAX_ACTIONS, ENABLE_BACKGROUND_THOUGHTS, ENABLE_IDLE_CHAT,
+            AUTONOMY_IDLE_THRESHOLD,
+            AUTONOMY_INTERVAL,
+            AUTONOMY_MAX_ACTIONS,
+            ENABLE_AUTONOMY,
+            ENABLE_BACKGROUND_THOUGHTS,
+            ENABLE_IDLE_CHAT,
         )
         assert isinstance(ENABLE_AUTONOMY, bool)
         assert isinstance(AUTONOMY_INTERVAL, int) and AUTONOMY_INTERVAL > 0
@@ -202,9 +240,10 @@ class TestExecutorConfig:
 
     def test_constants_exist(self):
         from config.executor import (
-            EXECUTOR_MODE, EXECUTOR_TIMEOUT, EXECUTOR_COMMAND_TIMEOUT,
-            EXECUTOR_MAX_OUTPUT, EXECUTOR_COOLDOWN, EXECUTOR_MIN_CONFIDENCE,
-            EXECUTOR_ALLOWED_ACTIONS, EXECUTOR_BLOCKED_COMMANDS,
+            EXECUTOR_ALLOWED_ACTIONS,
+            EXECUTOR_BLOCKED_COMMANDS,
+            EXECUTOR_MODE,
+            EXECUTOR_TIMEOUT,
         )
         assert EXECUTOR_MODE in ("safe", "normal", "unrestricted")
         assert isinstance(EXECUTOR_TIMEOUT, (int, float)) and EXECUTOR_TIMEOUT > 0
@@ -212,7 +251,7 @@ class TestExecutorConfig:
         assert isinstance(EXECUTOR_BLOCKED_COMMANDS, list) and len(EXECUTOR_BLOCKED_COMMANDS) > 0
 
     def test_urls_exist(self):
-        from config.executor import SEARCH_ENGINE_URL, DEFAULT_YOUTUBE_URL, DEFAULT_GOOGLE_URL
+        from config.executor import DEFAULT_GOOGLE_URL, DEFAULT_YOUTUBE_URL, SEARCH_ENGINE_URL
         assert SEARCH_ENGINE_URL.startswith("http")
         assert DEFAULT_YOUTUBE_URL.startswith("http")
         assert DEFAULT_GOOGLE_URL.startswith("http")
@@ -226,8 +265,11 @@ class TestSchedulerConfig:
 
     def test_constants_exist(self):
         from config.scheduler import (
-            SCHEDULER_ENABLED, SCHEDULER_LOOP_DELAY_ACTIVE, SCHEDULER_LOOP_DELAY_IDLE,
-            SCHEDULER_MAX_TASK_FAILURES, SCHEDULER_THREAD_NAME,
+            SCHEDULER_ENABLED,
+            SCHEDULER_LOOP_DELAY_ACTIVE,
+            SCHEDULER_LOOP_DELAY_IDLE,
+            SCHEDULER_MAX_TASK_FAILURES,
+            SCHEDULER_THREAD_NAME,
         )
         assert isinstance(SCHEDULER_ENABLED, bool)
         assert isinstance(SCHEDULER_LOOP_DELAY_ACTIVE, (int, float))
@@ -237,8 +279,10 @@ class TestSchedulerConfig:
 
     def test_intervals_positive(self):
         from config.scheduler import (
-            SCHEDULER_BACKGROUND_TICK_INTERVAL, SCHEDULER_EMOTION_DECAY_INTERVAL,
-            SCHEDULER_PERSONALITY_DECAY_INTERVAL, SCHEDULER_MEMORY_DECAY_INTERVAL,
+            SCHEDULER_BACKGROUND_TICK_INTERVAL,
+            SCHEDULER_EMOTION_DECAY_INTERVAL,
+            SCHEDULER_MEMORY_DECAY_INTERVAL,
+            SCHEDULER_PERSONALITY_DECAY_INTERVAL,
         )
         for v in [SCHEDULER_BACKGROUND_TICK_INTERVAL, SCHEDULER_EMOTION_DECAY_INTERVAL,
                   SCHEDULER_PERSONALITY_DECAY_INTERVAL, SCHEDULER_MEMORY_DECAY_INTERVAL]:
@@ -252,7 +296,11 @@ class TestSchedulerConfig:
 class TestPersonalityConfig:
 
     def test_constants_exist(self):
-        from config.personality import PERSONALITY_DECAY_RATE, PERSONALITY_MAX_TRAITS, PERSONALITY_MEMORY_WEIGHT
+        from config.personality import (
+            PERSONALITY_DECAY_RATE,
+            PERSONALITY_MAX_TRAITS,
+            PERSONALITY_MEMORY_WEIGHT,
+        )
 
         assert 0.0 <= PERSONALITY_DECAY_RATE <= 1.0
         assert isinstance(PERSONALITY_MAX_TRAITS, int) and PERSONALITY_MAX_TRAITS > 0
@@ -267,8 +315,12 @@ class TestObsidianConfig:
 
     def test_constants_exist(self):
         from config.paths import (
-            OBSIDIAN_ENABLED, OBSIDIAN_DAILY_NOTES, OBSIDIAN_AUTO_LINKS,
-            OBSIDIAN_TAGS_ENABLED, OBSIDIAN_MAX_FILE_SIZE, OBSIDIAN_FOLDERS,
+            OBSIDIAN_AUTO_LINKS,
+            OBSIDIAN_DAILY_NOTES,
+            OBSIDIAN_ENABLED,
+            OBSIDIAN_FOLDERS,
+            OBSIDIAN_MAX_FILE_SIZE,
+            OBSIDIAN_TAGS_ENABLED,
         )
         assert isinstance(OBSIDIAN_ENABLED, bool)
         assert isinstance(OBSIDIAN_DAILY_NOTES, bool)
@@ -286,9 +338,14 @@ class TestVoiceConfig:
 
     def test_constants_exist(self):
         from config.voice import (
-            WHISPER_MODEL, VOICE_SAMPLE_RATE, SILENCE_THRESHOLD, SILENCE_DURATION,
-            MAX_RECORDING_SECONDS, KOKORO_VOICE, KOKORO_LANG_CODE, USE_CUSTOM_VOICE,
-            VOICE_COOLDOWN, WAKE_COOLDOWN,
+            MAX_RECORDING_SECONDS,
+            SILENCE_DURATION,
+            SILENCE_THRESHOLD,
+            USE_CUSTOM_VOICE,
+            VOICE_COOLDOWN,
+            VOICE_SAMPLE_RATE,
+            WAKE_COOLDOWN,
+            WHISPER_MODEL,
         )
         assert isinstance(WHISPER_MODEL, str) and len(WHISPER_MODEL) > 0
         assert isinstance(VOICE_SAMPLE_RATE, int) and VOICE_SAMPLE_RATE > 0
@@ -307,7 +364,13 @@ class TestVoiceConfig:
 class TestRuntimeConfig:
 
     def test_constants_exist(self):
-        from config.runtime import SAFE_MODE, DEFAULT_ERROR_MESSAGE, ENABLE_THREADING, ENABLE_CACHE, ENABLE_LOGGING
+        from config.runtime import (
+            DEFAULT_ERROR_MESSAGE,
+            ENABLE_CACHE,
+            ENABLE_LOGGING,
+            ENABLE_THREADING,
+            SAFE_MODE,
+        )
 
         assert isinstance(SAFE_MODE, str)
         assert isinstance(DEFAULT_ERROR_MESSAGE, str) and len(DEFAULT_ERROR_MESSAGE) > 0
@@ -324,8 +387,10 @@ class TestDebugConfig:
 
     def test_constants_exist(self):
         from config.debug import (
-            DEBUG_MODE, SHOW_WHISPER_VOLUME, SHOW_LLM_OUTPUT,
-            SHOW_MEMORY_DEBUG, SHOW_EXECUTOR_DEBUG, SHOW_SCHEDULER_DEBUG, LOG_LEVEL,
+            DEBUG_MODE,
+            SHOW_LLM_OUTPUT,
+            SHOW_MEMORY_DEBUG,
+            SHOW_WHISPER_VOLUME,
         )
         assert isinstance(DEBUG_MODE, bool)
         assert isinstance(SHOW_WHISPER_VOLUME, bool)
@@ -333,8 +398,9 @@ class TestDebugConfig:
         assert isinstance(SHOW_MEMORY_DEBUG, bool)
 
     def test_log_level_is_int(self):
-        from config.debug import LOG_LEVEL
         import logging
+
+        from config.debug import LOG_LEVEL
         assert LOG_LEVEL in (logging.DEBUG, logging.INFO, logging.WARNING, logging.ERROR, logging.CRITICAL)
 
 
@@ -346,10 +412,13 @@ class TestReflectionConfig:
 
     def test_constants_exist(self):
         from config.reflection import (
-            REFLECTION_HISTORY_LIMIT, REFLECTION_MAX_RANKED_NODES,
-            REFLECTION_DEFAULT_SCORE, REFLECTION_DEFAULT_CONFIDENCE,
-            REFLECTION_CODING_CONFIDENCE, REFLECTION_PERSONAL_CONFIDENCE,
-            REFLECTION_AI_KEYWORDS, REFLECTION_POSITIVE_EMOTIONS, REFLECTION_NEGATIVE_EMOTIONS,
+            REFLECTION_AI_KEYWORDS,
+            REFLECTION_DEFAULT_CONFIDENCE,
+            REFLECTION_DEFAULT_SCORE,
+            REFLECTION_HISTORY_LIMIT,
+            REFLECTION_MAX_RANKED_NODES,
+            REFLECTION_NEGATIVE_EMOTIONS,
+            REFLECTION_POSITIVE_EMOTIONS,
         )
         assert isinstance(REFLECTION_HISTORY_LIMIT, int) and REFLECTION_HISTORY_LIMIT > 0
         assert isinstance(REFLECTION_MAX_RANKED_NODES, int) and REFLECTION_MAX_RANKED_NODES > 0
@@ -361,7 +430,8 @@ class TestReflectionConfig:
 
     def test_thresholds_positive(self):
         from config.reflection import (
-            REFLECTION_CODING_THRESHOLD, REFLECTION_PERSONAL_THRESHOLD,
+            REFLECTION_CODING_THRESHOLD,
+            REFLECTION_PERSONAL_THRESHOLD,
             REFLECTION_RELATIONSHIP_THRESHOLD,
         )
         assert isinstance(REFLECTION_CODING_THRESHOLD, int) and REFLECTION_CODING_THRESHOLD > 0

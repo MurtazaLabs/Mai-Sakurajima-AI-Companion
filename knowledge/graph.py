@@ -1,9 +1,9 @@
 # NOTE: P2-16 — consider collapsing BrainGraph/GraphManager/KnowledgeGraph into 2 layers
 # knowledge/graph.py
-import time
-import threading
 import json
 import logging
+import threading
+import time
 
 from core.utils import TTLCache
 

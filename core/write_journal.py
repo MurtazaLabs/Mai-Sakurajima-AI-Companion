@@ -1,8 +1,8 @@
-import time
 import logging
 import threading
+import time
 from collections import defaultdict, deque
-from typing import Any, Callable, Optional
+from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -19,10 +19,10 @@ class WriteJournal:
     def __init__(self, drain_interval: float = 2.0, max_batch: int = 50):
         self._drain_interval = drain_interval
         self._max_batch = max_batch
-        self._queue: "deque[tuple[str, tuple, dict]]" = deque()
+        self._queue: deque[tuple[str, tuple, dict]] = deque()
         self._lock = threading.RLock()
         self._running = False
-        self._thread: Optional[threading.Thread] = None
+        self._thread: threading.Thread | None = None
         self._backends: dict[str, Callable] = {}
 
     def register(self, name: str, batch_fn: Callable):

@@ -1,8 +1,8 @@
 # knowledge/belief_engine.py
-import time
+import logging
 import re
 import threading
-import logging
+import time
 
 from core.utils import TTLCache
 

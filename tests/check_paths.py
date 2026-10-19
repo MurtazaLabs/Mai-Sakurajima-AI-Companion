@@ -1,4 +1,7 @@
-import sys, os, re
+import os
+import re
+import sys
+
 sys.path.insert(0, r'E:\Mai_ai')
 
 for root, dirs, files in os.walk(r'E:\Mai_ai'):

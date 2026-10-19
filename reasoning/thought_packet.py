@@ -15,7 +15,7 @@ def default_speech_plan():
 
 class ThoughtPacket:
 
-    __slots__ = ("thought", "decision", "speech_plan", "response", "is_structured", "had_envelope")
+    __slots__ = ("decision", "had_envelope", "is_structured", "response", "speech_plan", "thought")
 
     def __init__(self, thought="", decision="", speech_plan=None, response="", had_envelope=False):
         self.thought = str(thought) if thought else ""

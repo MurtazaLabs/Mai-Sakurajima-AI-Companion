@@ -1,32 +1,20 @@
 # Mai_ai/memory/vector_store.py
-import os
-import time
-import uuid
-import json
 import hashlib
-import threading
+import json
 import logging
-from collections import OrderedDict
+import threading
 from datetime import datetime
-from typing import Any, Optional
+from typing import Any
 
 import chromadb
 from chromadb.config import Settings as ChromaSettings
 
 logger = logging.getLogger(__name__)
 
-from memory.schema_migrator import migrate_collection
 from memory.embedding_service import EmbeddingService
+from memory.schema_migrator import migrate_collection
 from memory.search_engine import SearchEngine
 from memory.vector_lifecycle import VectorLifecycle
-from core.utils import TTLCache
-
-from app.config_loader import (
-    MEMORY_SIMILARITY,
-    MAX_MEMORY_RESULTS,
-    MEMORY_MAX_VECTOR_ROWS,
-    MEMORY_PRUNE_KEEP_MIN_IMPORTANCE,
-)
 
 
 class VectorStore:
@@ -44,10 +32,10 @@ class VectorStore:
             return {k: {"$eq": v} for k, v in filters.items()}
         return {"$and": [{k: {"$eq": v}} for k, v in filters.items()]}
 
-    def __init__(self, embed_service: Optional[EmbeddingService] = None):
+    def __init__(self, embed_service: EmbeddingService | None = None):
         self.is_available = False
-        self.collection: Optional[Any] = None
-        self.client: Optional[Any] = None
+        self.collection: Any | None = None
+        self.client: Any | None = None
         self._embed_service = embed_service or EmbeddingService()
         self._lock = threading.RLock()
 
@@ -110,11 +98,7 @@ class VectorStore:
 
                     safe[key] = value
 
-                elif isinstance(value, dict):
-
-                    safe[key] = json.dumps(value)
-
-                elif isinstance(value, list):
+                elif isinstance(value, dict) or isinstance(value, list):
 
                     safe[key] = json.dumps(value)
 

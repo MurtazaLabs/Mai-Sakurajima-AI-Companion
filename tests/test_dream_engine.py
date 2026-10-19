@@ -1,4 +1,3 @@
-import pytest
 from unittest.mock import MagicMock
 
 
@@ -23,16 +22,18 @@ class TestDreamEngine:
         assert engine.should_dream(10) is False
 
     def test_should_dream_recently_dreamed(self):
-        from agency.dreaming import DreamEngine
         import time
+
+        from agency.dreaming import DreamEngine
         engine = DreamEngine()
         engine._min_idle_seconds = 10
         engine._last_dream = time.time()
         assert engine.should_dream(600) is False
 
     def test_should_dream_ready(self):
-        from agency.dreaming import DreamEngine
         import time
+
+        from agency.dreaming import DreamEngine
         engine = DreamEngine()
         engine._min_idle_seconds = 10
         engine._last_dream = time.time() - 7200
@@ -40,8 +41,8 @@ class TestDreamEngine:
 
     def test_level_1_tasks_run(self):
         from agency.dreaming import DreamEngine
-        from memory.state import MemoryState
         from knowledge.graph import KnowledgeGraph
+        from memory.state import MemoryState
         kg = KnowledgeGraph()
         kg.add_entity("mai", entity_type="character")
         engine = DreamEngine(knowledge_graph=kg)
@@ -52,11 +53,11 @@ class TestDreamEngine:
         assert report.duration >= 0
 
     def test_level_5_experience_reflection(self):
-        from agency.dreaming import DreamEngine
         from agency.dream_report import DreamReport
         from agency.dream_tasks import experience_reflection
-        from memory.state import MemoryState
+        from agency.dreaming import DreamEngine
         from memory.experience import ExperienceStore
+        from memory.state import MemoryState
         store = ExperienceStore()
         store.record_event("An intense talk about loss", emotion={"type": "sadness", "intensity": 0.9},
                            significance=0.9)
@@ -73,9 +74,9 @@ class TestDreamEngine:
                    for k in state.knowledge)
 
     def test_experience_reflection_no_store_noop(self):
-        from agency.dreaming import DreamEngine
         from agency.dream_report import DreamReport
         from agency.dream_tasks import experience_reflection
+        from agency.dreaming import DreamEngine
         from memory.state import MemoryState
         engine = DreamEngine()
         state = MemoryState()
@@ -83,8 +84,8 @@ class TestDreamEngine:
 
     def test_experience_reflection_metric_mapped(self):
         from agency.dreaming import DreamEngine
-        from memory.state import MemoryState
         from memory.experience import ExperienceStore
+        from memory.state import MemoryState
         store = ExperienceStore()
         store.record_event("Win at chess", significance=0.9)
         engine = DreamEngine(experience_store=store)
@@ -106,7 +107,7 @@ class TestDreamEngine:
 
     def test_level_1_merge_knowledge(self):
         from agency.dreaming import DreamEngine
-        from memory.state import MemoryState, KnowledgeEntry
+        from memory.state import KnowledgeEntry, MemoryState
         engine = DreamEngine()
         state = MemoryState()
         state.knowledge.append(KnowledgeEntry(topic="Python", fact="Python is great", timestamp="2026-07-17"))
@@ -117,8 +118,8 @@ class TestDreamEngine:
 
     def test_level_1_link_notes(self):
         from agency.dreaming import DreamEngine, DreamReport
-        from memory.state import MemoryState
         from knowledge.graph import KnowledgeGraph
+        from memory.state import MemoryState
         kg = KnowledgeGraph()
         kg.add_entity("alice", entity_type="person")
         kg.add_entity("tokyo", entity_type="place")
@@ -144,8 +145,8 @@ class TestDreamEngine:
 
     def test_level_2_relationship_building(self):
         from agency.dreaming import DreamEngine
-        from memory.state import MemoryState
         from knowledge.graph import KnowledgeGraph
+        from memory.state import MemoryState
         kg = KnowledgeGraph()
         kg.add_entity("alice", entity_type="person")
         kg.add_entity("bob", entity_type="person")
@@ -193,8 +194,8 @@ class TestDreamEngine:
 
     def test_level_4_optimize_graph(self):
         from agency.dreaming import DreamEngine
-        from memory.state import MemoryState
         from knowledge.graph import KnowledgeGraph
+        from memory.state import MemoryState
         kg = KnowledgeGraph()
         kg.add_entity("a", entity_type="test")
         kg.add_entity("b", entity_type="test")
@@ -230,9 +231,9 @@ class TestDreamEngine:
 
     def test_event_bus_publish(self):
         from agency.dreaming import DreamEngine
-        from memory.state import MemoryState
         from core.event_bus import EventBus
         from core.event_specs import register_event_specs
+        from memory.state import MemoryState
         bus = EventBus()
         register_event_specs(bus)
         received = []
@@ -262,9 +263,10 @@ class TestDreamEngine:
         assert "importance_full" in report.tasks_run
 
     def test_importance_recalculation_adds_importance_field(self):
+        from datetime import datetime, timedelta
+
         from agency.dreaming import DreamEngine
         from memory.state import MemoryState
-        from datetime import datetime, timedelta
         engine = DreamEngine()
         state = MemoryState()
         recent = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
@@ -274,9 +276,10 @@ class TestDreamEngine:
         assert state.people[0]["importance_source"] == "fresh"
 
     def test_importance_decay_over_time(self):
+        from datetime import datetime, timedelta
+
         from agency.dreaming import DreamEngine
         from memory.state import MemoryState
-        from datetime import datetime, timedelta
         engine = DreamEngine()
         state = MemoryState()
         recent = (datetime.now() - timedelta(days=1)).strftime("%Y-%m-%d")
@@ -290,8 +293,8 @@ class TestDreamEngine:
 
     def test_full_importance_updates_kg_entities(self):
         from agency.dreaming import DreamEngine
-        from memory.state import MemoryState
         from knowledge.graph import KnowledgeGraph
+        from memory.state import MemoryState
         kg = KnowledgeGraph()
         kg.add_entity("test_entity", entity_type="test", metadata={"confidence": 0.8})
         engine = DreamEngine(knowledge_graph=kg)
@@ -303,7 +306,6 @@ class TestDreamEngine:
 
     def test_compress_conversations_injects_summary(self, tmp_path):
         from agency.dreaming import DreamEngine
-        from memory.state import MemoryState
         conv_dir = tmp_path / "conversation"
         conv_dir.mkdir()
         f = conv_dir / "2026-07-17.md"
@@ -325,14 +327,13 @@ class TestDreamEngine:
         assert compressed == 0
 
     def test_extract_keywords_filters_stopwords(self):
-        from agency.dreaming import DreamEngine
         from agency.dream_tasks import _extract_keywords
         result = _extract_keywords("Python programming and AI systems are great for development", top_n=3)
         assert "python" in result.lower() or "programming" in result.lower()
 
     def test_generate_reflections_via_llm(self):
         from agency.dreaming import DreamEngine
-        from memory.state import MemoryState, IdentityFact
+        from memory.state import IdentityFact, MemoryState
         llm = MagicMock()
         llm.generate.return_value = '{"reflections": [{"observation": "User enjoys coding", "confidence": 0.95, "category": "interest_change"}]}'
         llm.is_available.return_value = True
@@ -345,7 +346,7 @@ class TestDreamEngine:
 
     def test_generate_reflections_low_confidence_skipped(self):
         from agency.dreaming import DreamEngine
-        from memory.state import MemoryState, IdentityFact
+        from memory.state import IdentityFact, MemoryState
         llm = MagicMock()
         llm.generate.return_value = '{"reflections": [{"observation": "Maybe likes tea", "confidence": 0.5, "category": "habit"}]}'
         llm.is_available.return_value = True

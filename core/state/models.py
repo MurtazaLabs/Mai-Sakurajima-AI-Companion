@@ -1,14 +1,22 @@
 # core/state/models.py
+import uuid
 from datetime import datetime
-from typing import Optional, Dict, Any, List
+from enum import Enum
+from typing import Any
+
 from pydantic import BaseModel, Field
 from sqlalchemy import (
-    Column, String, Float, DateTime, Text, JSON, Index, ForeignKey, Boolean, Integer
+    JSON,
+    Column,
+    DateTime,
+    Float,
+    ForeignKey,
+    Index,
+    Integer,
+    String,
+    Text,
 )
 from sqlalchemy.orm import declarative_base, relationship
-from sqlalchemy.dialects.postgresql import UUID as PG_UUID
-import uuid
-from enum import Enum
 
 
 class ConversationPhase(str, Enum):
@@ -53,8 +61,8 @@ class RelationshipValues(BaseModel):
 
 
 class GoalState(BaseModel):
-    active_goals: List[Dict[str, Any]] = Field(default_factory=list)
-    completed_goals: List[Dict[str, Any]] = Field(default_factory=list)
+    active_goals: list[dict[str, Any]] = Field(default_factory=list)
+    completed_goals: list[dict[str, Any]] = Field(default_factory=list)
 
 
 class AttentionState(BaseModel):

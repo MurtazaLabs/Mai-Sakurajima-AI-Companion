@@ -6,8 +6,8 @@ call sites. See ``api.server`` for how this is composed.
 import logging
 from typing import Any
 
-from config.ai import WAKE_WORDS
 from api.errors import safe_error
+from config.ai import WAKE_WORDS
 
 logger = logging.getLogger("api.server")
 

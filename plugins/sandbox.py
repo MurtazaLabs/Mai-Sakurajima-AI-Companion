@@ -2,23 +2,19 @@
 Plugin Sandbox
 Provides isolated execution environment with permission enforcement for plugins.
 """
-import socket
-import json
-import re
-import pathlib
-import random
-import time
 import datetime
+import json
 import math
 import os
-import sys
+import random
+import re
 import subprocess
 import threading
-import tempfile
-from pathlib import Path
-from typing import Set, Optional, List, Any, Dict
+import time
 from dataclasses import dataclass, field
 from enum import Enum
+from pathlib import Path
+from typing import Any, Optional
 from urllib.parse import urlparse
 
 try:
@@ -79,13 +75,13 @@ class PluginSandbox:
     plugin_name: str
     permissions: set
     fs_root: Path
-    network_allowlist: Set[str] = field(default_factory=set)
+    network_allowlist: set[str] = field(default_factory=set)
     resource_limits: "ResourceLimits" = field(default_factory=ResourceLimits)
     
     # Internal state
     _lock: threading.RLock = field(default_factory=threading.RLock, init=False)
-    _original_env: Dict[str, str] = field(default_factory=dict, init=False)
-    _restricted_env: Dict[str, str] = field(default_factory=dict, init=False)
+    _original_env: dict[str, str] = field(default_factory=dict, init=False)
+    _restricted_env: dict[str, str] = field(default_factory=dict, init=False)
     _active: bool = field(default=False, init=False)
 
     def __post_init__(self):
@@ -169,7 +165,7 @@ class PluginSandbox:
         path.parent.mkdir(parents=True, exist_ok=True)
         path.write_text(content, encoding=encoding)
 
-    def list_dir(self, path: str = ".") -> List[str]:
+    def list_dir(self, path: str = ".") -> list[str]:
         """List directory contents within sandbox."""
         self.require_permission(Permission.FS_READ)
         path = self.resolve_path(path)
@@ -214,15 +210,15 @@ class PluginSandbox:
         self,
         method: str,
         url: str,
-        headers: Optional[Dict[str, str]] = None,
-        data: Optional[bytes] = None,
-        json_data: Optional[Any] = None,
+        headers: dict[str, str] | None = None,
+        data: bytes | None = None,
+        json_data: Any | None = None,
         timeout: int = 30,
     ) -> Any:
         """Make HTTP request within sandbox."""
-        import urllib.request
-        import urllib.error
         import json
+        import urllib.error
+        import urllib.request
 
         self.require_network_permission(url)
         
@@ -255,11 +251,11 @@ class PluginSandbox:
     # Subprocess execution
     def run_subprocess(
         self,
-        cmd: List[str],
-        cwd: Optional[str] = None,
+        cmd: list[str],
+        cwd: str | None = None,
         timeout: int = 30,
         capture_output: bool = True,
-        env: Optional[Dict[str, str]] = None,
+        env: dict[str, str] | None = None,
     ) -> subprocess.CompletedProcess:
         """Run subprocess within sandbox."""
         self.require_permission(Permission.EXEC_SUBPROCESS)
@@ -298,7 +294,7 @@ class PluginSandbox:
             "1", "true", "yes"
         )
 
-    def eval_code(self, code: str, globals_dict: Optional[Dict] = None) -> Any:
+    def eval_code(self, code: str, globals_dict: dict | None = None) -> Any:
         """Evaluate trusted first-party Python code within sandbox.
 
         NOT a security boundary. Requires both the EXEC_EVAL permission and the
@@ -386,7 +382,7 @@ class PluginSandbox:
             # Some limits may not be adjustable on all platforms
             pass
 
-    def get_resource_usage(self) -> Dict[str, Any]:
+    def get_resource_usage(self) -> dict[str, Any]:
         """Get current resource usage."""
         if not HAS_RESOURCE:
             return {}
@@ -410,16 +406,15 @@ class PluginSandbox:
         """Write plugin configuration."""
         self.require_permission("config:write")
         # Implementation would write to plugin config store
-        pass
 
     # API access helpers
-    def call_weather_api(self, city: str) -> Dict:
+    def call_weather_api(self, city: str) -> dict:
         """Call weather API (requires api:weather permission)."""
         self.require_permission(Permission.API_WEATHER)
         # Implementation would call weather API
         return {}
 
-    def call_memory_api(self, query: str) -> List[Dict]:
+    def call_memory_api(self, query: str) -> list[dict]:
         """Call memory API (requires api:memory permission)."""
         self.require_permission(Permission.API_MEMORY)
         return []
@@ -454,14 +449,14 @@ class SandboxManager:
     def __init__(self, base_sandbox_dir: Path):
         self.base_sandbox_dir = base_sandbox_dir
         self.base_sandbox_dir.mkdir(parents=True, exist_ok=True)
-        self._sandboxes: Dict[str, PluginSandbox] = {}
+        self._sandboxes: dict[str, PluginSandbox] = {}
         self._lock = threading.RLock()
 
     def create_sandbox(
         self,
         plugin_name: str,
         permissions: set,
-        network_allowlist: Optional[Set[str]] = None,
+        network_allowlist: set[str] | None = None,
         resource_limits: Optional["ResourceLimits"] = None,
     ) -> PluginSandbox:
         """Create a new sandbox for a plugin."""
@@ -478,7 +473,7 @@ class SandboxManager:
             self._sandboxes[plugin_name] = sandbox
             return sandbox
 
-    def get_sandbox(self, plugin_name: str) -> Optional[PluginSandbox]:
+    def get_sandbox(self, plugin_name: str) -> PluginSandbox | None:
         with self._lock:
             return self._sandboxes.get(plugin_name)
 

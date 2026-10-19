@@ -9,8 +9,8 @@ The log is a compiler output owned by `VaultCompiler`. It is append-only — nev
 rewritten — so the vault carries a complete, inspectable history of cognition.
 """
 
-import threading
 import logging
+import threading
 from datetime import datetime
 from pathlib import Path
 
@@ -31,9 +31,8 @@ class VaultLogger:
             line = f"- [{ts}] {event}"
             if detail:
                 line += f" — {detail}"
-            with self._lock:
-                with open(path, "a", encoding="utf-8") as f:
-                    f.write(line + "\n")
+            with self._lock, open(path, "a", encoding="utf-8") as f:
+                f.write(line + "\n")
         except Exception as e:
             logger.warning("[VaultLogger] write failed: %s", e)
 
@@ -75,8 +74,7 @@ class VaultLogger:
             path = self.vault_root / "maintenance" / "maintenance_log.md"
             path.parent.mkdir(parents=True, exist_ok=True)
             ts = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-            with self._lock:
-                with open(path, "a", encoding="utf-8") as f:
-                    f.write(f"- [{ts}] {entry}\n")
+            with self._lock, open(path, "a", encoding="utf-8") as f:
+                f.write(f"- [{ts}] {entry}\n")
         except Exception as e:
             logger.warning("[VaultLogger] maintenance_log failed: %s", e)

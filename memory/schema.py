@@ -1,7 +1,7 @@
 # memory/schema.py
+import threading
 import time
 import uuid
-import threading
 
 
 class MemoryObject:

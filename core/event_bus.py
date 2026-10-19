@@ -35,14 +35,10 @@ import time
 import uuid
 import zlib
 from collections import deque
-from typing import Any, Callable, Dict, Generator, List, Optional, Tuple
+from collections.abc import Callable
+from typing import Any
 
 from core.event_registry import (
-    DEAD_LETTER,
-    EXPONENTIAL,
-    IGNORE,
-    IMMEDIATE,
-    NEVER,
     EventRegistry,
     EventSpec,
     RetryPolicy,
@@ -95,18 +91,18 @@ class Subscription:
 class _WorkerPool:
     """Bounded worker pool with per-priority queues and drop-oldest policy."""
 
-    def __init__(self, bus: "EventBus", workers: int, max_queue: int):
+    def __init__(self, bus: EventBus, workers: int, max_queue: int):
         self._bus = bus
         self._workers = max(1, int(workers))
         self._max_queue = max(1, int(max_queue))
-        self._queues: Dict[Priority, "queue.Queue"] = {
+        self._queues: dict[Priority, queue.Queue] = {
             p: queue.Queue(maxsize=self._max_queue) for p in PRIORITY_LEVELS
         }
-        self._dropped: Dict[Priority, int] = {p: 0 for p in PRIORITY_LEVELS}
-        self._enqueued: Dict[Priority, "deque"] = {p: deque() for p in PRIORITY_LEVELS}
+        self._dropped: dict[Priority, int] = {p: 0 for p in PRIORITY_LEVELS}
+        self._enqueued: dict[Priority, deque] = {p: deque() for p in PRIORITY_LEVELS}
         self._cv = threading.Condition(threading.RLock())
         self._running = False
-        self._threads: List[threading.Thread] = []
+        self._threads: list[threading.Thread] = []
         self._active = 0
         self._max_active = 0
 
@@ -165,7 +161,7 @@ class _WorkerPool:
                     self._active -= 1
                     self._cv.notify_all()
 
-    def _pop(self) -> Optional[MaiMessage]:
+    def _pop(self) -> MaiMessage | None:
         while True:
             with self._cv:
                 if not self._running:
@@ -189,7 +185,7 @@ class _WorkerPool:
             t.join(timeout=timeout)
         self._threads = []
 
-    def queue_snapshot(self) -> Dict[str, Dict[str, Any]]:
+    def queue_snapshot(self) -> dict[str, dict[str, Any]]:
         with self._cv:
             return {
                 p.name: {
@@ -208,7 +204,7 @@ class _WorkerPool:
             return 0.0
         return round((time.perf_counter() - enq[0]) * 1000.0, 1)
 
-    def info(self) -> Dict[str, int]:
+    def info(self) -> dict[str, int]:
         with self._cv:
             return {
                 "workers": self._workers,
@@ -224,26 +220,26 @@ class EventBus:
         self,
         worker_count: int = _DEFAULT_WORKERS,
         max_queue: int = _DEFAULT_MAX_QUEUE,
-        registry: Optional[EventRegistry] = None,
+        registry: EventRegistry | None = None,
         default_source: str = "",
         trace_capacity: int = _DEFAULT_TRACE_CAPACITY,
-        metadata_registry: Optional["MetadataExtractorRegistry"] = None,
+        metadata_registry: MetadataExtractorRegistry | None = None,
     ):
         self._lock = threading.RLock()
-        self._subscribers: Dict[str, List[Subscription]] = {}
+        self._subscribers: dict[str, list[Subscription]] = {}
         self.registry: EventRegistry = registry or EventRegistry()
         self._default_source = default_source
 
         self._pool = _WorkerPool(self, workers=worker_count, max_queue=max_queue)
-        self._middleware: Dict[str, Callable] = {}
+        self._middleware: dict[str, Callable] = {}
         self._install_default_middleware()
 
         self._traces: deque = deque(maxlen=max(0, trace_capacity))
         self._trace_capacity = trace_capacity
         self._counter_total = 0
-        self._counters: Dict[str, int] = {}
+        self._counters: dict[str, int] = {}
         self._failure_count = 0
-        self._type_failures: Dict[str, int] = {}
+        self._type_failures: dict[str, int] = {}
         self._version_mismatches = 0
         self._dead_letters: deque = deque(maxlen=_DEFAULT_DEAD_LETTER_CAPACITY)
         self._telemetry_enabled = True
@@ -269,7 +265,7 @@ class EventBus:
         """Declare an event type in the Event Registry."""
         return self.registry.register(spec, replace=replace)
 
-    def retry_policy(self, name: str) -> Tuple[RetryPolicy, int]:
+    def retry_policy(self, name: str) -> tuple[RetryPolicy, int]:
         return self.registry.retry_policy(name)
 
     # ── Middleware ───────────────────────────────────────────────
@@ -292,7 +288,7 @@ class EventBus:
         self._middleware[name] = fn
 
     @staticmethod
-    def _default_validation(msg: MaiMessage, bus: "EventBus") -> None:
+    def _default_validation(msg: MaiMessage, bus: EventBus) -> None:
         if msg.is_legacy:
             return
         spec = bus.registry.get(msg.type)
@@ -308,7 +304,7 @@ class EventBus:
             )
 
     @staticmethod
-    def _default_authorization(msg: MaiMessage, bus: "EventBus") -> None:
+    def _default_authorization(msg: MaiMessage, bus: EventBus) -> None:
         if msg.is_legacy or not msg.source:
             return  # legacy / anonymous publishers are not capability-carried
         spec = bus.registry.get(msg.type)
@@ -320,17 +316,17 @@ class EventBus:
                 f"'{msg.type}' (allowed: {sorted(spec.allowed_publishers)})"
             )
 
-    def _default_metrics(self, msg: MaiMessage, bus: "EventBus") -> None:
+    def _default_metrics(self, msg: MaiMessage, bus: EventBus) -> None:
         with bus._lock:
             bus._counter_total += 1
             bus._counters[msg.type] = bus._counters.get(msg.type, 0) + 1
 
     @staticmethod
-    def _default_tracing(msg: MaiMessage, bus: "EventBus") -> None:
+    def _default_tracing(msg: MaiMessage, bus: EventBus) -> None:
         msg.metadata["traced"] = True
 
     @staticmethod
-    def _default_logging(msg: MaiMessage, bus: "EventBus") -> None:
+    def _default_logging(msg: MaiMessage, bus: EventBus) -> None:
         logger.debug(
             "[EventBus] %s %s -> %s (v%d, pri=%s, corr=%s)",
             msg.namespace, msg.source or "?", msg.type, msg.version,
@@ -338,7 +334,7 @@ class EventBus:
         )
 
     @staticmethod
-    def _default_compression(msg: MaiMessage, bus: "EventBus") -> None:
+    def _default_compression(msg: MaiMessage, bus: EventBus) -> None:
         """Opt-in payload compression for large ``data.*`` payloads.
 
         Enabled per event type via ``EventSpec(compressed=True)``. Compresses
@@ -405,10 +401,10 @@ class EventBus:
                 subs.remove(sub)
                 logger.debug("[EventBus] Unsubscribed from '%s'", sub.topic)
 
-    def _matching_subs(self, topic: str) -> List[Subscription]:
+    def _matching_subs(self, topic: str) -> list[Subscription]:
         """Exact-topic matches plus ``prefix.*`` wildcard subscriptions."""
         with self._lock:
-            out: List[Subscription] = []
+            out: list[Subscription] = []
             seen = set()
             for s in self._subscribers.get(topic, ()):
                 out.append(s)
@@ -461,9 +457,9 @@ class EventBus:
         handler; the outcome is FAILED if any handler raised.
         """
         t0 = time.perf_counter()
-        results: List[Tuple[Subscription, Any]] = []
-        handler_failures: List[str] = []
-        handler_times: Dict[str, float] = {}
+        results: list[tuple[Subscription, Any]] = []
+        handler_failures: list[str] = []
+        handler_times: dict[str, float] = {}
         try:
             self._run_middleware(msg)
         except Exception as e:
@@ -600,7 +596,7 @@ class EventBus:
         """Toggle the ``telemetry.inspector.record`` fabric channel."""
         self._telemetry_enabled = bool(enabled)
 
-    def traces(self, filters: Optional[Dict[str, Any]] = None) -> List[dict]:
+    def traces(self, filters: dict[str, Any] | None = None) -> list[dict]:
         """Snapshot of telemetry records (feed for the Event Inspector)."""
         with self._lock:
             out = list(self._traces)
@@ -631,7 +627,7 @@ class EventBus:
         with self._lock:
             self._traces.clear()
 
-    def dead_letters(self) -> List[dict]:
+    def dead_letters(self) -> list[dict]:
         with self._lock:
             return list(self._dead_letters)
 
@@ -657,7 +653,6 @@ class EventBus:
         """Legacy synchronous publish. Semantics unchanged."""
         msg = self._prepare(topic, data, source)
         self._dispatch_once(msg, attempt=1)
-        return None
 
     def publish_async(self, topic, data=None, source=None):
         """Legacy async publish — routed through the bounded worker pool."""

@@ -3,19 +3,22 @@ Plugin Marketplace Client
 Fetches plugins from remote registry, downloads packages, and handles installation
 with dependency resolution and version compatibility checks.
 """
-import json
 import hashlib
+import json
 import os
-import tempfile
 import shutil
-import urllib.request
 import urllib.error
-from pathlib import Path
-from typing import Optional, List, Dict, Any, Tuple
+import urllib.request
 from dataclasses import dataclass
+from pathlib import Path
+from typing import Any
 
-from plugins.plugin_manifest import PluginManifest, PluginManifestValidator
-from plugins.dependency_resolver import DependencyResolver, VersionConflictError, CircularDependencyError
+from plugins.dependency_resolver import (
+    CircularDependencyError,
+    DependencyResolver,
+    VersionConflictError,
+)
+from plugins.plugin_manifest import PluginManifest
 from plugins.signing import verify_plugin_package
 
 
@@ -40,15 +43,15 @@ class RegistryPlugin:
     author: str
     entry_point: str
     api_version: str
-    permissions: Dict[str, Any]
-    dependencies: List[Dict[str, Any]]
-    hooks: List[str]
+    permissions: dict[str, Any]
+    dependencies: list[dict[str, Any]]
+    hooks: list[str]
     min_mai_version: str
-    max_mai_version: Optional[str]
-    homepage: Optional[str]
-    repository: Optional[str]
+    max_mai_version: str | None
+    homepage: str | None
+    repository: str | None
     license: str
-    tags: List[str]
+    tags: list[str]
     downloads: int
     rating: float
     updated_at: str
@@ -56,7 +59,7 @@ class RegistryPlugin:
     checksum: str
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "RegistryPlugin":
+    def from_dict(cls, data: dict[str, Any]) -> "RegistryPlugin":
         return cls(
             name=data["name"],
             version=data["version"],
@@ -82,7 +85,7 @@ class RegistryPlugin:
 
     def to_manifest(self) -> PluginManifest:
         """Convert to PluginManifest for dependency resolution."""
-        from plugins.plugin_manifest import PluginPermission, PluginDependency
+        from plugins.plugin_manifest import PluginDependency, PluginPermission
         permissions = PluginPermission(
             filesystem=self.permissions.get("filesystem", "none"),
             network=self.permissions.get("network", "none"),
@@ -119,14 +122,14 @@ class MarketplaceClient:
     DEFAULT_REGISTRY_URL = "https://plugins.mai-ai.dev/registry.json"
     LOCAL_REGISTRY_PATH = Path.home() / ".config" / "mai" / "marketplace" / "registry.json"
 
-    def __init__(self, registry_url: Optional[str] = None, cache_dir: Optional[Path] = None):
+    def __init__(self, registry_url: str | None = None, cache_dir: Path | None = None):
         self.registry_url = registry_url or self.DEFAULT_REGISTRY_URL
         self.cache_dir = cache_dir or (Path.home() / ".cache" / "mai" / "marketplace")
         self.cache_dir.mkdir(parents=True, exist_ok=True)
-        self._registry_cache: Optional[Dict[str, Any]] = None
-        self._registry_plugins: Dict[str, RegistryPlugin] = {}
+        self._registry_cache: dict[str, Any] | None = None
+        self._registry_plugins: dict[str, RegistryPlugin] = {}
 
-    def fetch_registry(self, force_refresh: bool = False) -> Dict[str, Any]:
+    def fetch_registry(self, force_refresh: bool = False) -> dict[str, Any]:
         """
         Fetch the plugin registry from remote URL.
         
@@ -204,8 +207,8 @@ class MarketplaceClient:
                 plugin = RegistryPlugin.from_dict(plugin_data)
                 self._registry_plugins[plugin.name] = plugin
 
-    def search(self, query: str = "", tags: Optional[List[str]] = None,
-               category: Optional[str] = None) -> List[RegistryPlugin]:
+    def search(self, query: str = "", tags: list[str] | None = None,
+               category: str | None = None) -> list[RegistryPlugin]:
         """
         Search the marketplace for plugins.
         
@@ -234,7 +237,7 @@ class MarketplaceClient:
         
         return results
 
-    def get_plugin(self, name: str, version: Optional[str] = None) -> Optional[RegistryPlugin]:
+    def get_plugin(self, name: str, version: str | None = None) -> RegistryPlugin | None:
         """Get a specific plugin from the registry."""
         self.fetch_registry()
         plugin = self._registry_plugins.get(name)
@@ -299,8 +302,8 @@ class MarketplaceClient:
         return h.hexdigest()
 
     def install_plugin(self, name: str, version: str = "latest",
-                      force: bool = False, trusted_keys: Optional[List[bytes]] = None,
-                      lifecycle_manager=None) -> Tuple[bool, str, Optional[Path]]:
+                      force: bool = False, trusted_keys: list[bytes] | None = None,
+                      lifecycle_manager=None) -> tuple[bool, str, Path | None]:
         """
         Install a plugin from the marketplace with full dependency resolution.
         
@@ -412,7 +415,7 @@ class MarketplaceClient:
             return False, f"Installation failed: {e}", package_path
 
 
-def create_marketplace_client(registry_url: Optional[str] = None) -> MarketplaceClient:
+def create_marketplace_client(registry_url: str | None = None) -> MarketplaceClient:
     """Factory function to create a configured MarketplaceClient."""
     return MarketplaceClient(registry_url)
 

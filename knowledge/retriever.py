@@ -1,9 +1,9 @@
 # knowledge/retriever.py
-import time
-import threading
 import logging
-from concurrent.futures import ThreadPoolExecutor, as_completed
+import threading
+import time
 from collections import OrderedDict
+from concurrent.futures import ThreadPoolExecutor, as_completed
 
 from app.config_loader import MEMORY_SIMILARITY_THRESHOLD
 

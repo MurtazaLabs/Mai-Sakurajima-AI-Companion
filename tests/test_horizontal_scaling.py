@@ -19,9 +19,9 @@ import pytest
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(PROJECT_ROOT))
 
-from core.state.redis_state import RedisSharedState, RedisConfig
 from core.event_bus_redis import RedisEventBus
 from core.state.models import EmotionState
+from core.state.redis_state import RedisConfig, RedisSharedState
 
 
 def _make_state(name: str, base: Path) -> RedisSharedState:

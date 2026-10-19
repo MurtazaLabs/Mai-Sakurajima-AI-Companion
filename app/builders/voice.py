@@ -2,12 +2,12 @@ import logging
 
 import app.config_loader as cfg
 from app.metadata import tag_service
-from voice.realtime import RealtimeVoice
-from voice.kokoro_tts import KokoroTTS
-from voice.speaker import SpeakerManager
-from voice.wake_word import WakeWord
-from voice.stt import FasterWhisperSTT
 from core.state.per_person_relationship import PerPersonRelationshipManager
+from voice.kokoro_tts import KokoroTTS
+from voice.realtime import RealtimeVoice
+from voice.speaker import SpeakerManager
+from voice.stt import FasterWhisperSTT
+from voice.wake_word import WakeWord
 
 logger = logging.getLogger("Mai")
 
@@ -32,9 +32,9 @@ def build(app):
     # M4 · Voice renderer seam — character speech pipeline (SpeechStylePlanner
     # → ProsodyPlanner → VoiceRenderer) layered on top of the same TTS.
     logger.info("    Building SpeechStylePlanner...")
-    from voice.speech_style import SpeechStylePlanner
     from voice.prosody import ProsodyPlanner
     from voice.renderer import create_renderer
+    from voice.speech_style import SpeechStylePlanner
     app.speech_style_planner = SpeechStylePlanner()
     tag_service(app, "speech_style_planner", "SpeechStylePlanner", "Voice")
     logger.info("    ✓ SpeechStylePlanner")

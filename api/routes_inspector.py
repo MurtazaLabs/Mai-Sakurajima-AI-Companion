@@ -5,7 +5,8 @@ call sites. See ``api.server`` for route registration and ``api.static_serving``
 for the web page.
 """
 import logging
-from typing import Any, Dict, Optional
+from typing import Any
+
 from api.errors import safe_error
 
 logger = logging.getLogger("api.server")
@@ -27,7 +28,7 @@ class InspectorMixin:
 
     # ── Endpoint handlers ─────────────────────────────────────────
 
-    def inspector_records(self, filters: Optional[Dict[str, Any]] = None,
+    def inspector_records(self, filters: dict[str, Any] | None = None,
                           limit: int = 100, offset: int = 0):
         inspector = self._inspector_or_empty()
         if inspector is None:
@@ -79,7 +80,7 @@ class InspectorMixin:
             logger.exception("[Inspector] queues: %s", e)
             return {"queues": {}, "error": safe_error(e)}
 
-    def inspector_dead_letters(self, since: Optional[float] = None):
+    def inspector_dead_letters(self, since: float | None = None):
         inspector = self._inspector_or_empty()
         if inspector is None:
             return {"dead_letters": [], "total": 0}

@@ -2,11 +2,11 @@ import logging
 import threading
 import warnings
 from pathlib import Path
-from typing import Any, Optional
+from typing import Any
 
 import numpy as np
-import torch
 import soundfile as sf
+import torch
 
 logger = logging.getLogger("Mai.SpeakerEncoder")
 
@@ -57,8 +57,8 @@ class SpeakerEncoder:
 
     def __init__(self):
         self._lock = threading.RLock()
-        self._model: Optional[Any] = None
-        self._device: Optional[str] = None
+        self._model: Any | None = None
+        self._device: str | None = None
         self.ready = False
         self._load_model()
 

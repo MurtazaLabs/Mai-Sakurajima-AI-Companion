@@ -34,7 +34,7 @@ class ResponsePipeline:
             return PipelineResult()
 
         if self.tool_registry and self._validate_via_registry(action):
-            tool_result = self.tool_registry.call(action["type"], **({"content": action.get("content", "")}))
+            tool_result = self.tool_registry.call(action["type"], content=action.get("content", ""))
             if tool_result.get("success"):
                 output = str(tool_result.get("result", "done"))
             elif self.executor:

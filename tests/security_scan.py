@@ -1,4 +1,7 @@
-import sys, os, re
+import os
+import re
+import sys
+
 sys.path.insert(0, r'E:\Mai_ai')
 
 print('=== SCANNING FOR SECURITY ISSUES ===')
@@ -19,7 +22,7 @@ for root, dirs, files in os.walk(r'E:\Mai_ai'):
                     stripped = line.strip()
                     
                     # Check for hardcoded credentials/secrets
-                    if re.search(r'(password|secret|apikey|token)\s*=\s*[\'"][\w\-]{8,}[\'"]', line, re.I) and 'test' not in path.lower() and 'example' not in path.lower():
+                    if re.search(r'(password|secret|apikey|token)\s*=\s*[\'"][\w\-]{8,}[\'"]', line, re.IGNORECASE) and 'test' not in path.lower() and 'example' not in path.lower():
                         print(f'CREDENTIAL: {rel}:{i}: {line.strip()[:100]}')
                     
                     # Check for hardcoded IPs/URLs
@@ -30,7 +33,7 @@ for root, dirs, files in os.walk(r'E:\Mai_ai'):
                     if re.search(r'\b(eval|exec)\s*\(', line) and 'test' not in path.lower():
                         print(f'EVAL_EXEC: {rel}:{i}: {line.strip()[:100]}')
                     
-            except Exception as e:
+            except Exception:
                 pass
 
 print('Done scanning for security issues.')

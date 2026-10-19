@@ -2,14 +2,15 @@
 Auto-Rollback Management for Mai AI.
 Monitors model health and automatically rolls back on anomalies.
 """
-import time
-import threading
-from enum import Enum
-from dataclasses import dataclass, field
-from typing import Dict, List, Optional, Callable, Any
-from datetime import datetime, timedelta
-from collections import deque
 import logging
+import threading
+import time
+from collections import deque
+from collections.abc import Callable
+from dataclasses import dataclass, field
+from datetime import datetime
+from enum import Enum
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -47,7 +48,7 @@ class RollbackRule:
     min_samples: int = 10
     cooldown_seconds: int = 300
     enabled: bool = True
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 @dataclass
@@ -62,8 +63,8 @@ class RollbackEvent:
     threshold: float
     timestamp: str = field(default_factory=lambda: datetime.utcnow().isoformat())
     resolved: bool = False
-    resolved_at: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    resolved_at: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
 
 class MetricWindow:
@@ -85,11 +86,11 @@ class MetricWindow:
         while self.values and self.values[0][0] < cutoff:
             self.values.popleft()
     
-    def get_values(self) -> List[float]:
+    def get_values(self) -> list[float]:
         """Get all values in window."""
         return [v for _, v in self.values]
     
-    def get_timestamps(self) -> List[float]:
+    def get_timestamps(self) -> list[float]:
         """Get all timestamps in window."""
         return [ts for ts, _ in self.values]
     
@@ -97,12 +98,12 @@ class MetricWindow:
         """Get count of values in window."""
         return len(self.values)
     
-    def average(self) -> Optional[float]:
+    def average(self) -> float | None:
         """Get average of values in window."""
         values = self.get_values()
         return sum(values) / len(values) if values else None
     
-    def percentile(self, p: float) -> Optional[float]:
+    def percentile(self, p: float) -> float | None:
         """Get percentile of values in window."""
         values = sorted(self.get_values())
         if not values:
@@ -110,7 +111,7 @@ class MetricWindow:
         idx = int(len(values) * p / 100)
         return values[min(idx, len(values) - 1)]
     
-    def trend(self) -> Optional[float]:
+    def trend(self) -> float | None:
         """Calculate linear trend (slope) of values."""
         values = self.get_values()
         timestamps = self.get_timestamps()
@@ -136,7 +137,7 @@ class AutoRollbackManager:
         self,
         registry,
         rollout_manager,
-        rules: List[RollbackRule] = None,
+        rules: list[RollbackRule] = None,
         check_interval: int = 30,
         notifier: Callable = None
     ):
@@ -146,14 +147,14 @@ class AutoRollbackManager:
         self.check_interval = check_interval
         self.notifier = notifier
         
-        self._monitored_models: Dict[str, Dict[str, MetricWindow]] = {}
-        self._rollback_history: List[RollbackEvent] = []
-        self._last_rollback: Dict[str, float] = {}  # model_id -> timestamp
+        self._monitored_models: dict[str, dict[str, MetricWindow]] = {}
+        self._rollback_history: list[RollbackEvent] = []
+        self._last_rollback: dict[str, float] = {}  # model_id -> timestamp
         self._lock = threading.RLock()
         self._stop_event = threading.Event()
-        self._monitor_thread: Optional[threading.Thread] = None
+        self._monitor_thread: threading.Thread | None = None
     
-    def _default_rules(self) -> List[RollbackRule]:
+    def _default_rules(self) -> list[RollbackRule]:
         """Create default rollback rules."""
         return [
             RollbackRule(
@@ -297,7 +298,7 @@ class AutoRollbackManager:
                 self._trigger_rollback(model_id, state, rule, metrics)
                 break  # Only one rollback at a time
     
-    def _collect_metrics(self, model_id: str, version: str) -> Optional[Dict[str, float]]:
+    def _collect_metrics(self, model_id: str, version: str) -> dict[str, float] | None:
         """Collect current metrics for a model."""
         # Try to get from registry
         mv = self.registry.get(model_id, version)
@@ -315,7 +316,7 @@ class AutoRollbackManager:
         
         return metrics
     
-    def _update_windows(self, model_id: str, metrics: Dict[str, float]):
+    def _update_windows(self, model_id: str, metrics: dict[str, float]):
         """Update metric windows for a model."""
         if model_id not in self._monitored_models:
             self._monitored_models[model_id] = {}
@@ -337,7 +338,7 @@ class AutoRollbackManager:
         model_id: str,
         state: 'RolloutState',
         rule: RollbackRule,
-        metrics: Dict[str, float]
+        metrics: dict[str, float]
     ) -> bool:
         """Evaluate a single rollback rule."""
         # Check cooldown
@@ -362,7 +363,7 @@ class AutoRollbackManager:
         
         return False
     
-    def _evaluate_immediate(self, window: MetricWindow, rule: RollbackRule, metrics: Dict) -> bool:
+    def _evaluate_immediate(self, window: MetricWindow, rule: RollbackRule, metrics: dict) -> bool:
         """Evaluate immediate trigger (latest value)."""
         current_value = metrics.get(rule.metric_name)
         if current_value is None:
@@ -419,7 +420,7 @@ class AutoRollbackManager:
             return abs(value - threshold) >= 1e-9
         return False
     
-    def _trigger_rollback(self, model_id: str, state: 'RolloutState', rule: RollbackRule, metrics: Dict):
+    def _trigger_rollback(self, model_id: str, state: 'RolloutState', rule: RollbackRule, metrics: dict):
         """Trigger automatic rollback."""
         version = state.plan.version
         metric_value = metrics.get(rule.metric_name, 0)
@@ -488,7 +489,7 @@ class AutoRollbackManager:
                     rule.enabled = False
                     break
     
-    def get_rollback_history(self, model_id: str = None, limit: int = 100) -> List[RollbackEvent]:
+    def get_rollback_history(self, model_id: str = None, limit: int = 100) -> list[RollbackEvent]:
         """Get rollback history."""
         with self._lock:
             history = self._rollback_history
@@ -496,7 +497,7 @@ class AutoRollbackManager:
                 history = [e for e in history if e.model_id == model_id]
             return history[-limit:]
     
-    def get_model_status(self, model_id: str) -> Dict[str, Any]:
+    def get_model_status(self, model_id: str) -> dict[str, Any]:
         """Get monitoring status for a model."""
         with self._lock:
             windows = self._monitored_models.get(model_id, {})

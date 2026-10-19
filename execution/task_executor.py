@@ -1,13 +1,13 @@
 # Mai_ai/execution/task_executor.py
-import time
-import queue
 import logging
+import queue
 import threading
+import time
 
 logger = logging.getLogger(__name__)
 
 from app.config_loader import Settings
-from execution.handlers import SystemActions, CommandActions, DesktopActions
+from execution.handlers import CommandActions, DesktopActions, SystemActions
 
 
 class TaskExecutor:
@@ -162,7 +162,7 @@ class TaskExecutor:
 
             result = self._result(
                 success=False,
-                output=f"task_failed:{str(e)}",
+                output=f"task_failed:{e!s}",
                 duration=0
             )
 

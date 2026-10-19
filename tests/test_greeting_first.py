@@ -1,5 +1,4 @@
 # tests/test_greeting_first.py — M5 FSM tests
-import time
 from unittest.mock import MagicMock, patch
 
 from core.os_kernel import AIOSKernel, KernelMode

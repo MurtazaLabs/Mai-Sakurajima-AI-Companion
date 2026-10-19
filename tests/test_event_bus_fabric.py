@@ -1,8 +1,8 @@
 """Tests for the Event Fabric transport (priority, middleware, retry,
 request/response, telemetry) and legacy compatibility."""
+import json
 import threading
 import time
-import json
 
 import pytest
 

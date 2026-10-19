@@ -35,10 +35,11 @@ import logging
 import threading
 import time
 from collections import deque
+from collections.abc import Callable
 from dataclasses import dataclass
 from enum import Enum
 from pathlib import Path
-from typing import Any, Callable, Dict, List, Optional, Set, Tuple
+from typing import Any
 
 logger = logging.getLogger("Mai")
 
@@ -59,9 +60,9 @@ class LifecycleState(str, Enum):
     ERROR = "error"
 
 
-TERMINAL_STATES: Set[LifecycleState] = {LifecycleState.STOPPED, LifecycleState.ERROR}
+TERMINAL_STATES: set[LifecycleState] = {LifecycleState.STOPPED, LifecycleState.ERROR}
 
-VALID_TRANSITIONS: Dict[LifecycleState, Set[LifecycleState]] = {
+VALID_TRANSITIONS: dict[LifecycleState, set[LifecycleState]] = {
     LifecycleState.CREATED: {LifecycleState.INITIALIZING, LifecycleState.ERROR},
     LifecycleState.INITIALIZING: {LifecycleState.STARTING, LifecycleState.ERROR,
                                   LifecycleState.SHUTTING_DOWN},
@@ -102,7 +103,7 @@ class LifecycleStateMachine:
         self._lock = threading.RLock()
         self._state = initial
         self._history: deque = deque(maxlen=max(1, int(history_capacity)))
-        self._listeners: Dict[str, Callable] = {}
+        self._listeners: dict[str, Callable] = {}
 
     @property
     def state(self) -> LifecycleState:
@@ -154,7 +155,7 @@ class LifecycleStateMachine:
             except Exception as e:
                 logger.warning("[Orchestrator] transition listener failed: %s", e)
 
-    def history(self, limit: int = 50) -> List[dict]:
+    def history(self, limit: int = 50) -> list[dict]:
         with self._lock:
             items = list(self._history)
         return list(items[-max(1, int(limit)):])
@@ -179,7 +180,7 @@ class TransitionJournal:
     warning instead of breaking the lifecycle.
     """
 
-    def __init__(self, path: Optional[Path] = None, enabled: bool = True):
+    def __init__(self, path: Path | None = None, enabled: bool = True):
         self.enabled = enabled
         self._lock = threading.RLock()
         self._path = Path(path) if path else None
@@ -236,10 +237,10 @@ class ManagedService:
 
     name: str
     layer: str = "Infrastructure"
-    start: Optional[Callable[[], Any]] = None
-    stop: Optional[Callable[[], Any]] = None
-    health: Optional[Callable[[], bool]] = None
-    factory: Optional[Callable[[], Any]] = None
+    start: Callable[[], Any] | None = None
+    stop: Callable[[], Any] | None = None
+    health: Callable[[], bool] | None = None
+    factory: Callable[[], Any] | None = None
     restart_policy: RestartPolicy = RestartPolicy.NEVER
     max_restarts: int = 3
     backoff: float = 1.0
@@ -248,11 +249,11 @@ class ManagedService:
     state: str = "created"    # created|running|failed|restarting|stopped|terminated
     restarts: int = 0
     healthy: bool = True
-    last_error: Optional[str] = None
+    last_error: str | None = None
     window_start: float = 0.0
     started_at: float = 0.0
 
-    def snapshot(self) -> Dict[str, Any]:
+    def snapshot(self) -> dict[str, Any]:
         return {
             "name": self.name,
             "layer": self.layer,
@@ -282,8 +283,8 @@ class ServiceRegistry:
 
     def __init__(self):
         self._lock = threading.RLock()
-        self._services: Dict[str, ManagedService] = {}
-        self._order: List[str] = []
+        self._services: dict[str, ManagedService] = {}
+        self._order: list[str] = []
 
     def register(self, svc: ManagedService, replace: bool = False) -> ManagedService:
         if not isinstance(svc, ManagedService):
@@ -313,27 +314,27 @@ class ServiceRegistry:
         with self._lock:
             return name in self._services
 
-    def get(self, name: str) -> Optional[ManagedService]:
+    def get(self, name: str) -> ManagedService | None:
         with self._lock:
             return self._services.get(name)
 
-    def names(self) -> List[str]:
+    def names(self) -> list[str]:
         with self._lock:
             return list(self._order)
 
-    def all(self) -> List[ManagedService]:
+    def all(self) -> list[ManagedService]:
         """Live references to every registered service (registry-lock snapshot)."""
         with self._lock:
             return list(self._services.values())
 
-    def snapshot(self) -> List[dict]:
+    def snapshot(self) -> list[dict]:
         with self._lock:
             return [svc.snapshot() for svc in self._services.values()]
 
 
 # ── Layer map (mirrors BOOT_ORDER / SERVICE_ATTRS) ──────────────────
 
-APP_LAYER_MAP: List[Tuple[str, str]] = [
+APP_LAYER_MAP: list[tuple[str, str]] = [
     # Infrastructure
     ("event_bus", "Infrastructure"),
     ("shared_state", "Infrastructure"),
@@ -417,7 +418,7 @@ class SystemOrchestrator:
 
         self._lock = threading.RLock()
         self._recovery_lock = threading.RLock()
-        self._watchdog: Optional[threading.Thread] = None
+        self._watchdog: threading.Thread | None = None
         self._watchdog_stop = threading.Event()
         self._watchdog_active = threading.Event()
         self._lifecycle_module = None
@@ -491,8 +492,8 @@ class SystemOrchestrator:
     def register_service(self, name: str, *, layer: str = "Infrastructure",
                          start=None, stop=None, health=None, factory=None,
                          restart_policy: RestartPolicy = RestartPolicy.NEVER,
-                         max_restarts: Optional[int] = None,
-                         backoff: Optional[float] = None,
+                         max_restarts: int | None = None,
+                         backoff: float | None = None,
                          obj: Any = None, replace: bool = False) -> ManagedService:
         svc = ManagedService(
             name=name,
@@ -652,7 +653,7 @@ class SystemOrchestrator:
                 health.check_stalled()
             except Exception:
                 pass
-        restartable_failures: List[ManagedService] = []
+        restartable_failures: list[ManagedService] = []
         for svc in self.services.all():
             if svc.health is None:
                 continue
@@ -677,8 +678,8 @@ class SystemOrchestrator:
 
     # ── Recovery + restart ───────────────────────────────────────
 
-    def recover(self, services: Optional[List[ManagedService]] = None,
-                reason: str = "crash recovery") -> Dict[str, Any]:
+    def recover(self, services: list[ManagedService] | None = None,
+                reason: str = "crash recovery") -> dict[str, Any]:
         """Attempt policy-based recovery of failed services.
 
         Runs under an exclusive recovery lock. Returns ``{"recovered", "failed",
@@ -774,7 +775,7 @@ class SystemOrchestrator:
 
     # ── Observability ────────────────────────────────────────────
 
-    def summary(self) -> Dict[str, Any]:
+    def summary(self) -> dict[str, Any]:
         health = None
         if self.app is not None and getattr(self.app, "health_registry", None) is not None:
             try:

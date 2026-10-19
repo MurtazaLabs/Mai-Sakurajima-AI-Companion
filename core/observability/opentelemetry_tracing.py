@@ -3,17 +3,16 @@ OpenTelemetry tracing configuration for Mai AI.
 Provides distributed tracing for all services and components.
 """
 import importlib
-import os
 import logging
-from typing import Optional
+import os
 from contextvars import ContextVar
 
 from opentelemetry import trace
+from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
+from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 from opentelemetry.sdk.trace import TracerProvider
 from opentelemetry.sdk.trace.export import BatchSpanProcessor, ConsoleSpanExporter
-from opentelemetry.sdk.resources import SERVICE_NAME, Resource
 from opentelemetry.sdk.trace.sampling import TraceIdRatioBased
-from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
 
 
 def _optional_import(module: str, attr: str):
@@ -43,16 +42,16 @@ MeterProvider = _optional_import("opentelemetry.sdk.metrics", "MeterProvider")
 logger = logging.getLogger(__name__)
 
 # Context variable for current trace ID
-current_trace_id: ContextVar[Optional[str]] = ContextVar('current_trace_id', default=None)
+current_trace_id: ContextVar[str | None] = ContextVar('current_trace_id', default=None)
 
 # Global tracer provider
-_tracer_provider: Optional[TracerProvider] = None
-_tracer: Optional[trace.Tracer] = None
+_tracer_provider: TracerProvider | None = None
+_tracer: trace.Tracer | None = None
 
 
 def init_tracing(
     service_name: str = "mai-ai",
-    otlp_endpoint: Optional[str] = None,
+    otlp_endpoint: str | None = None,
     sample_rate: float = 0.1,
     enable_console_export: bool = False,
 ) -> trace.Tracer:
@@ -139,7 +138,7 @@ def get_tracer() -> trace.Tracer:
     return _tracer
 
 
-def get_trace_id() -> Optional[str]:
+def get_trace_id() -> str | None:
     """Get current trace ID from context."""
     span = trace.get_current_span()
     if span and span.get_span_context().trace_id:
@@ -292,8 +291,9 @@ def record_llm_request(
     error: str = None
 ):
     """Record LLM request metrics and tracing."""
-    from core.observability.prometheus_metrics import record_llm_request
     from opentelemetry import trace
+
+    from core.observability.prometheus_metrics import record_llm_request
     
     span = trace.get_current_span()
     if span:
@@ -308,7 +308,6 @@ def record_llm_request(
             span.set_status(trace.Status(trace.StatusCode.ERROR, error))
     
     # Record metrics
-    from core.observability.prometheus_metrics import record_llm_request
     record_llm_request(
         provider=provider,
         model=model,
@@ -321,8 +320,9 @@ def record_llm_request(
 
 def record_tool_execution(tool_name: str, duration_ms: float, success: bool = True, error: str = None):
     """Record tool execution metrics and tracing."""
-    from core.observability.prometheus_metrics import record_tool_execution
     from opentelemetry import trace
+
+    from core.observability.prometheus_metrics import record_tool_execution
     
     span = trace.get_current_span()
     if span:
@@ -333,14 +333,14 @@ def record_tool_execution(tool_name: str, duration_ms: float, success: bool = Tr
             span.set_attribute("tool.error", error)
             span.set_status(trace.Status(trace.StatusCode.ERROR, error))
     
-    from core.observability.prometheus_metrics import record_tool_execution
     record_tool_execution(tool_name, duration_ms / 1000.0, success=success, error=error)
 
 
 def record_memory_operation(operation: str, duration_ms: float, success: bool = True):
     """Record memory operation metrics and tracing."""
-    from core.observability.prometheus_metrics import record_memory_operation
     from opentelemetry import trace
+
+    from core.observability.prometheus_metrics import record_memory_operation
     
     span = trace.get_current_span()
     if span:
@@ -348,14 +348,14 @@ def record_memory_operation(operation: str, duration_ms: float, success: bool = 
         span.set_attribute("memory.duration_ms", duration_ms)
         span.set_attribute("memory.success", success)
     
-    from core.observability.prometheus_metrics import record_memory_operation
     record_memory_operation(operation, "success" if success else "error", duration_ms / 1000.0)
 
 
 def record_tool_execution(tool_name: str, duration_ms: float, success: bool = True, error: str = None):
     """Record tool execution metrics and tracing."""
-    from core.observability.prometheus_metrics import record_tool_execution
     from opentelemetry import trace
+
+    from core.observability.prometheus_metrics import record_tool_execution
     
     span = trace.get_current_span()
     if span:
@@ -366,14 +366,14 @@ def record_tool_execution(tool_name: str, duration_ms: float, success: bool = Tr
             span.set_attribute("tool.error", error)
             span.set_status(trace.Status(trace.StatusCode.ERROR, error))
     
-    from core.observability.prometheus_metrics import record_tool_execution
     record_tool_execution(tool_name, duration_ms / 1000.0, success=success, error=error)
 
 
 def record_memory_operation(operation: str, duration_ms: float, success: bool = True):
     """Record memory operation metrics and tracing."""
-    from core.observability.prometheus_metrics import record_memory_operation
     from opentelemetry import trace
+
+    from core.observability.prometheus_metrics import record_memory_operation
     
     span = trace.get_current_span()
     if span:
@@ -381,7 +381,6 @@ def record_memory_operation(operation: str, duration_ms: float, success: bool = 
         span.set_attribute("memory.duration_ms", duration_ms)
         span.set_attribute("memory.success", success)
     
-    from core.observability.prometheus_metrics import record_memory_operation
     record_memory_operation(operation, "success" if success else "error", duration_ms / 1000.0)
 
 
@@ -401,7 +400,6 @@ def init_observability(
     )
     
     # Initialize Prometheus metrics
-    from core.observability.prometheus_metrics import update_system_metrics
     import threading
     
     def update_metrics_loop():
@@ -444,24 +442,23 @@ def setup_tracing_middleware(app):
 
 # Export key functions and classes
 __all__ = [
-    "init_tracing",
-    "get_tracer",
-    "get_trace_id",
-    "set_trace_id",
-    "trace_function",
+    "SpanAttributes",
+    "TraceAttributes",
     "add_span_attributes",
     "add_span_event",
-    "record_exception",
-    "trace_span",
-    "get_current_span",
-    "inject_trace_context",
     "extract_trace_context",
-    "SpanAttributes",
-    "record_llm_request",
-    "record_tool_execution",
-    "record_memory_operation",
+    "get_current_span",
+    "get_trace_id",
+    "get_tracer",
     "init_observability",
+    "init_tracing",
+    "inject_trace_context",
+    "record_exception",
+    "record_llm_request",
+    "record_memory_operation",
+    "record_tool_execution",
+    "set_trace_id",
     "setup_tracing_middleware",
-    "TraceAttributes",
     "trace_function",
+    "trace_span",
 ]

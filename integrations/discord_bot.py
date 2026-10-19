@@ -6,12 +6,12 @@ Usage:
   3. python -m integrations.discord_bot
 """
 
-import os
-import sys
 import json
 import logging
-from urllib.request import Request, urlopen
+import os
+import sys
 from urllib.error import URLError
+from urllib.request import Request, urlopen
 
 import discord
 from discord.ext import commands

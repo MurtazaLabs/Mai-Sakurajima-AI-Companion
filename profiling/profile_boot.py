@@ -6,10 +6,9 @@ Usage:
     python -m pstats profiling/boot_profile.prof
 """
 
-import cProfile
 import logging
-import warnings
 import time
+import warnings
 
 logging.basicConfig(level=logging.WARNING)
 warnings.filterwarnings("ignore")

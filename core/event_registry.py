@@ -16,7 +16,7 @@ from __future__ import annotations
 import threading
 from dataclasses import dataclass, field
 from enum import Enum
-from typing import Any, Dict, List, Optional, Tuple
+from typing import Any
 
 # ── Semantic namespaces ───────────────────────────────────────────
 
@@ -57,7 +57,7 @@ class RetryPolicy(str, Enum):
     IGNORE = IGNORE
 
     @classmethod
-    def resolve(cls, value: Any) -> "RetryPolicy":
+    def resolve(cls, value: Any) -> RetryPolicy:
         if isinstance(value, RetryPolicy):
             return value
         try:
@@ -77,13 +77,13 @@ class EventSpec:
     version: int = 1
     description: str = ""
     publisher: str = ""
-    publishers: Tuple[str, ...] = ()
-    consumers: List[str] = field(default_factory=list)
+    publishers: tuple[str, ...] = ()
+    consumers: list[str] = field(default_factory=list)
     priority: str = "normal"
     retry: RetryPolicy = RetryPolicy.NEVER
     max_attempts: int = 1
-    payload_keys: Tuple[str, ...] = ()
-    supported_versions: Tuple[int, ...] = ()
+    payload_keys: tuple[str, ...] = ()
+    supported_versions: tuple[int, ...] = ()
     compressed: bool = False
 
     def __post_init__(self) -> None:
@@ -95,13 +95,13 @@ class EventSpec:
         return namespace_of(self.name)
 
     @property
-    def versions(self) -> Tuple[int, ...]:
+    def versions(self) -> tuple[int, ...]:
         if self.supported_versions:
             return tuple(self.supported_versions)
         return (self.version,)
 
     @property
-    def allowed_publishers(self) -> Tuple[str, ...]:
+    def allowed_publishers(self) -> tuple[str, ...]:
         """Subsystems allowed to publish this event (``publishers`` wins)."""
         if self.publishers:
             return tuple(self.publishers)
@@ -114,7 +114,7 @@ class EventRegistry:
     """Thread-safe registry of declared event types."""
 
     def __init__(self) -> None:
-        self._specs: Dict[str, EventSpec] = {}
+        self._specs: dict[str, EventSpec] = {}
         self._lock = threading.RLock()
 
     def register(self, spec: EventSpec, replace: bool = False) -> EventSpec:
@@ -140,14 +140,14 @@ class EventRegistry:
             self._specs[spec.name] = spec
         return spec
 
-    def register_many(self, specs: List[EventSpec]) -> int:
+    def register_many(self, specs: list[EventSpec]) -> int:
         count = 0
         for spec in specs:
             self.register(spec)
             count += 1
         return count
 
-    def get(self, name: str, default: Any = None) -> Optional[EventSpec]:
+    def get(self, name: str, default: Any = None) -> EventSpec | None:
         with self._lock:
             return self._specs.get(name, default)
 
@@ -155,7 +155,7 @@ class EventRegistry:
         with self._lock:
             return name in self._specs
 
-    def all_events(self) -> List[EventSpec]:
+    def all_events(self) -> list[EventSpec]:
         with self._lock:
             return sorted(self._specs.values(), key=lambda s: s.name)
 
@@ -165,7 +165,7 @@ class EventRegistry:
             return False
         return version in spec.versions
 
-    def retry_policy(self, name: str) -> Tuple[RetryPolicy, int]:
+    def retry_policy(self, name: str) -> tuple[RetryPolicy, int]:
         """Return (policy, max_attempts) for an event type."""
         spec = self.get(name)
         if spec is None:
@@ -187,7 +187,7 @@ class EventRegistry:
             return True
         return bool(source) and source in allowed
 
-    def capabilities_matrix(self) -> List[Dict[str, Any]]:
+    def capabilities_matrix(self) -> list[dict[str, Any]]:
         """Living documentation: who publishes/consumes what, with policies."""
         rows = []
         for spec in self.all_events():
@@ -223,7 +223,7 @@ class EventRegistry:
         if not rows:
             lines.append("*(no event types registered)*")
             return "\n".join(lines) + "\n"
-        counts: Dict[str, int] = {}
+        counts: dict[str, int] = {}
         for row in rows:
             counts[row["namespace"]] = counts.get(row["namespace"], 0) + 1
         lines.append(
@@ -244,9 +244,9 @@ class EventRegistry:
             )
         return "\n".join(lines) + "\n"
 
-    def summary(self) -> Dict[str, Any]:
+    def summary(self) -> dict[str, Any]:
         specs = self.all_events()
-        by_ns: Dict[str, int] = {}
+        by_ns: dict[str, int] = {}
         for spec in specs:
             by_ns[spec.namespace] = by_ns.get(spec.namespace, 0) + 1
         return {

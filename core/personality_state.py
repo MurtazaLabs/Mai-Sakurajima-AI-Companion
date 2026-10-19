@@ -4,8 +4,6 @@ import logging
 import os
 import threading
 
-from core.identity.personality import PERSONALITY
-
 logger = logging.getLogger("Mai.PersonalityState")
 
 

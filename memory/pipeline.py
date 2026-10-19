@@ -1,11 +1,11 @@
-import time
+import hashlib
 import logging
 import threading
-import hashlib
+import time
 from collections import deque
 
-from memory.extractor import FastExtractor
 from memory.consolidation import consolidate
+from memory.extractor import FastExtractor
 from memory.lifecycle import MemoryLifecycle
 from memory.schema import MemoryObject
 

@@ -16,8 +16,6 @@ See ``docs/event-fabric-architecture.md`` → Phase 4.
 """
 from __future__ import annotations
 
-from typing import List
-
 from core.event_registry import EventRegistry, EventSpec, RetryPolicy
 
 # ── Voice ──────────────────────────────────────────────────────────
@@ -148,7 +146,7 @@ def _spec(name: str, publisher: str, description: str = "",
     )
 
 
-VERTEX_SPECS: List[EventSpec] = [
+VERTEX_SPECS: list[EventSpec] = [
     # Voice
     _spec(VOICE_STARTED, "voice", "Voice subsystem started",
           payload_keys=("state",)),

@@ -6,14 +6,11 @@ import json
 import logging
 import os
 import time
+import urllib.error
 import urllib.parse
 import urllib.request
-import urllib.error
 from functools import lru_cache
-from typing import Optional, Dict, Any
-
-from core.plugin_system import Plugin
-from plugins.plugin_manifest import PluginManifest, PluginPermission, PluginDependency
+from typing import Any
 
 logger = logging.getLogger("Mai.Plugin.Weather")
 
@@ -45,11 +42,11 @@ class WeatherPlugin:
         "tags": ["weather", "utility", "api"]
     }
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         self.config = config or {}
         self.api_key = self.config.get("api_key") or os.environ.get("OPENWEATHER_API_KEY", "")
         self.base_url = "https://api.openweathermap.org/data/2.5/weather"
-        self._cache: Dict[str, tuple[float, str]] = {}  # city -> (timestamp, result)
+        self._cache: dict[str, tuple[float, str]] = {}  # city -> (timestamp, result)
         self.cache_ttl = 600  # 10 minutes
 
     @classmethod
@@ -73,7 +70,7 @@ class WeatherPlugin:
         """Cleanup on unload."""
         logger.info("Weather plugin unloaded")
 
-    def on_pre_chat(self, user_input: str, **kwargs) -> Optional[str]:
+    def on_pre_chat(self, user_input: str, **kwargs) -> str | None:
         """Handle weather queries."""
         text = user_input.lower().strip()
         if not text.startswith("weather"):

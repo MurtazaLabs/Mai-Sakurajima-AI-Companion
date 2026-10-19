@@ -15,6 +15,7 @@ code = '''class Test:
         if the voice doesn't match (handled in background)."""
         with self.state.lock:'''
 import ast
+
 try:
     ast.parse(code)
     print('Isolated code OK')

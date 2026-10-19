@@ -1,19 +1,19 @@
-import threading
 import tempfile
+import threading
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
 import pytest
 
-from core.needs_engine import NeedsEngine, NEED_NAMES
 from core.emotion import Emotion
 from core.emotion_system import (
-    EMOTION_PROFILES,
     EMOTION_PROFILE_DESCRIPTIONS,
+    EMOTION_PROFILES,
     find_closest_profile,
 )
-from core.utils import EmotionName, EmotionProfile
+from core.needs_engine import NEED_NAMES, NeedsEngine
 from core.state.models import EmotionState
+from core.utils import EmotionName, EmotionProfile
 
 
 class TestNeedsBaselines:
@@ -143,7 +143,7 @@ class TestNeedsEvents:
     def test_publishes_state_needs_updated(self):
         from core.event_bus import EventBus
         bus = EventBus()
-        from core.event_specs import register_event_specs, STATE_NEEDS_UPDATED
+        from core.event_specs import STATE_NEEDS_UPDATED, register_event_specs
         register_event_specs(bus)
         received = []
         def handler(payload):
@@ -230,7 +230,6 @@ class TestJealousyAxis:
                 assert e.state["jealousy"] == 0.4
 
     def test_legacy_shared_state_without_jealousy_defaults(self):
-        from unittest.mock import MagicMock
         s = MagicMock()
         s.emotion.happy = 0.5
         s.emotion.lonely = 0.1
@@ -242,8 +241,8 @@ class TestJealousyAxis:
         assert e.state["jealousy"] == 0.0
 
     def test_brain_sync_writes_jealousy(self):
-        from core.state.shared_state import SharedState
         from core.brain import Brain
+        from core.state.shared_state import SharedState
         with tempfile.TemporaryDirectory() as tmpdir:
             with patch("core.state.shared_state.EvidenceDB"):
                 s = SharedState(Path(tmpdir))

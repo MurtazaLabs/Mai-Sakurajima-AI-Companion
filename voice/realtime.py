@@ -5,8 +5,8 @@ import tempfile
 import threading
 import time
 
-from voice.stream_player import StreamPlayer
 from voice.interrupt import InterruptManager
+from voice.stream_player import StreamPlayer
 
 logger = logging.getLogger(__name__)
 

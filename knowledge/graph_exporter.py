@@ -1,10 +1,10 @@
-import time
-import json
 import hashlib
-import threading
+import json
 import logging
-from pathlib import Path
+import threading
+import time
 from datetime import datetime
+from pathlib import Path
 
 from knowledge.link_integrity import LinkIntegrity
 

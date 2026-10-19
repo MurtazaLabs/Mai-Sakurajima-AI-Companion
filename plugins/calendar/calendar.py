@@ -4,11 +4,10 @@ Hardened with manifest, sandbox support, recurring events, and timezone support.
 """
 import json
 import logging
-import os
 import time
-from datetime import datetime, timedelta
+from datetime import datetime
 from pathlib import Path
-from typing import Optional, Dict, Any, List
+from typing import Any
 
 from core.plugin_system import Plugin
 
@@ -42,12 +41,12 @@ class CalendarPlugin(Plugin):
         "tags": ["calendar", "utility", "reminders"]
     }
 
-    def __init__(self, config: Optional[Dict[str, Any]] = None):
+    def __init__(self, config: dict[str, Any] | None = None):
         super().__init__(name="calendar", version="1.1.0", description="Local event/reminder manager with recurring events and timezones")
         self.config = config or {}
         self._data_dir = Path(__file__).resolve().parent.parent / "data" / "calendar"
         self._events_file = self._data_dir / "events.json"
-        self._events: List[Dict[str, Any]] = []
+        self._events: list[dict[str, Any]] = []
 
     @classmethod
     def get_manifest(cls) -> dict:
@@ -71,7 +70,7 @@ class CalendarPlugin(Plugin):
         self._save()
         logger.info("Calendar plugin unloaded")
 
-    def on_pre_chat(self, user_input: str, **kwargs) -> Optional[str]:
+    def on_pre_chat(self, user_input: str, **kwargs) -> str | None:
         """Handle calendar commands."""
         text = user_input.lower().strip()
         parts = text.split(None, 2)

@@ -1,14 +1,11 @@
 """Tests for the prompt architect subsystem."""
-import json
-from unittest.mock import MagicMock, patch, PropertyMock
-import pytest
+from unittest.mock import patch
 
+from prompt.agent import AgentPrompt
 from prompt.builder import PromptBuilder
 from prompt.character import CharacterPrompt
-from prompt.emotional import EmotionalPrompt
 from prompt.context import ContextPrompt
-from prompt.agent import AgentPrompt
-
+from prompt.emotional import EmotionalPrompt
 
 SAMPLE_IDENTITY = {
     "identity": {

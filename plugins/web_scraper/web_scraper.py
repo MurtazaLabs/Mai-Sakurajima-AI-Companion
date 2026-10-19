@@ -3,8 +3,8 @@ import logging
 import os
 import re
 import socket
-import urllib.request
 import urllib.error
+import urllib.request
 from html.parser import HTMLParser
 from urllib.parse import urlparse
 

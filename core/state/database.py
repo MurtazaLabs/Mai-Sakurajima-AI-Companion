@@ -1,39 +1,27 @@
 # core/state/database.py
 """PostgreSQL/SQLite database layer with SQLAlchemy and Alembic support."""
-import os
 import threading
+from collections.abc import Generator
 from contextlib import contextmanager
-from typing import Optional, Generator
 from pathlib import Path
 
 from sqlalchemy import create_engine, event
-from sqlalchemy.orm import sessionmaker, Session
-from sqlalchemy.pool import NullPool, QueuePool
 from sqlalchemy.engine import Engine
-
-from core.state.models import Base
-from core.state.models import (
-    EvidenceModel,
-    ProfileModel,
-    SessionModel,
-    MemoryNodeModel,
-    RelationshipEvidenceModel,
-    SharedStateModel,
-)
+from sqlalchemy.orm import Session, sessionmaker
+from sqlalchemy.pool import NullPool, QueuePool
 
 from app.config_loader import (
-    POSTGRES_DSN,
-    DATABASE_URL,
-    DB_POOL_SIZE,
     DB_MAX_OVERFLOW,
+    DB_POOL_SIZE,
     DB_POOL_TIMEOUT,
 )
+from core.state.models import Base
 
 logger = __import__("logging").getLogger(__name__)
 
 # Global engine and session factory
-_engine: Optional[Engine] = None
-_session_factory: Optional[sessionmaker] = None
+_engine: Engine | None = None
+_session_factory: sessionmaker | None = None
 _init_lock = threading.Lock()
 
 
@@ -44,7 +32,7 @@ def get_database_url() -> str:
     bindings) so Alembic's env.py and the runtime engine always agree, even
     when config is patched after import (tests, runtime overrides).
     """
-    import app.config_loader as config_loader
+    from app import config_loader
     # Try PostgreSQL first
     if config_loader.POSTGRES_DSN:
         return config_loader.POSTGRES_DSN

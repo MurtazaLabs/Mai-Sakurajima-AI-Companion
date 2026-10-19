@@ -16,10 +16,11 @@ import logging
 import secrets
 import threading
 import time
+from collections.abc import Iterator
 from contextlib import contextmanager
 from dataclasses import dataclass, field
 from enum import IntEnum
-from typing import Any, Dict, Iterator, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -71,7 +72,7 @@ def new_correlation_id() -> str:
 _local = threading.local()
 
 
-def set_correlation(correlation_id: Optional[str]) -> None:
+def set_correlation(correlation_id: str | None) -> None:
     """Set the correlation id inherited by messages published on this thread."""
     _local.correlation_id = correlation_id
 
@@ -81,7 +82,7 @@ def clear_correlation() -> None:
     _local.correlation_id = None
 
 
-def current_correlation_id() -> Optional[str]:
+def current_correlation_id() -> str | None:
     """Return the active correlation id on this thread, or None."""
     return getattr(_local, "correlation_id", None)
 
@@ -121,7 +122,7 @@ class correlation_scope:
             bus.publish("control.memory.store", {...})   # inherits cid
     """
 
-    def __init__(self, correlation_id: Optional[str] = None):
+    def __init__(self, correlation_id: str | None = None):
         self._provided = correlation_id
         self._previous = None
 
@@ -162,16 +163,16 @@ class MaiMessage:
     """
 
     type: str
-    payload: Dict[str, Any] = field(default_factory=dict)
-    id: Optional[str] = None
-    timestamp: Optional[float] = None
+    payload: dict[str, Any] = field(default_factory=dict)
+    id: str | None = None
+    timestamp: float | None = None
     version: int = 1
     source: str = ""
     target: str = ""
     priority: Priority = Priority.NORMAL
-    correlation_id: Optional[str] = None
-    causation_id: Optional[str] = None
-    metadata: Dict[str, Any] = field(default_factory=dict)
+    correlation_id: str | None = None
+    causation_id: str | None = None
+    metadata: dict[str, Any] = field(default_factory=dict)
 
     def __post_init__(self) -> None:
         if not self.type:
@@ -199,7 +200,7 @@ class MaiMessage:
             return first
         return "legacy"
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "id": self.id,
             "timestamp": self.timestamp,
@@ -215,7 +216,7 @@ class MaiMessage:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "MaiMessage":
+    def from_dict(cls, data: dict[str, Any]) -> MaiMessage:
         data = dict(data or {})
         priority = _resolve_priority(data.pop("priority", "NORMAL"))
         msg = cls(**data)
@@ -224,11 +225,11 @@ class MaiMessage:
 
     def reply(
         self,
-        payload: Optional[Dict[str, Any]] = None,
-        type: Optional[str] = None,
-        target: Optional[str] = None,
+        payload: dict[str, Any] | None = None,
+        type: str | None = None,
+        target: str | None = None,
         priority: Any = None,
-    ) -> "MaiMessage":
+    ) -> MaiMessage:
         """Create a reply message linked via ``causation_id``."""
         return MaiMessage(
             type=type or self.type,
@@ -241,8 +242,8 @@ class MaiMessage:
         )
 
 
-def legacy_message(topic: str, data: Optional[Dict[str, Any]] = None,
-                   source: str = "", correlation_id: Optional[str] = None) -> MaiMessage:
+def legacy_message(topic: str, data: dict[str, Any] | None = None,
+                   source: str = "", correlation_id: str | None = None) -> MaiMessage:
     """Wrap a legacy ``(topic, dict)`` publish into a MaiMessage (version 0)."""
     msg = MaiMessage(
         type=topic,
@@ -256,7 +257,7 @@ def legacy_message(topic: str, data: Optional[Dict[str, Any]] = None,
     return msg
 
 
-def publish_event(bus, event_type: str, payload: Optional[Dict[str, Any]] = None,
+def publish_event(bus, event_type: str, payload: dict[str, Any] | None = None,
                   source: str = "") -> None:
     """Fabric publish of a semantic event.
 

@@ -1,7 +1,7 @@
 # Mai_ai/memory/recall.py
+import logging
 import threading
 import time
-import logging
 from collections import Counter
 
 logger = logging.getLogger(__name__)

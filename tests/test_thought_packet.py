@@ -3,16 +3,14 @@ import tempfile
 from pathlib import Path
 from unittest.mock import MagicMock, patch
 
-import pytest
-
+from reasoning.journal import ThoughtJournal
 from reasoning.thought_packet import (
+    SPEECH_PLAN_FIELDS,
     ThoughtPacket,
+    default_speech_plan,
     parse_thought_packet,
     strip_envelope,
-    default_speech_plan,
-    SPEECH_PLAN_FIELDS,
 )
-from reasoning.journal import ThoughtJournal
 
 
 class TestThoughtPacketContract:
@@ -319,7 +317,9 @@ class TestBrainMonologueWiring:
     def test_event_spec_registered(self):
         from core.event_bus import EventBus
         from core.event_specs import (
-            register_event_specs, STATE_MONOLOGUE_GENERATED, VERTEX_SPECS,
+            STATE_MONOLOGUE_GENERATED,
+            VERTEX_SPECS,
+            register_event_specs,
         )
         bus = EventBus()
         register_event_specs(bus)

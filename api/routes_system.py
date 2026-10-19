@@ -6,7 +6,8 @@ call sites. See ``api.server`` for how this is composed.
 """
 import logging
 import re
-from typing import Any, Optional
+from typing import Any
+
 from api.errors import safe_error
 
 logger = logging.getLogger("api.server")
@@ -215,7 +216,6 @@ class SystemMixin:
         if not ml:
             return {"error": "model_lifecycle_unavailable"}
         try:
-            from core.model_lifecycle import RolloutStrategy
             if strategy == "canary":
                 state = ml.start_canary_rollout(
                     model_id=model_id,

@@ -1,7 +1,6 @@
 import logging
-import time
 
-from app.config_loader import LLM_MAX_CONTEXT, CHARACTER_MONOLOGUE_ENABLED
+from app.config_loader import CHARACTER_MONOLOGUE_ENABLED, LLM_MAX_CONTEXT
 from core.prompt_builder import build_system_prompt
 
 logger = logging.getLogger(__name__)

@@ -1,8 +1,5 @@
 import time
-from unittest.mock import MagicMock, call, patch
-
-import pytest
-
+from unittest.mock import MagicMock, patch
 
 # ---------------------------------------------------------------------------
 #  TaskExecutor tests
@@ -269,6 +266,7 @@ class TestTaskExecutorRunCommand:
 
     def test_run_command_timeout(self):
         import subprocess
+
         from execution.task_executor import TaskExecutor
         executor = TaskExecutor()
         with patch("execution.handlers.subprocess.run", side_effect=subprocess.TimeoutExpired("cmd", 5)):
@@ -748,7 +746,7 @@ class TestSafeExecutorLog:
 class TestFileSystemSandbox:
 
     def test_sandbox_active_by_default(self):
-        from execution.handlers import _path_allowed, _CLIPBOARD_SANDBOX_DIRS
+        from execution.handlers import _CLIPBOARD_SANDBOX_DIRS, _path_allowed
         assert _CLIPBOARD_SANDBOX_DIRS, "sandbox must be configured by default"
         assert _path_allowed(".") is True
         assert _path_allowed(str(_CLIPBOARD_SANDBOX_DIRS[0])) is True
@@ -759,7 +757,7 @@ class TestFileSystemSandbox:
         assert _path_allowed(foreign) is False
 
     def test_configure_sandbox_restricts(self):
-        from execution.handlers import _configure_sandbox, _path_allowed, _CLIPBOARD_SANDBOX_DIRS
+        from execution.handlers import _CLIPBOARD_SANDBOX_DIRS, _configure_sandbox, _path_allowed
         defaults = list(_CLIPBOARD_SANDBOX_DIRS)
         _configure_sandbox(r"C:\only\here")
         try:

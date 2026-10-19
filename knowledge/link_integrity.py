@@ -1,5 +1,5 @@
-import re
 import logging
+import re
 from pathlib import Path
 
 logger = logging.getLogger(__name__)
@@ -53,7 +53,7 @@ class LinkIntegrity:
         for fpath in sorted(conv_dir.glob("*.md")):
             try:
                 content = fpath.read_text(encoding="utf-8", errors="replace")
-            except Exception as e:
+            except Exception:
                 continue
             for match in WIKI_LINK_RE.finditer(content):
                 target = match.group(1).strip().lower()

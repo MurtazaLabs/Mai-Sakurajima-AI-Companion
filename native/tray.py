@@ -1,7 +1,7 @@
-import threading
 import logging
+import threading
 import webbrowser
-from typing import Optional, Any
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -28,8 +28,8 @@ class TrayDaemon:
         self.brain = brain
         self.on_quit = on_quit
         self.on_open = on_open
-        self._icon: Optional[Any] = None
-        self._thread: Optional[threading.Thread] = None
+        self._icon: Any | None = None
+        self._thread: threading.Thread | None = None
         self._running = False
 
     def _create_image(self):

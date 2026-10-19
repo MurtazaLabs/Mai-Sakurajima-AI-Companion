@@ -1,10 +1,10 @@
 import json
-import time
 import logging
+import time
 from datetime import datetime
 
-from core.utils import compute_text_overlap
 from app.config_loader import MAX_MEMORY_RESULTS, MEMORY_SIMILARITY
+from core.utils import compute_text_overlap
 
 logger = logging.getLogger(__name__)
 

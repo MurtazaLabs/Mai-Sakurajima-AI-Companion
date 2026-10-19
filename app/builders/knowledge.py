@@ -2,12 +2,12 @@ import logging
 
 import app.config_loader as cfg
 from app.metadata import tag_service
-from knowledge.graph import KnowledgeGraph
-from knowledge.brain_graph import BrainGraph
-from knowledge.belief_engine import BeliefEngine
 from knowledge.attention import AttentionSystem
-from knowledge.extractor import EntityExtractor
+from knowledge.belief_engine import BeliefEngine
+from knowledge.brain_graph import BrainGraph
 from knowledge.consolidation import ConsolidationEngine
+from knowledge.extractor import EntityExtractor
+from knowledge.graph import KnowledgeGraph
 from knowledge.graph_manager import GraphManager
 from knowledge.obsidian_writer import ObsidianWriter
 from knowledge.vault_compiler import VaultCompiler

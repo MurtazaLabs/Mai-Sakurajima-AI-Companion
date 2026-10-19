@@ -23,7 +23,7 @@ import os
 import threading
 import time
 from collections import defaultdict, deque
-from typing import Any, Callable, Dict, List, Optional
+from typing import Any
 
 from core.event_bus import TELEMETRY_TOPIC
 from core.event_metadata import sanitize_record
@@ -45,7 +45,7 @@ _WARN = "warn"
 _RED = "error"
 
 
-def _percentile(sorted_values: List[float], pct: float) -> Optional[float]:
+def _percentile(sorted_values: list[float], pct: float) -> float | None:
     if not sorted_values:
         return None
     idx = max(0, min(len(sorted_values) - 1, int(len(sorted_values) * pct / 100.0)))
@@ -67,8 +67,8 @@ class EventInspector:
         self._log_dir = log_dir
         self._lock = threading.RLock()
         self._buffer: deque = deque(maxlen=self.capacity)
-        self._type_latency: Dict[str, deque] = {}
-        self._subscribers: Dict[str, Dict[str, Any]] = {}
+        self._type_latency: dict[str, deque] = {}
+        self._subscribers: dict[str, dict[str, Any]] = {}
         self._start_ts = time.time()
         self._last_capture = 0.0
         self._capture_count = 0
@@ -87,13 +87,13 @@ class EventInspector:
             self.attach(self.event_bus)
 
         # Start periodic heartbeat to prevent "stalled" status when no telemetry
-        self._hb_thread: Optional[threading.Thread] = None
+        self._hb_thread: threading.Thread | None = None
         self._hb_stop = threading.Event()
         self._start_heartbeat()
 
     # ── Lifecycle ─────────────────────────────────────────────────
 
-    def attach(self, event_bus: Any) -> Optional[Any]:
+    def attach(self, event_bus: Any) -> Any | None:
         """Subscribe to the fabric telemetry channel (idempotent)."""
         if event_bus is None or not hasattr(event_bus, "subscribe"):
             return None
@@ -168,7 +168,7 @@ class EventInspector:
             except Exception:
                 pass
 
-    def _publish_overflow(self, dropped: Dict[str, Any]) -> None:
+    def _publish_overflow(self, dropped: dict[str, Any]) -> None:
         if self.event_bus is None:
             return
         try:
@@ -190,7 +190,7 @@ class EventInspector:
             self._type_latency[event_type] = window
         window.append(float(execution_ms))
 
-    def _accumulate_subscribers(self, record: Dict[str, Any]) -> None:
+    def _accumulate_subscribers(self, record: dict[str, Any]) -> None:
         names = record.get("subscribers") or []
         failures = set(record.get("handler_failures") or [])
         times = record.get("handler_times_ms") or {}
@@ -218,10 +218,10 @@ class EventInspector:
 
     def records(
         self,
-        filters: Optional[Dict[str, Any]] = None,
+        filters: dict[str, Any] | None = None,
         limit: int = 100,
         offset: int = 0,
-    ) -> List[dict]:
+    ) -> list[dict]:
         """Timeline records, newest first. Passthrough filters."""
         filters = filters or {}
         with self._lock:
@@ -233,29 +233,21 @@ class EventInspector:
         return result[offset:offset + max(1, int(limit))]
 
     @staticmethod
-    def _matches(rec: Dict[str, Any], filters: Dict[str, Any]) -> bool:
+    def _matches(rec: dict[str, Any], filters: dict[str, Any]) -> bool:
         for key, value in filters.items():
             if value is None:
                 continue
-            if key == "type" and not rec.get("type", "").startswith(value):
-                return False
-            elif key == "correlation_id" and rec.get("correlation_id") != value:
-                return False
-            elif key == "source" and rec.get("source") != value:
-                return False
-            elif key == "outcome" and rec.get("outcome") != value:
+            if key == "type" and not rec.get("type", "").startswith(value) or key == "correlation_id" and rec.get("correlation_id") != value or key == "source" and rec.get("source") != value or key == "outcome" and rec.get("outcome") != value:
                 return False
             elif key == "priority":
                 expected = value.upper() if isinstance(value, str) else value
                 if rec.get("priority") != expected:
                     return False
-            elif key == "since" and rec.get("timestamp", 0) < value:
-                return False
-            elif key == "retries" and rec.get("attempt", 1) <= 1:
+            elif key == "since" and rec.get("timestamp", 0) < value or key == "retries" and rec.get("attempt", 1) <= 1:
                 return False
         return True
 
-    def record(self, record_id: str) -> Optional[dict]:
+    def record(self, record_id: str) -> dict | None:
         with self._lock:
             for rec in self._buffer:
                 if rec.get("id") == record_id:
@@ -264,7 +256,7 @@ class EventInspector:
 
     # ── Correlation traces ────────────────────────────────────────
 
-    def trace(self, correlation_id: str) -> Dict[str, Any]:
+    def trace(self, correlation_id: str) -> dict[str, Any]:
         """Reconstruct a conversation's causation tree from a correlation id.
 
         Returns nodes sorted by time, each with a ``depth`` (0 = root) and an
@@ -278,7 +270,7 @@ class EventInspector:
             ]
         items.sort(key=lambda r: r.get("timestamp", 0.0))
         by_id = {r.get("id"): r for r in items}
-        depth_map: Dict[str, int] = {}
+        depth_map: dict[str, int] = {}
         for rec in items:
             depth = 0
             cursor = rec.get("causation_id")
@@ -303,7 +295,7 @@ class EventInspector:
 
     # ── Subscriber graph ──────────────────────────────────────────
 
-    def subscriber_stats(self) -> List[dict]:
+    def subscriber_stats(self) -> list[dict]:
         rows = []
         with self._lock:
             for name, entry in sorted(self._subscribers.items()):
@@ -321,7 +313,7 @@ class EventInspector:
 
     # ── Latency ───────────────────────────────────────────────────
 
-    def latency(self, scope: str = "type") -> List[dict]:
+    def latency(self, scope: str = "type") -> list[dict]:
         rows = []
         with self._lock:
             if scope == "subscriber":
@@ -339,7 +331,7 @@ class EventInspector:
 
     # ── Queue + health ────────────────────────────────────────────
 
-    def queue_snapshot(self) -> Dict[str, Any]:
+    def queue_snapshot(self) -> dict[str, Any]:
         if self.event_bus is None:
             return {}
         try:
@@ -349,7 +341,7 @@ class EventInspector:
             logger.debug("[Inspector] queue snapshot: %s", e)
             return {}
 
-    def dead_letters(self, since: Optional[float] = None) -> List[dict]:
+    def dead_letters(self, since: float | None = None) -> list[dict]:
         if self.event_bus is None:
             return []
         try:
@@ -361,7 +353,7 @@ class EventInspector:
             return items
         return [d for d in items if d.get("timestamp", 0) >= since]
 
-    def fabric_health(self) -> Dict[str, Any]:
+    def fabric_health(self) -> dict[str, Any]:
         """Derived fabric health, independent of the HealthRegistry."""
         now = time.time()
         window = self._window(300)
@@ -369,8 +361,8 @@ class EventInspector:
         failures = sum(1 for r in window if r.get("outcome") != "SUCCESS")
         failure_rate = (failures / total) if total else 0.0
 
-        issues: List[str] = []
-        warnings: List[str] = []
+        issues: list[str] = []
+        warnings: list[str] = []
         queues = self.queue_snapshot()
         sat_level = 0
         for name, q in queues.items():
@@ -407,7 +399,7 @@ class EventInspector:
             "dead_letters_5m": recent_dead,
         }
 
-    def health(self) -> Dict[str, Any]:
+    def health(self) -> dict[str, Any]:
         fabric = self.fabric_health()
         registry_stats = None
         if self.health_registry is not None:
@@ -425,7 +417,7 @@ class EventInspector:
 
     # ── Summary (cheap poll endpoint) ─────────────────────────────
 
-    def summary(self) -> Dict[str, Any]:
+    def summary(self) -> dict[str, Any]:
         now = time.time()
         with self._lock:
             total_count = self._capture_count
@@ -460,7 +452,7 @@ class EventInspector:
 
     # ── Export ────────────────────────────────────────────────────
 
-    def export(self) -> Dict[str, Any]:
+    def export(self) -> dict[str, Any]:
         """Write the current buffer to JSONL and clear it (blocking)."""
         os.makedirs(self._log_dir, exist_ok=True)
         filename = time.strftime("inspector-%Y%m%d-%H%M%S.jsonl")
@@ -469,12 +461,11 @@ class EventInspector:
             snapshot = list(self._buffer)
             self._buffer.clear()
         with open(path, "w", encoding="utf-8") as f:
-            for rec in snapshot:
-                f.write(json.dumps(sanitize_record(rec), default=str) + "\n")
+            f.writelines(json.dumps(sanitize_record(rec), default=str) + "\n" for rec in snapshot)
         logger.info("[Inspector] Exported %d records to %s", len(snapshot), path)
         return {"path": path, "count": len(snapshot)}
 
-    def stats(self) -> Dict[str, Any]:
+    def stats(self) -> dict[str, Any]:
         with self._lock:
             subscribers = {
                 name: entry["count"]
@@ -490,7 +481,7 @@ class EventInspector:
                 "subscribers": subscribers,
             }
 
-    def _window(self, seconds: float) -> List[dict]:
+    def _window(self, seconds: float) -> list[dict]:
         cutoff = time.time() - seconds
         with self._lock:
             return [

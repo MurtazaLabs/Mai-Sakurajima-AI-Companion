@@ -4,14 +4,13 @@
 I–III, and exposed as a read-only projection — no engine, no prompt wiring."""
 
 import re
-from pathlib import Path
 
 from core.identity.canonical import (
     BOOK_DIR,
     CANON_KEYS,
     VOLUME_SECTIONS,
-    check_drift,
     _section_keys_from_markdown,
+    check_drift,
 )
 from core.identity.identity_core import IdentityCore
 

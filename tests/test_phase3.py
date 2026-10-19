@@ -1,12 +1,13 @@
 import time
-import pytest
 
-from core.emotion_system import (
-    EmotionHistory, EmotionTriggerLog,
-    find_closest_profile, EMOTION_PROFILES,
-)
+from agency.goals import Goal, GoalManager
 from core.emotion_goals import EmotionGoalEngine
-from agency.goals import GoalManager, Goal
+from core.emotion_system import (
+    EMOTION_PROFILES,
+    EmotionHistory,
+    EmotionTriggerLog,
+    find_closest_profile,
+)
 
 
 class TestEmotionHistory:

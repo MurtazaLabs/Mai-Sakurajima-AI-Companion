@@ -1,9 +1,9 @@
-import time
-import threading
 import logging
+import threading
+import time
 from datetime import datetime
 
-from agency.dream_report import DreamReport, LEVEL_TASKS
+from agency.dream_report import LEVEL_TASKS, DreamReport
 from agency.dream_tasks import DREAM_TASKS
 
 logger = logging.getLogger(__name__)

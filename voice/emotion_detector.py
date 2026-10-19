@@ -1,8 +1,8 @@
-import time
 import logging
 import threading
-import numpy as np
 from collections import deque
+
+import numpy as np
 
 logger = logging.getLogger(__name__)
 

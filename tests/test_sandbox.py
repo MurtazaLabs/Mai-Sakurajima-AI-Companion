@@ -10,7 +10,7 @@ Verifies:
 """
 import pytest
 
-from plugins.sandbox import PluginSandbox, Permission
+from plugins.sandbox import Permission, PluginSandbox
 
 
 def _sandbox(tmp_path, perms=None):

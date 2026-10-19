@@ -6,13 +6,16 @@ Provides counters, histograms, gauges for monitoring system health,
 performance, and business metrics.
 """
 import time
-import threading
-from typing import Dict, Optional, Callable
-from functools import wraps
-from contextlib import contextmanager
 
-from prometheus_client import Counter, Histogram, Gauge, CollectorRegistry, generate_latest, CONTENT_TYPE_LATEST
 from fastapi import Response
+from prometheus_client import (
+    CONTENT_TYPE_LATEST,
+    CollectorRegistry,
+    Counter,
+    Gauge,
+    Histogram,
+    generate_latest,
+)
 
 # Global registry
 REGISTRY = CollectorRegistry()
@@ -358,7 +361,7 @@ def update_system_metrics():
 
 # ── FastAPI Middleware ───────────────────────────────────────────────────
 
-from fastapi import Request, Response
+from fastapi import Request
 from starlette.middleware.base import BaseHTTPMiddleware
 
 
@@ -409,7 +412,5 @@ def get_metrics_text() -> str:
 
 
 # Import at bottom to avoid circular imports
-import time
 from fastapi import Response
 from starlette.middleware.base import BaseHTTPMiddleware
-from prometheus_client import CONTENT_TYPE_LATEST

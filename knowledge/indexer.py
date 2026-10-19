@@ -1,8 +1,7 @@
-import os
 import glob as glob_mod
-import time
-import threading
 import logging
+import os
+import threading
 
 logger = logging.getLogger(__name__)
 

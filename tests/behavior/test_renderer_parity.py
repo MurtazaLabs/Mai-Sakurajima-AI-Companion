@@ -1,7 +1,6 @@
 # M7 · Renderer Parity Contract — the renderer must not decide who Mai is.
 # Spec: docs/m7-character-behavioral-spec.md §10.
 
-from .fixtures import make_packet
 from voice.prosody import ProsodyPlanner
 from voice.renderer import (
     KokoroRenderer,
@@ -10,6 +9,8 @@ from voice.renderer import (
     create_renderer,
 )
 from voice.speech_style import SpeechStylePlanner
+
+from .fixtures import make_packet
 
 
 class FakeTTS:

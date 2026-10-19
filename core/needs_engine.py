@@ -1,6 +1,6 @@
 # core/needs_engine.py
-import threading
 import logging
+import threading
 import time
 
 from app.config_loader import Settings

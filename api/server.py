@@ -1,58 +1,64 @@
+import asyncio
+import json
+import logging
 import os
 import sys
-import time
-import asyncio
-import logging
 import threading
-import json
+import time
+
 sys.path.insert(0, os.path.dirname(os.path.dirname(os.path.abspath(__file__))))
 
 logging.getLogger("api.server").setLevel(logging.INFO)
 logger = logging.getLogger("api.server")
 
-from typing import Optional, Any
+from typing import Any
 
-from fastapi import FastAPI, HTTPException, Request, Depends, Response, WebSocket, WebSocketDisconnect
+import uvicorn
+from fastapi import Depends, FastAPI, HTTPException, Request, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
+from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
 from fastapi.staticfiles import StaticFiles
-from fastapi.responses import HTMLResponse, StreamingResponse, JSONResponse
 from pydantic import BaseModel, field_validator
-import uvicorn
 
-from app.config_loader import (
-    API_HOST, API_PORT, API_AUTH_TOKEN, API_REQUIRE_AUTH,
-    API_RATE_LIMIT_PER_MINUTE, API_SSL_CERTFILE, API_SSL_KEYFILE,
-    API_JWT_SECRET, API_JWT_ACCESS_EXPIRE_MINUTES, API_JWT_REFRESH_EXPIRE_DAYS,
-    API_RATE_LIMIT_CHAT, API_RATE_LIMIT_AUTH, API_RATE_LIMIT_HEALTH,
-    API_RATE_LIMIT_INGEST, API_RATE_LIMIT_GENERAL,
-    API_CORS_ORIGINS, API_TRUSTED_HOSTS,
-)
-
+from api import auth as jwt_auth
+from api import routes_auth, routes_profile
 from api.certs import ensure_dev_certs
-from api.routes_chat import ChatMixin
-from api.routes_memory import MemoryMixin
-from api.routes_knowledge import KnowledgeMixin
+from api.middleware.rate_limiter import RateLimiter
 from api.routes_agency import AgencyMixin
-from api.routes_reasoning import ReasoningMixin
-from api.routes_voice import VoiceMixin
-from api.routes_system import SystemMixin
+from api.routes_chat import ChatMixin
 from api.routes_dashboard import DashboardMixin
 from api.routes_inspector import InspectorMixin
-from api.routes_tasks import TasksMixin
-from api.routes_permissions import PermissionsMixin
-from api.routes_inspector import InspectorMixin
-from api.routes_tasks import TasksMixin
+from api.routes_knowledge import KnowledgeMixin
+from api.routes_memory import MemoryMixin
 from api.routes_permissions import PermissionsMixin
 from api.routes_plugins import router as plugins_router
-from api import auth as jwt_auth
-from api import routes_auth
-from api import routes_profile
+from api.routes_reasoning import ReasoningMixin
+from api.routes_system import SystemMixin
+from api.routes_tasks import TasksMixin
+from api.routes_voice import VoiceMixin
 from api.static_serving import make_html_response, static_dir
 from api.stream_manager import StreamManager
-from core.config_manager import ConfigManager
 from api.ws_bridge import WSBridge
-from api.middleware.rate_limiter import RateLimiter
+from app.config_loader import (
+    API_AUTH_TOKEN,
+    API_CORS_ORIGINS,
+    API_HOST,
+    API_JWT_ACCESS_EXPIRE_MINUTES,
+    API_JWT_REFRESH_EXPIRE_DAYS,
+    API_JWT_SECRET,
+    API_PORT,
+    API_RATE_LIMIT_AUTH,
+    API_RATE_LIMIT_CHAT,
+    API_RATE_LIMIT_GENERAL,
+    API_RATE_LIMIT_HEALTH,
+    API_RATE_LIMIT_INGEST,
+    API_REQUIRE_AUTH,
+    API_SSL_CERTFILE,
+    API_SSL_KEYFILE,
+    API_TRUSTED_HOSTS,
+)
+from core.config_manager import ConfigManager
 
 
 class MaiAPI(
@@ -108,7 +114,7 @@ class MaiAPI(
         self._lock = threading.RLock()
         self._ready = False
         self._start_time = time.time()
-        self._voice_worker: Optional[threading.Thread] = None
+        self._voice_worker: threading.Thread | None = None
         self._voice_worker_stop = threading.Event()
         self.model_lifecycle: Any = None
         self.app: Any = None
@@ -505,9 +511,9 @@ class ChatRequest(BaseModel):
 
 class IngestRequest(BaseModel):
     source: str = "api"
-    text: Optional[str] = None
-    file_path: Optional[str] = None
-    directory: Optional[str] = None
+    text: str | None = None
+    file_path: str | None = None
+    directory: str | None = None
 
     @field_validator("text", "file_path", "directory")
     @classmethod

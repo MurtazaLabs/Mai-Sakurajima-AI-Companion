@@ -1,10 +1,14 @@
 # tests/test_voice_renderer.py — M4 seam + planner tests
-from voice.speech_style import (
-    SpeechStyle, SpeechStylePlanner, REGISTER_TEASING, REGISTER_WARM,
-    REGISTER_SOFT, REGISTER_ANNOYED,
-)
-from voice.prosody import ProsodyPlanner, ProsodyPlan
+from voice.prosody import ProsodyPlan, ProsodyPlanner
 from voice.renderer import KokoroRenderer, StubRenderer, create_renderer
+from voice.speech_style import (
+    REGISTER_ANNOYED,
+    REGISTER_SOFT,
+    REGISTER_TEASING,
+    REGISTER_WARM,
+    SpeechStyle,
+    SpeechStylePlanner,
+)
 
 
 class TestSpeechStylePlanner:

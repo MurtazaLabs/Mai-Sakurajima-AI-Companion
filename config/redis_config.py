@@ -1,7 +1,7 @@
 # config/redis_config.py
 """Redis configuration for distributed state and event bus."""
 from dataclasses import dataclass
-from typing import Optional
+
 
 @dataclass
 class RedisConfig:
@@ -9,7 +9,7 @@ class RedisConfig:
     host: str = "localhost"
     port: int = 6379
     db: int = 0
-    password: Optional[str] = None
+    password: str | None = None
     ssl: bool = False
     max_connections: int = 10
     socket_timeout: float = 5.0

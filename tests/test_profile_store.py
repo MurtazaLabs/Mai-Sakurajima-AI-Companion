@@ -3,7 +3,7 @@
 import json
 import tempfile
 from pathlib import Path
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 import pytest
 from fastapi.testclient import TestClient
@@ -86,10 +86,12 @@ class TestProfileAPI:
 
     @pytest.fixture(autouse=True)
     def _setup(self):
-        from core.profile_store import ProfileStore
-        import tempfile, os
+        import os
+        import tempfile
+
+        from api import routes_auth, routes_profile
         from api.server import mai
-        from api import routes_profile, routes_auth
+        from core.profile_store import ProfileStore
         tmp = tempfile.mkdtemp()
         try:
             db_path = os.path.join(tmp, "test_profiles.db")
@@ -108,8 +110,8 @@ class TestProfileAPI:
         return TestClient(app)
 
     def test_get_profile_me(self, client):
+        from api.auth import create_access_token, hash_password
         from api.server import mai
-        from api.auth import hash_password, create_access_token
         mai.profile_store.create_user("testuser", hash_password("testpass"))
         token = create_access_token("testuser")
         headers = {"Authorization": f"Bearer {token}"}
@@ -124,8 +126,8 @@ class TestProfileAPI:
         assert resp.status_code == 404
 
     def test_update_display_name(self, client):
+        from api.auth import create_access_token, hash_password
         from api.server import mai
-        from api.auth import hash_password, create_access_token
         mai.profile_store.create_user("testuser", hash_password("testpass"))
         token = create_access_token("testuser")
         headers = {"Authorization": f"Bearer {token}"}
@@ -135,8 +137,8 @@ class TestProfileAPI:
             assert resp.json()["display_name"] == "Test User"
 
     def test_update_preferences(self, client):
+        from api.auth import create_access_token, hash_password
         from api.server import mai
-        from api.auth import hash_password, create_access_token
         mai.profile_store.create_user("testuser", hash_password("testpass"))
         token = create_access_token("testuser")
         headers = {"Authorization": f"Bearer {token}"}
@@ -146,8 +148,8 @@ class TestProfileAPI:
             assert resp.status_code == 200
 
     def test_delete_my_account(self, client):
+        from api.auth import create_access_token, hash_password
         from api.server import mai
-        from api.auth import hash_password, create_access_token
         mai.profile_store.create_user("testuser", hash_password("testpass"))
         token = create_access_token("testuser")
         headers = {"Authorization": f"Bearer {token}"}
@@ -162,8 +164,8 @@ class TestServerSecurityConsistency:
     def test_require_auth_delegates_to_auth_module(self):
         """``_require_auth`` must be a thin wrapper over ``get_current_user``
         so JWT/static-token logic cannot drift across two implementations."""
-        from api.server import _require_auth, _resolve_user
-        import re
+
+        from api.server import _require_auth
         src = _require_auth.__code__.co_code
         assert src is not None
         # Verify it calls the auth dependency by importing the module-level
@@ -177,8 +179,8 @@ class TestServerSecurityConsistency:
     def test_stream_topics_single_source(self):
         """ws_bridge must not duplicate the STREAM_TOPICS list."""
         import inspect
+
         from api import ws_bridge
-        from api.stream_manager import STREAM_TOPICS
         body = inspect.getsource(ws_bridge.WSBridge.wire)
         assert "STREAM_TOPICS" in body
         assert 'state.voice.listening' not in body

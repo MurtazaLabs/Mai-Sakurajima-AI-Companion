@@ -1,13 +1,11 @@
 """
 Build .mpkg packages for core plugins
 """
-import sys
-import json
-import zipfile
-import tempfile
 import shutil
+import sys
+import tempfile
+import zipfile
 from pathlib import Path
-from typing import Optional
 
 # Add project root to path
 sys.path.insert(0, str(Path(__file__).parent.parent))
@@ -16,7 +14,7 @@ from plugins.plugin_manifest import PluginManifest, PluginPermission
 from plugins.signing import PluginSigner
 
 
-def build_plugin_package(plugin_dir: Path, output_dir: Path, signer: Optional[PluginSigner] = None) -> Path:
+def build_plugin_package(plugin_dir: Path, output_dir: Path, signer: PluginSigner | None = None) -> Path:
     """Build a .mpkg package from a plugin directory."""
     manifest_path = plugin_dir / "manifest.json"
     if not manifest_path.exists():
@@ -44,13 +42,13 @@ def build_plugin_package(plugin_dir: Path, output_dir: Path, signer: Optional[Pl
             output_path.parent.mkdir(parents=True, exist_ok=True)
             shutil.move(temp_path, output_path)
             return output_path
-        except Exception as e:
+        except Exception:
             if temp_path.exists():
                 temp_path.unlink()
             raise
 
 
-def build_all_plugins(plugins_root: Path, output_dir: Path, signer: Optional[PluginSigner] = None):
+def build_all_plugins(plugins_root: Path, output_dir: Path, signer: PluginSigner | None = None):
     """Build packages for all plugins in the plugins directory."""
     results = []
     
@@ -111,7 +109,7 @@ if __name__ == "__main__":
             public_key_path = key_dir / "plugin_signing_key.pub.pem"
             private_key_path.write_bytes(signer.get_private_key_pem())
             public_key_path.write_bytes(signer.get_public_key_pem())
-            print(f"Generated new signing key:")
+            print("Generated new signing key:")
             print(f"  Private: {private_key_path}")
             print(f"  Public:  {public_key_path}")
     

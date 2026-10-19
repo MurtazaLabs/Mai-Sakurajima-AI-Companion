@@ -18,8 +18,8 @@ logging.basicConfig(level=logging.WARNING, format="%(levelname)s %(name)s: %(mes
 
 
 def _stub_run(args):
-    from evaluation.runner import FakeLLM, SessionRunner, build_stub_brain
     from evaluation.rubric import CharacterRubric
+    from evaluation.runner import SessionRunner, build_stub_brain
     from evaluation.scenarios import SCENARIOS
 
     turns = SCENARIOS[args.scenario]
@@ -54,11 +54,10 @@ def _stub_run(args):
 
 
 def _real_run(args):
-    from evaluation.runner import SessionRunner
-    from evaluation.rubric import CharacterRubric
-    from evaluation.scenarios import SCENARIOS
-
     from app.builder import ApplicationBuilder
+    from evaluation.rubric import CharacterRubric
+    from evaluation.runner import SessionRunner
+    from evaluation.scenarios import SCENARIOS
     print("Booting full application (real mode)...")
     app = ApplicationBuilder().build()
     brain = app.brain

@@ -2,17 +2,16 @@
 Model Registry for Mai AI.
 Manages model versions, metadata, and lifecycle state.
 """
-import os
-import json
 import hashlib
+import json
+import logging
 import sqlite3
 import threading
+from dataclasses import asdict, dataclass, field
 from datetime import datetime
 from enum import Enum
-from dataclasses import dataclass, field, asdict
-from typing import Optional, Dict, List, Any
 from pathlib import Path
-import logging
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -54,25 +53,25 @@ class ModelMetadata:
     file_hash: str
     framework: str
     framework_version: str
-    input_schema: Dict[str, Any]
-    output_schema: Dict[str, Any]
-    tags: List[str] = field(default_factory=list)
-    config: Dict[str, Any] = field(default_factory=dict)
-    metrics: Dict[str, float] = field(default_factory=dict)
+    input_schema: dict[str, Any]
+    output_schema: dict[str, Any]
+    tags: list[str] = field(default_factory=list)
+    config: dict[str, Any] = field(default_factory=dict)
+    metrics: dict[str, float] = field(default_factory=dict)
     created_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
     updated_at: str = field(default_factory=lambda: datetime.utcnow().isoformat())
     status: ModelStatus = ModelStatus.REGISTERED
-    deployed_at: Optional[str] = None
-    deprecated_at: Optional[str] = None
+    deployed_at: str | None = None
+    deprecated_at: str | None = None
     
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         data = asdict(self)
         data['model_type'] = self.model_type.value
         data['status'] = self.status.value
         return data
     
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> 'ModelMetadata':
+    def from_dict(cls, data: dict[str, Any]) -> 'ModelMetadata':
         data = data.copy()
         data['model_type'] = ModelType(data['model_type'])
         data['status'] = ModelStatus(data['status'])
@@ -84,8 +83,8 @@ class ModelVersion:
     """A specific version of a model."""
     metadata: ModelMetadata
     is_active: bool = False
-    deployment_config: Dict[str, Any] = field(default_factory=dict)
-    health_checks: Dict[str, Any] = field(default_factory=dict)
+    deployment_config: dict[str, Any] = field(default_factory=dict)
+    health_checks: dict[str, Any] = field(default_factory=dict)
     rollout_percentage: float = 0.0
     error_rate: float = 0.0
     latency_p99: float = 0.0
@@ -100,7 +99,7 @@ class ModelRegistry:
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
         self._lock = threading.RLock()
         self._init_db()
-        self._cache: Dict[str, ModelVersion] = {}
+        self._cache: dict[str, ModelVersion] = {}
     
     def _init_db(self):
         """Initialize database schema."""
@@ -160,10 +159,10 @@ class ModelRegistry:
         source_url: str = "",
         framework: str = "unknown",
         framework_version: str = "unknown",
-        input_schema: Dict[str, Any] = None,
-        output_schema: Dict[str, Any] = None,
-        tags: List[str] = None,
-        config: Dict[str, Any] = None,
+        input_schema: dict[str, Any] = None,
+        output_schema: dict[str, Any] = None,
+        tags: list[str] = None,
+        config: dict[str, Any] = None,
     ) -> ModelVersion:
         """Register a new model version."""
         with self._lock:
@@ -230,7 +229,7 @@ class ModelRegistry:
             ))
             conn.commit()
     
-    def _load_from_db(self, model_id: str, version: str) -> Optional[ModelVersion]:
+    def _load_from_db(self, model_id: str, version: str) -> ModelVersion | None:
         """Load model version from database."""
         with sqlite3.connect(self.db_path) as conn:
             conn.row_factory = sqlite3.Row
@@ -278,7 +277,7 @@ class ModelRegistry:
                 request_count=row['request_count'],
             )
     
-    def get(self, model_id: str, version: str) -> Optional[ModelVersion]:
+    def get(self, model_id: str, version: str) -> ModelVersion | None:
         """Get a specific model version."""
         cache_key = f"{model_id}:{version}"
         if cache_key in self._cache:
@@ -290,58 +289,56 @@ class ModelRegistry:
                 self._cache[cache_key] = model_version
             return model_version
     
-    def get_latest(self, model_id: str, status: ModelStatus = None) -> Optional[ModelVersion]:
+    def get_latest(self, model_id: str, status: ModelStatus = None) -> ModelVersion | None:
         """Get latest version of a model."""
-        with self._lock:
-            with sqlite3.connect(self.db_path) as conn:
-                conn.row_factory = sqlite3.Row
-                query = "SELECT version FROM models WHERE model_id = ?"
-                params = [model_id]
-                if status:
-                    query += " AND status = ?"
-                    params.append(status.value)
-                query += " ORDER BY created_at DESC LIMIT 1"
-                
-                row = conn.execute(query, params).fetchone()
-                if row:
-                    return self.get(model_id, row['version'])
-                return None
+        with self._lock, sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            query = "SELECT version FROM models WHERE model_id = ?"
+            params = [model_id]
+            if status:
+                query += " AND status = ?"
+                params.append(status.value)
+            query += " ORDER BY created_at DESC LIMIT 1"
+            
+            row = conn.execute(query, params).fetchone()
+            if row:
+                return self.get(model_id, row['version'])
+            return None
     
-    def get_production(self, model_id: str) -> Optional[ModelVersion]:
+    def get_production(self, model_id: str) -> ModelVersion | None:
         """Get production version of a model."""
         return self.get_latest(model_id, ModelStatus.PRODUCTION)
     
-    def get_staging(self, model_id: str) -> Optional[ModelVersion]:
+    def get_staging(self, model_id: str) -> ModelVersion | None:
         """Get staging version of a model."""
         return self.get_latest(model_id, ModelStatus.STAGING)
     
-    def get_canary(self, model_id: str) -> Optional[ModelVersion]:
+    def get_canary(self, model_id: str) -> ModelVersion | None:
         """Get canary version of a model."""
         return self.get_latest(model_id, ModelStatus.CANARY)
     
-    def list_versions(self, model_id: str) -> List[ModelVersion]:
+    def list_versions(self, model_id: str) -> list[ModelVersion]:
         """List all versions of a model."""
-        with self._lock:
-            with sqlite3.connect(self.db_path) as conn:
-                conn.row_factory = sqlite3.Row
-                rows = conn.execute(
-                    "SELECT version FROM models WHERE model_id = ? ORDER BY created_at DESC",
-                    (model_id,)
-                ).fetchall()
-                
-                versions = []
-                for row in rows:
-                    mv = self.get(model_id, row['version'])
-                    if mv:
-                        versions.append(mv)
-                return versions
+        with self._lock, sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(
+                "SELECT version FROM models WHERE model_id = ? ORDER BY created_at DESC",
+                (model_id,)
+            ).fetchall()
+            
+            versions = []
+            for row in rows:
+                mv = self.get(model_id, row['version'])
+                if mv:
+                    versions.append(mv)
+            return versions
     
     def update_status(
         self,
         model_id: str,
         version: str,
         status: ModelStatus,
-        deployment_config: Dict[str, Any] = None
+        deployment_config: dict[str, Any] = None
     ) -> ModelVersion:
         """Update model status."""
         with self._lock:
@@ -373,7 +370,7 @@ class ModelRegistry:
         error_rate: float = None,
         latency_p99: float = None,
         request_count: int = None,
-        custom_metrics: Dict[str, float] = None
+        custom_metrics: dict[str, float] = None
     ) -> ModelVersion:
         """Update model performance metrics."""
         with self._lock:
@@ -456,26 +453,25 @@ class ModelRegistry:
                 hasher.update(chunk)
         return hasher.hexdigest()
     
-    def find_by_fingerprint(self, fingerprint: str) -> List[ModelVersion]:
+    def find_by_fingerprint(self, fingerprint: str) -> list[ModelVersion]:
         """Find all model versions with matching fingerprint."""
-        with self._lock:
-            with sqlite3.connect(self.db_path) as conn:
-                conn.row_factory = sqlite3.Row
-                rows = conn.execute(
-                    "SELECT model_id, version FROM models WHERE fingerprint = ?",
-                    (fingerprint,)
-                ).fetchall()
-                
-                versions = []
-                for row in rows:
-                    mv = self.get(row['model_id'], row['version'])
-                    if mv:
-                        versions.append(mv)
-                return versions
+        with self._lock, sqlite3.connect(self.db_path) as conn:
+            conn.row_factory = sqlite3.Row
+            rows = conn.execute(
+                "SELECT model_id, version FROM models WHERE fingerprint = ?",
+                (fingerprint,)
+            ).fetchall()
+            
+            versions = []
+            for row in rows:
+                mv = self.get(row['model_id'], row['version'])
+                if mv:
+                    versions.append(mv)
+            return versions
 
 
 # Global registry instance
-_registry: Optional[ModelRegistry] = None
+_registry: ModelRegistry | None = None
 _registry_lock = threading.Lock()
 
 

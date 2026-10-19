@@ -1,13 +1,12 @@
 import logging
 
-import app.config_loader as cfg
+from agency.evolution import PersonalityEvolution
 from app.metadata import tag_service
 from core.brain import Brain
-from agency.evolution import PersonalityEvolution
+from core.emotion import Emotion
 from knowledge.cognitive_graph import CognitiveGraph
 from knowledge.graph_reflection import GraphReflection
 from knowledge.reasoning import GraphReasoning
-from core.emotion import Emotion
 
 logger = logging.getLogger("Mai")
 

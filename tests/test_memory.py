@@ -91,6 +91,7 @@ class TestMemoryIntelligenceDI:
 
     def test_inject_all_mocks(self):
         from unittest.mock import MagicMock
+
         from memory.intelligence import MemoryIntelligence
         tagger = MagicMock()
         tagger.extract_tags.return_value = ["test"]
@@ -126,6 +127,7 @@ class TestMemoryIntelligenceDI:
 
     def test_default_constructs_real_subsystems(self):
         from unittest.mock import MagicMock
+
         from memory.intelligence import MemoryIntelligence
         mi = MemoryIntelligence(tagger=MagicMock(), emotion=MagicMock())
         assert mi.scorer is not None
@@ -135,9 +137,10 @@ class TestMemoryIntelligenceDI:
         assert mi.decay is not None
 
     def test_should_delete_low_importance_old(self):
+        import time
+
         from memory.lifecycle import MemoryLifecycle
         from memory.schema import MemoryObject
-        import time
         lc = MemoryLifecycle()
         node = MemoryObject(
             content="old and unimportant",
@@ -148,9 +151,10 @@ class TestMemoryIntelligenceDI:
         assert lc.should_delete(node) is True
 
     def test_should_archive(self):
+        import time
+
         from memory.lifecycle import MemoryLifecycle
         from memory.schema import MemoryObject
-        import time
         lc = MemoryLifecycle()
         node = MemoryObject(
             content="old enough to archive",
@@ -173,14 +177,14 @@ class TestMemoryState:
         assert s.relation_count == 0
 
     def test_merge_identity_adds_new(self):
-        from memory.state import MemoryState, IdentityFact
+        from memory.state import IdentityFact, MemoryState
         s = MemoryState()
         s.merge_identity([IdentityFact(fact="I am 25", category="age", timestamp="2026-07-17")])
         assert len(s.identity) == 1
         assert s.identity[0].fact == "I am 25"
 
     def test_merge_identity_preserves_different_facts_same_category(self):
-        from memory.state import MemoryState, IdentityFact
+        from memory.state import IdentityFact, MemoryState
         s = MemoryState()
         s.merge_identity([IdentityFact(fact="I am 25", category="age", timestamp="2026-07-16")])
         s.merge_identity([IdentityFact(fact="I am 26", category="age", timestamp="2026-07-17")])
@@ -189,7 +193,7 @@ class TestMemoryState:
         assert any(f.fact == "I am 26" for f in s.identity)
 
     def test_merge_identity_preserves_timestamp(self):
-        from memory.state import MemoryState, IdentityFact
+        from memory.state import IdentityFact, MemoryState
         s = MemoryState()
         s.merge_identity([IdentityFact(fact="I am 25", category="age", timestamp="2026-07-16")])
         s.merge_identity([IdentityFact(fact="I am 26", category="age")])
@@ -212,7 +216,7 @@ class TestMemoryState:
         assert "coding" in s.dislikes
 
     def test_merge_knowledge_preserves_different_facts_same_topic(self):
-        from memory.state import MemoryState, KnowledgeEntry
+        from memory.state import KnowledgeEntry, MemoryState
         s = MemoryState()
         s.merge_knowledge([KnowledgeEntry(topic="Python", fact="Python is great", timestamp="2026-07-17")])
         s.merge_knowledge([KnowledgeEntry(topic="Python", fact="Python is a programming language", timestamp="2026-07-18")])
@@ -221,7 +225,7 @@ class TestMemoryState:
         assert any(f.fact == "Python is a programming language" for f in s.knowledge)
 
     def test_merge_knowledge_preserves_timestamp(self):
-        from memory.state import MemoryState, KnowledgeEntry
+        from memory.state import KnowledgeEntry, MemoryState
         s = MemoryState()
         s.merge_knowledge([KnowledgeEntry(topic="Python", fact="Python is great", timestamp="2026-07-17")])
         s.merge_knowledge([KnowledgeEntry(topic="Python", fact="Python is great")])

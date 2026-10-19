@@ -57,7 +57,7 @@ class TestFix1_NoBrowserMicCapture:
             for pattern in self.FORBIDDEN_PATTERNS:
                 if re.search(pattern, content):
                     violations.append(f"{js_file.name}: {pattern}")
-        assert not violations, f"Fix 1 violated (browser mic capture found):\n" + "\n".join(violations)
+        assert not violations, "Fix 1 violated (browser mic capture found):\n" + "\n".join(violations)
 
 
 class TestFix2_StatePrimitivesAndAuth:

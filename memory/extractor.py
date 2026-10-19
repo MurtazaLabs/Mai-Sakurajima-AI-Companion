@@ -1,7 +1,7 @@
 # memory/extractor.py
+import logging
 import re
 import time
-import logging
 
 logger = logging.getLogger(__name__)
 

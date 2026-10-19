@@ -2,22 +2,21 @@
 # >>> UPDATED VERSION — includes MemoryRouter integration <<<
 import logging
 import os
-import time
 import threading
+import time
 from collections import deque
 
 logger = logging.getLogger(__name__)
 
 from app.config_loader import OBSIDIAN_VAULT
-
-from memory.relationship_updater import RelationshipUpdater
-from memory.intelligence import MemoryIntelligence
-from memory.tagger import Tagger
+from core.event_bus import EventBus
 from memory.emotion_analyzer import EmotionAnalyzer
-from memory.vector_store import VectorStore
+from memory.intelligence import MemoryIntelligence
+from memory.relationship_updater import RelationshipUpdater
 from memory.router import MemoryRouter
 from memory.scoring import MemoryScorer
-from core.event_bus import EventBus
+from memory.tagger import Tagger
+from memory.vector_store import VectorStore
 
 
 class Memory:

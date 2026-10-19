@@ -3,22 +3,25 @@ Plugin Lifecycle Manager
 Handles plugin installation, enable/disable, update, and uninstall operations.
 """
 import json
-import time
 import shutil
-import zipfile
 import threading
-import tempfile
-from pathlib import Path
-from typing import Optional, List, Dict, Any, Tuple
-from dataclasses import dataclass, field, asdict
+import time
+import zipfile
+from dataclasses import dataclass, field
 from enum import Enum
-from datetime import datetime
+from pathlib import Path
+from typing import Any, Optional
 
-from plugins.dependency_resolver import DependencyResolver, DependencyResolutionError, VersionConflictError, CircularDependencyError, DependencyResolver as DepResolver
-from plugins.signing import PluginSigner, PluginVerifier, verify_plugin_package
-from plugins.sandbox import PluginSandbox, Permission, create_sandbox_for_plugin
-from plugins.plugin_manifest import PluginManifestValidator, PluginManifest
-from core.plugin_system import HookRegistry, Plugin, PluginLoader
+from core.plugin_system import HookRegistry, PluginLoader
+from plugins.dependency_resolver import (
+    CircularDependencyError,
+    DependencyResolutionError,
+    VersionConflictError,
+)
+from plugins.dependency_resolver import DependencyResolver as DepResolver
+from plugins.plugin_manifest import PluginManifest, PluginManifestValidator
+from plugins.sandbox import create_sandbox_for_plugin
+from plugins.signing import verify_plugin_package
 
 
 class PluginState(str, Enum):
@@ -34,7 +37,6 @@ class PluginState(str, Enum):
 
 class PluginLifecycleError(Exception):
     """Exception raised during plugin lifecycle operations."""
-    pass
 
 
 class PluginRegistry:
@@ -42,7 +44,7 @@ class PluginRegistry:
 
     def __init__(self, registry_path: Path):
         self.registry_path = registry_path
-        self._registry: Dict[str, Dict[str, Any]] = {}
+        self._registry: dict[str, dict[str, Any]] = {}
         self._lock = threading.RLock()
         self._load()
 
@@ -77,11 +79,11 @@ class PluginRegistry:
                 return True
             return False
 
-    def get(self, name: str) -> Optional[Dict[str, Any]]:
+    def get(self, name: str) -> dict[str, Any] | None:
         with self._lock:
             return self._registry.get(name)
 
-    def get_all(self) -> List[Dict[str, Any]]:
+    def get_all(self) -> list[dict[str, Any]]:
         with self._lock:
             return list(self._registry.values())
 
@@ -94,7 +96,7 @@ class PluginRegistry:
                 return True
             return False
 
-    def update_config(self, name: str, config: Dict[str, Any]) -> bool:
+    def update_config(self, name: str, config: dict[str, Any]) -> bool:
         with self._lock:
             if name in self._registry:
                 self._registry[name]["config"] = config
@@ -112,11 +114,11 @@ class PluginRecord:
     install_path: Path = field(default_factory=Path)
     installed_at: float = field(default_factory=time.time)
     updated_at: float = field(default_factory=time.time)
-    enabled_at: Optional[float] = None
-    config: Dict[str, Any] = field(default_factory=dict)
-    error: Optional[str] = None
+    enabled_at: float | None = None
+    config: dict[str, Any] = field(default_factory=dict)
+    error: str | None = None
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         return {
             "manifest": self.manifest.to_dict(),
             "state": self.state.value,
@@ -129,7 +131,7 @@ class PluginRecord:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "PluginRecord":
+    def from_dict(cls, data: dict[str, Any]) -> "PluginRecord":
         from plugins.plugin_manifest import PluginManifest
         manifest = PluginManifest.from_dict(data["manifest"])
         state = PluginState(data.get("state", "discovered"))
@@ -176,7 +178,7 @@ class PluginLifecycleManager:
         package_path: Path,
         verify_signature: bool = True,
         force: bool = False,
-        trusted_keys: Optional[List[bytes]] = None,
+        trusted_keys: list[bytes] | None = None,
     ) -> "PluginRecord":
         """
         Install a plugin from a .mpkg package file.
@@ -473,23 +475,23 @@ class PluginLifecycleManager:
             return PluginRecord.from_dict(record)
         return None
 
-    def list_plugins(self) -> List["PluginRecord"]:
+    def list_plugins(self) -> list["PluginRecord"]:
         """List all installed plugins."""
         with self._lock:
             return [PluginRecord.from_dict(r) for r in self.registry.get_all()]
 
-    def get_enabled_plugins(self) -> List["PluginRecord"]:
+    def get_enabled_plugins(self) -> list["PluginRecord"]:
         """Get list of enabled plugins."""
         return [p for p in self.list_plugins() if p.state == PluginState.ACTIVATED]
 
-    def get_plugin_config(self, name: str) -> Optional[Dict[str, Any]]:
+    def get_plugin_config(self, name: str) -> dict[str, Any] | None:
         """Get plugin configuration."""
         record = self.registry.get(name)
         if record:
             return record.get("config")
         return None
 
-    def set_plugin_config(self, name: str, config: Dict[str, Any]) -> bool:
+    def set_plugin_config(self, name: str, config: dict[str, Any]) -> bool:
         """Set plugin configuration."""
         return self.registry.update_config(name, config)
 
@@ -506,7 +508,7 @@ class PluginLifecycleManager:
                 return False
         return True
 
-    def _check_dependencies(self, manifest: "PluginManifest") -> List[str]:
+    def _check_dependencies(self, manifest: "PluginManifest") -> list[str]:
         """Check if all dependencies are satisfied. Returns list of errors."""
         errors = []
         for dep in manifest.dependencies:
@@ -561,21 +563,20 @@ class PluginLifecycleManager:
         # The hook registry doesn't track which plugin registered which hook,
         # so we'd need to track this. For now, we'll leave hooks registered.
         # In a full implementation, we'd track hook ownership.
-        pass
 
-    def _emit_event(self, event_type: str, data: Dict[str, Any]) -> None:
+    def _emit_event(self, event_type: str, data: dict[str, Any]) -> None:
         """Emit event to event bus if available."""
         if self.event_bus:
             try:
-                from core.mai_message import publish_event
                 from core.event_specs import get_spec
+                from core.mai_message import publish_event
                 spec = get_spec(event_type)
                 if spec:
                     publish_event(self.event_bus, spec, data, source="plugin_lifecycle")
             except Exception:
                 pass  # Don't let event emission break lifecycle
 
-    def get_plugin_module(self, name: str) -> Optional[Any]:
+    def get_plugin_module(self, name: str) -> Any | None:
         """Get loaded plugin module."""
         return self.loader._plugins.get(name)
 

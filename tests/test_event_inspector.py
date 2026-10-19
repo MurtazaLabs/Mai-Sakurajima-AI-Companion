@@ -11,7 +11,7 @@ from fastapi.testclient import TestClient
 from core.event_bus import EventBus
 from core.event_registry import EventSpec, RetryPolicy
 from core.mai_message import MaiMessage, Priority
-from observability.event_inspector import DEFAULT_CAPACITY, EventInspector
+from observability.event_inspector import EventInspector
 
 
 def wait_for(predicate, timeout=8.0):
@@ -357,7 +357,7 @@ class TestHealth:
         bus = EventBus()
         inspector = EventInspector(event_bus=bus)
         bus.subscribe("t", lambda d: None)
-        bad = lambda d: (_ for _ in ()).throw(RuntimeError("boom"))  # noqa: E731
+        bad = lambda d: (_ for _ in ()).throw(RuntimeError("boom"))
         bus.subscribe("t2", bad)
         for _ in range(9):
             bus.publish("t", {})
@@ -547,7 +547,7 @@ class TestOverflowEvent:
 #  API routes
 # ──────────────────────────────────────────────────────────────
 
-from unittest.mock import MagicMock, patch
+from unittest.mock import patch
 
 from api.server import app as api_app
 

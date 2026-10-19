@@ -1,16 +1,16 @@
-import os
-import time
-import shlex
 import logging
-import threading
+import os
+import shlex
 import subprocess
-import webbrowser
+import threading
+import time
 import urllib.parse
+import webbrowser
 from pathlib import Path
 from typing import Any
 
 from app.config_loader import Settings
-from config.paths import ROOT_DIR, OBSIDIAN_VAULT
+from config.paths import OBSIDIAN_VAULT, ROOT_DIR
 
 logger = logging.getLogger(__name__)
 

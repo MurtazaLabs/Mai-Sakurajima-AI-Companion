@@ -15,10 +15,9 @@ import logging
 from knowledge.vault_logger import VaultLogger
 from knowledge.vault_schema import (
     COMPILER_OWNED_FOLDERS,
-    VAULT_FOLDERS,
     VAULT_FILES,
+    VAULT_FOLDERS,
     VAULT_SCHEMA,
-    WriteMode,
 )
 
 logger = logging.getLogger(__name__)

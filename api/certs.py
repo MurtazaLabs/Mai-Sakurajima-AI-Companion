@@ -7,7 +7,6 @@ with SAN for localhost + 127.0.0.1, valid for 10 years.
 """
 
 import logging
-import os
 import subprocess
 from pathlib import Path
 
@@ -64,11 +63,12 @@ def _try_openssl() -> bool:
 def _try_cryptography() -> bool:
     """Generate certs via the ``cryptography`` library (pure Python)."""
     try:
+        import datetime
+
         from cryptography import x509
         from cryptography.hazmat.primitives import hashes, serialization
         from cryptography.hazmat.primitives.asymmetric import rsa
         from cryptography.x509.oid import NameOID
-        import datetime
 
         _CERTS_DIR.mkdir(parents=True, exist_ok=True)
 

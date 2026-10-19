@@ -2,13 +2,15 @@
 
 import logging
 
-from fastapi import APIRouter, HTTPException, Depends
+from fastapi import APIRouter, Depends, HTTPException
 from pydantic import BaseModel
 
 from api.auth import (
+    create_access_token,
+    create_refresh_token,
     get_current_user,
-    hash_password, verify_password,
-    create_access_token, create_refresh_token,
+    hash_password,
+    verify_password,
 )
 
 logger = logging.getLogger("api.routes_auth")

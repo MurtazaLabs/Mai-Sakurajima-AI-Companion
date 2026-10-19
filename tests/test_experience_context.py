@@ -1,6 +1,5 @@
 # M12 · Experience-in-speech — relevance-gated surfacing, human-readable
 # format, and prompt guidance for shared moments.
-import pytest
 
 from core.memory_coordinator import MemoryCoordinator, _dice_score, _tokenize
 from memory.experience import ExperienceStore

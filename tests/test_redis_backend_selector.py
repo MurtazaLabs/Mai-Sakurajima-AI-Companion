@@ -9,7 +9,6 @@ Verifies:
   RedisSharedState satisfies the full SharedState interface consumed by
   RelationshipEngineV2 / Brain / OsKernel (lock, db, state_dir, models).
 """
-from pathlib import Path
 from unittest.mock import MagicMock
 
 import pytest

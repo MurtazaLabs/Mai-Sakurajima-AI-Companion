@@ -4,10 +4,10 @@ Provides get/set for a mutable config layer that sits on top of the
 static ``config/*.py`` module-level constants. Overrides are saved to
 ``data/runtime_config.json`` and apply until the next restart.
 """
-import os
 import json
-import threading
 import logging
+import os
+import threading
 
 logger = logging.getLogger(__name__)
 

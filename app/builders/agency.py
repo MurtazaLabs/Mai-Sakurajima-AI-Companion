@@ -1,15 +1,15 @@
 import logging
 
 import app.config_loader as cfg
-from app.metadata import tag_service
-from agency.registry import ToolRegistry
 from agency.agent import Agent
+from agency.dreaming import DreamEngine
 from agency.goals import GoalManager
 from agency.procedural import ProceduralMemory
+from agency.registry import ToolRegistry
 from agency.world import WorldModel
-from agency.dreaming import DreamEngine
-from execution.task_executor import TaskExecutor
+from app.metadata import tag_service
 from execution.safe_executor import SafeExecutor
+from execution.task_executor import TaskExecutor
 
 logger = logging.getLogger("Mai")
 
@@ -72,8 +72,8 @@ def build(app):
     # M6 · Emotional experience + growth — ExperienceStore and
     # PreferenceEvolution are built after memory exists, wired here.
     try:
-        from memory.experience import ExperienceStore
         from config.paths import ROOT_DIR
+        from memory.experience import ExperienceStore
         data_dir = ROOT_DIR / "data"
         data_dir.mkdir(exist_ok=True)
         app.experience_store = ExperienceStore(
@@ -91,8 +91,8 @@ def build(app):
     try:
         from agency.preference_evolution import PreferenceEvolution
         from config.character import (
-            PREFERENCE_EVOLUTION_EVIDENCE_THRESHOLD,
             PREFERENCE_EVOLUTION_CADENCE_DAYS,
+            PREFERENCE_EVOLUTION_EVIDENCE_THRESHOLD,
         )
         data_dir = ROOT_DIR / "data"
         data_dir.mkdir(exist_ok=True)

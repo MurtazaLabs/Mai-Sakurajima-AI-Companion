@@ -6,15 +6,18 @@ read/write ``state`` (MemoryState) and accumulate counters into ``report``
 (DreamReport). They may use ``engine.knowledge_graph``, ``engine.llm``, and
 ``engine.vault_root``.
 """
-import time
-import re
 import json
 import logging
-from collections import defaultdict, Counter
+import re
+import time
+from collections import Counter, defaultdict
 from datetime import datetime, timedelta
 
 from agency.dream_report import (
-    LINK_CO_OCCUR_THRESHOLD, ARCHIVE_DAYS, ARCHIVE_IMPORTANCE, INFERRED_CONFIDENCE,
+    ARCHIVE_DAYS,
+    ARCHIVE_IMPORTANCE,
+    INFERRED_CONFIDENCE,
+    LINK_CO_OCCUR_THRESHOLD,
 )
 
 logger = logging.getLogger(__name__)

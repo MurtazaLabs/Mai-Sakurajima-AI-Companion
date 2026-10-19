@@ -2,12 +2,14 @@
 Tests for the Dependency Resolver
 """
 import pytest
+
 from plugins.dependency_resolver import (
-    DependencyResolver, DependencyGraph, DependencyResolutionError,
-    VersionConflictError, CircularDependencyError, ResolvedDependency
+    CircularDependencyError,
+    DependencyGraph,
+    DependencyResolver,
+    VersionConflictError,
 )
-from plugins.plugin_manifest import PluginManifest, PluginPermission, PluginDependency
-from plugins.dependency_resolver import DependencyGraph, CircularDependencyError, VersionConflictError
+from plugins.plugin_manifest import PluginDependency, PluginManifest
 
 
 class TestDependencyResolver:
@@ -15,7 +17,6 @@ class TestDependencyResolver:
     
     def test_resolve_simple_dependency(self):
         """Test resolving a simple dependency."""
-        from plugins.dependency_resolver import DependencyResolver
         
         resolver = DependencyResolver(None)
         
@@ -46,7 +47,6 @@ class TestDependencyResolver:
     
     def test_resolve_with_installed_dependency(self):
         """Test resolving when dependency is already installed."""
-        from plugins.dependency_resolver import DependencyResolver
         
         resolver = DependencyResolver(None)
         
@@ -86,7 +86,6 @@ class TestDependencyResolver:
     
     def test_version_conflict_raises(self):
         """Test that version conflicts raise an error."""
-        from plugins.dependency_resolver import DependencyResolver, VersionConflictError
         
         resolver = DependencyResolver(None)
         
@@ -114,7 +113,6 @@ class TestDependencyResolver:
     
     def test_circular_dependency_detection(self):
         """Test circular dependency detection."""
-        from plugins.dependency_resolver import CircularDependencyError
         from plugins.dependency_resolver import DependencyGraph
         
         graph = DependencyGraph()
@@ -138,7 +136,6 @@ class TestDependencyGraph:
     
     def test_get_install_order(self):
         """Test topological sort for installation order."""
-        from plugins.dependency_resolver import DependencyGraph
         
         graph = DependencyGraph()
         
@@ -163,7 +160,6 @@ class TestDependencyGraph:
     
     def test_circular_dependency_raises(self):
         """Test that circular dependencies raise an error."""
-        from plugins.dependency_resolver import DependencyGraph, CircularDependencyError
         
         graph = DependencyGraph()
         
@@ -180,7 +176,6 @@ class TestDependencyGraph:
     
     def test_get_affected_plugins(self):
         """Test getting affected plugins when one changes."""
-        from plugins.dependency_resolver import DependencyGraph
         
         graph = DependencyGraph()
         
@@ -200,7 +195,6 @@ class TestDependencyGraph:
     
     def test_conflict_detection(self):
         """Test conflict detection between plugins."""
-        from plugins.dependency_resolver import DependencyGraph
         
         graph = DependencyGraph()
         

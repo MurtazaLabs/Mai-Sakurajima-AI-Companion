@@ -4,7 +4,6 @@
 (needs → emotion → packet → style → prosody → renderer) and assert the
 causal chain with formula-based bands — never brittle literals."""
 
-import time
 from unittest.mock import Mock
 
 from app.config_loader import Settings
@@ -15,9 +14,7 @@ from .fixtures import (
     NEUTRAL_AFTER,
     PRAISE_STIMULUS,
     REASSURANCE_STIMULUS,
-    baseline_relationship,
     jealousy_expected,
-    make_packet,
     recognition_expected,
     relationship,
     within,
@@ -242,8 +239,8 @@ class TestPreferenceEmergence:
 
     def test_apply_after_three_observations_updates_identity(self, tmp_path):
         from core.event_specs import PREFERENCE_EVOLVED
-        from core.mai_message import MaiMessage
         from core.identity.preferences import PREFERENCES
+        from core.mai_message import MaiMessage
         canonical_likes_before = list(PREFERENCES["likes"])
         pipe, pref, core, bus, events = self._make(tmp_path)
         for _ in range(3):
@@ -281,8 +278,6 @@ class TestExperienceDreamBehavior:
 
     def _make(self, tmp_path):
         from agency.dreaming import DreamEngine
-        from core.event_specs import EXPERIENCE_RECORDED
-        from core.mai_message import MaiMessage
         from memory.experience import ExperienceStore
         from memory.pipeline import MemoryPipeline
         bus = Mock()
@@ -326,7 +321,6 @@ class TestExperienceDreamBehavior:
         assert store.stats()["reflected"] == 1
 
     def test_reflection_requires_store_entry(self, tmp_path):
-        from memory.state import MemoryState
         store, pipe, engine, bus = self._make(tmp_path)
         assert store.mark_reflected("nope", meaning="x") is False
 
@@ -362,6 +356,7 @@ class TestM8BehavioralProxies:
         """think() regression — identity_data must reach the prompt even when
         callers don't pass it explicitly (production gap found in M8)."""
         from unittest.mock import MagicMock
+
         from core.identity.identity_core import IdentityCore
         from core.prompt_orchestrator import PromptOrchestrator
         brain = MagicMock()
@@ -373,6 +368,7 @@ class TestM8BehavioralProxies:
 
     def test_orchestrator_identity_fallback_robust_to_garbage(self):
         from unittest.mock import MagicMock
+
         from core.prompt_orchestrator import PromptOrchestrator
         brain = MagicMock()
         brain._identity_data.return_value = MagicMock()  # not a dict

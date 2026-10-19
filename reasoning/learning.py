@@ -1,6 +1,4 @@
 # reasoning/learning.py
-import time
-import re
 import logging
 
 logger = logging.getLogger(__name__)

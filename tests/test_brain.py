@@ -1,7 +1,5 @@
 import json
-from unittest.mock import MagicMock, patch, PropertyMock
-
-import pytest
+from unittest.mock import MagicMock, patch
 
 
 class TestBrain:
@@ -86,8 +84,8 @@ class TestBrain:
 
     def test_brain_with_optional_subsystems(self):
         from agency.goals import GoalManager
-        from agency.world import WorldModel
         from agency.procedural import ProceduralMemory
+        from agency.world import WorldModel
         bus = MagicMock()
         brain = self._make_brain(
             goal_manager=GoalManager(event_bus=bus),

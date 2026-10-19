@@ -6,16 +6,16 @@ import logging
 import re
 import threading
 import time
-from typing import Iterator, Optional, AsyncIterator
+from collections.abc import AsyncIterator, Iterator
 
-from llm.http_client import HTTPClientFactory
 from app.config_loader import (
+    LLM_MAX_CONTEXT,
     LLM_MODEL,
     LLM_RETRY_COUNT,
     LLM_TEMPERATURE,
-    LLM_MAX_CONTEXT,
     LLM_TIMEOUT,
 )
+from llm.http_client import HTTPClientFactory
 
 logger = logging.getLogger("Mai.OllamaProvider")
 
@@ -31,9 +31,9 @@ class OllamaProvider:
         self,
         model: str = LLM_MODEL,
         base_url: str = "http://localhost:11434",
-        temperature: Optional[float] = None,
-        context_window: Optional[int] = None,
-        timeout: Optional[int] = None,
+        temperature: float | None = None,
+        context_window: int | None = None,
+        timeout: int | None = None,
     ) -> None:
 
         self.model = model
@@ -111,7 +111,7 @@ class OllamaProvider:
         self,
         system: str,
         user: str,
-        history: Optional[list] = None,
+        history: list | None = None,
     ) -> list:
 
         messages = []
@@ -139,7 +139,7 @@ class OllamaProvider:
             "options": self._options(),
         }
 
-    def _check_image_error(self, content: str) -> Optional[str]:
+    def _check_image_error(self, content: str) -> str | None:
         if "does not support image" in content.lower():
             return "I can't read or analyze images — I'm a text-only assistant."
         return None
@@ -171,7 +171,7 @@ class OllamaProvider:
         self,
         system: str,
         user: str,
-        history: Optional[list] = None,
+        history: list | None = None,
         retries: int = None,
     ) -> str:
 
@@ -230,7 +230,7 @@ class OllamaProvider:
         self,
         system: str,
         user: str,
-        history: Optional[list] = None,
+        history: list | None = None,
     ) -> Iterator[str]:
 
         self._cancel_event.clear()
@@ -301,7 +301,7 @@ class OllamaProvider:
         self,
         system: str,
         user: str,
-        history: Optional[list] = None,
+        history: list | None = None,
     ) -> str:
 
         original = self.temperature
@@ -318,7 +318,7 @@ class OllamaProvider:
         self,
         system: str,
         user: str,
-        history: Optional[list] = None,
+        history: list | None = None,
     ) -> str:
 
         prompt = system + "\n\nReturn ONLY valid JSON."
@@ -332,7 +332,7 @@ class OllamaProvider:
         self,
         system: str,
         user: str,
-        history: Optional[list] = None,
+        history: list | None = None,
         retries: int = None,
     ) -> str:
 
@@ -391,7 +391,7 @@ class OllamaProvider:
         self,
         system: str,
         user: str,
-        history: Optional[list] = None,
+        history: list | None = None,
     ) -> AsyncIterator[str]:
 
         self._cancel_event.clear()
@@ -462,7 +462,7 @@ class OllamaProvider:
         self,
         system: str,
         user: str,
-        history: Optional[list] = None,
+        history: list | None = None,
     ) -> str:
 
         original = self.temperature
@@ -479,7 +479,7 @@ class OllamaProvider:
         self,
         system: str,
         user: str,
-        history: Optional[list] = None,
+        history: list | None = None,
     ) -> str:
 
         prompt = system + "\n\nReturn ONLY valid JSON."

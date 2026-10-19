@@ -1,15 +1,12 @@
 """Payload-safe metadata extraction (Event Inspector Phase 3)."""
 import time
 
-import pytest
-
+from core.event_bus import EventBus
 from core.event_metadata import (
     MetadataExtractorRegistry,
     extract_metadata,
     register_extractor,
 )
-from core.event_bus import EventBus
-from core.mai_message import MaiMessage, Priority
 
 
 def _capture_record(bus, type_, wait_ms=2000):

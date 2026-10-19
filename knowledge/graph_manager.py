@@ -7,9 +7,9 @@ logger = logging.getLogger(__name__)
 class GraphManager:
 
     def __init__(self, graph=None, extractor=None, consolidation=None, event_bus=None):
-        from knowledge.graph import KnowledgeGraph
-        from knowledge.extractor import EntityExtractor
         from knowledge.consolidation import ConsolidationEngine
+        from knowledge.extractor import EntityExtractor
+        from knowledge.graph import KnowledgeGraph
         self.graph = graph or KnowledgeGraph()
         self.extractor = extractor or EntityExtractor()
         self.consolidation = consolidation or ConsolidationEngine()

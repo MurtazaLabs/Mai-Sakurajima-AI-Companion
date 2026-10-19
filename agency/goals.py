@@ -1,7 +1,7 @@
+import logging
+import threading
 import time
 import uuid
-import threading
-import logging
 
 logger = logging.getLogger(__name__)
 

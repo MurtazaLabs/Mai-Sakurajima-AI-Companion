@@ -1,11 +1,10 @@
-import os
-import re
-import uuid
 import hashlib
 import logging
+import re
 import threading
-from pathlib import Path
+import uuid
 from datetime import datetime
+from pathlib import Path
 
 from knowledge.graph_exporter import sanitize_entity_stem
 
@@ -147,7 +146,7 @@ class MemoryWriter:
             path = self.vault_root / folder / filename
             user = str(user or "").strip()
             ai = str(ai or "").strip()
-            signature = hashlib.md5(f"{folder}:{user}{ai}".encode("utf-8")).hexdigest()
+            signature = hashlib.md5(f"{folder}:{user}{ai}".encode()).hexdigest()
             with self._lock:
                 if signature in self.hash_cache:
                     return False

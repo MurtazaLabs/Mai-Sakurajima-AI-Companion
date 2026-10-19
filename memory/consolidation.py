@@ -1,8 +1,9 @@
 # memory/consolidation.py
-import time
 import logging
-from memory.schema import MemoryObject
+import time
+
 from core.utils import compute_text_overlap
+from memory.schema import MemoryObject
 
 logger = logging.getLogger(__name__)
 

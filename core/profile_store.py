@@ -11,7 +11,6 @@ import sqlite3
 import threading
 import time
 from pathlib import Path
-from typing import Optional
 
 logger = logging.getLogger("core.profile_store")
 
@@ -36,11 +35,11 @@ CREATE INDEX IF NOT EXISTS idx_profiles_tenant ON profiles(tenant_id);
 class ProfileStore:
     """Thread-safe SQLite store for user profiles."""
 
-    def __init__(self, db_path: Optional[str] = None):
+    def __init__(self, db_path: str | None = None):
         self._lock = threading.RLock()
         self._db_path = Path(db_path or _DB_PATH)
         self._db_path.parent.mkdir(parents=True, exist_ok=True)
-        self._conn: Optional[sqlite3.Connection] = None
+        self._conn: sqlite3.Connection | None = None
         self._init_db()
 
     # ── Connection management ──────────────────────────────────────────
@@ -82,7 +81,7 @@ class ProfileStore:
                 logger.warning("User already exists: %s", user_id)
                 return False
 
-    def get_user(self, user_id: str) -> Optional[dict]:
+    def get_user(self, user_id: str) -> dict | None:
         with self._lock:
             row = self._cursor().execute(
                 "SELECT * FROM profiles WHERE user_id = ?", (user_id,)
@@ -91,7 +90,7 @@ class ProfileStore:
                 return None
             return dict(row)
 
-    def get_password_hash(self, user_id: str) -> Optional[str]:
+    def get_password_hash(self, user_id: str) -> str | None:
         with self._lock:
             row = self._cursor().execute(
                 "SELECT password FROM profiles WHERE user_id = ?", (user_id,)

@@ -3,8 +3,8 @@ Shared HTTP Client with Connection Pooling
 Provides both sync and async clients with connection pooling, keep-alive, and retries.
 """
 import logging
+
 import httpx
-from typing import Optional
 
 logger = logging.getLogger(__name__)
 
@@ -31,8 +31,8 @@ class PooledHTTPClient:
         self.timeout = timeout
         
         # Sync client with connection pooling
-        self._sync_client: Optional[httpx.Client] = None
-        self._async_client: Optional[httpx.AsyncClient] = None
+        self._sync_client: httpx.Client | None = None
+        self._async_client: httpx.AsyncClient | None = None
         
     def _get_sync_client(self) -> httpx.Client:
         """Get or create sync client with connection pooling."""

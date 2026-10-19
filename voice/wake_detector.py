@@ -1,6 +1,5 @@
-import time
 import logging
-import numpy as np
+import time
 
 logger = logging.getLogger(__name__)
 

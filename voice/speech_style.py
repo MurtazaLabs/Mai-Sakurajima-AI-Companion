@@ -25,7 +25,7 @@ PACE_RELAXED = 0.85
 
 class SpeechStyle:
 
-    __slots__ = ("register", "rate", "hesitation", "sentence_length", "closeness")
+    __slots__ = ("closeness", "hesitation", "rate", "register", "sentence_length")
 
     def __init__(
         self,

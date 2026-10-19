@@ -6,8 +6,8 @@ Usage:
 """
 
 import logging
-import warnings
 import time
+import warnings
 
 logging.basicConfig(level=logging.WARNING)
 warnings.filterwarnings("ignore")

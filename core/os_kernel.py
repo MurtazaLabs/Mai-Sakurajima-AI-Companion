@@ -9,21 +9,20 @@ Two modes:
 Phases: IDLE → WAKE_DETECTED → GREETING/IDENTIFYING_SPEAKER → CONVERSATION →
 PROCESSING_RESPONSE → CLEANUP → IDLE
 """
-import time
 import logging
 import threading
+import time
+
 import numpy as np
 
 from core.state.models import ConversationPhase, KernelMode
-from core.mai_message import ensure_correlation
-from app.config_loader import Settings
+from core.autonomy.engine import Autonomy  # noqa: F401  patch target for tests
+from core.cognition import Cognition  # noqa: F401  patch target for tests
+from core.idle_behavior import IdleBehavior  # noqa: F401  patch target for tests
+from core.scheduler import Scheduler  # noqa: F401  patch target for tests
+from core.attention import Attention  # noqa: F401  patch target for tests
+from core.wake_generator import WakeGenerator  # noqa: F401  patch target for tests
 from voice.stt import TranscriptionUnavailable
-from core.wake_generator import WakeGenerator
-from core.attention import Attention
-from core.cognition import Cognition
-from core.idle_behavior import IdleBehavior
-from core.scheduler import Scheduler
-from core.autonomy.engine import Autonomy
 
 logger = logging.getLogger("Mai.OSKernel")
 

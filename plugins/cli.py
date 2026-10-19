@@ -3,16 +3,14 @@ Plugin CLI Commands
 Provides command-line interface for plugin management: install, enable, disable, uninstall, list, search.
 """
 import argparse
-import sys
 import json
 import logging
+import sys
 from pathlib import Path
-from typing import Optional, List
 
-from plugins.marketplace_client import MarketplaceClient, create_marketplace_client
-from plugins.lifecycle import create_plugin_lifecycle_manager, PluginLifecycleManager
-from plugins.plugin_manifest import PluginManifest, PluginManifestValidator
 from core.plugin_system import HookRegistry
+from plugins.lifecycle import PluginLifecycleManager, create_plugin_lifecycle_manager
+from plugins.marketplace_client import create_marketplace_client
 
 logger = logging.getLogger(__name__)
 
@@ -20,14 +18,14 @@ logger = logging.getLogger(__name__)
 class PluginCLI:
     """Command-line interface for plugin management."""
     
-    def __init__(self, plugin_dir: Optional[Path] = None, registry_url: Optional[str] = None):
+    def __init__(self, plugin_dir: Path | None = None, registry_url: str | None = None):
         self.plugin_dir = plugin_dir or (Path.home() / ".config" / "mai" / "plugins")
         self.registry_url = registry_url
         self.client = create_marketplace_client(registry_url)
         # Force refresh registry for local file URLs
         if registry_url and registry_url.startswith("file://"):
             self.client.fetch_registry(force_refresh=True)
-        self._lifecycle_manager: Optional[PluginLifecycleManager] = None
+        self._lifecycle_manager: PluginLifecycleManager | None = None
     
     def _get_lifecycle_manager(self) -> PluginLifecycleManager:
         if self._lifecycle_manager is None:
@@ -38,7 +36,7 @@ class PluginCLI:
         return self._lifecycle_manager
     
     def install(self, name: str, version: str = "latest", force: bool = False,
-                trusted_keys: Optional[List[str]] = None) -> int:
+                trusted_keys: list[str] | None = None) -> int:
         """Install a plugin from the marketplace."""
         logger.info("Searching for plugin: %s", name)
         
@@ -66,8 +64,8 @@ class PluginCLI:
             logger.error("[FAIL] %s", message)
             return 1
     
-    def search(self, query: str = "", tags: Optional[List[str]] = None,
-               category: Optional[str] = None, json_output: bool = False) -> int:
+    def search(self, query: str = "", tags: list[str] | None = None,
+               category: str | None = None, json_output: bool = False) -> int:
         """Search the marketplace for plugins."""
         plugins = self.client.search(query=query, tags=tags, category=category)
         

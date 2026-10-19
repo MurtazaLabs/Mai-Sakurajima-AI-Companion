@@ -2,12 +2,12 @@ import logging
 
 import app.config_loader as cfg
 from app.metadata import tag_service
+from knowledge.retriever import AdvancedRetriever
+from memory.hierarchy import MemoryHierarchy
+from memory.manager import MemoryManager
 from memory.memory import Memory
 from memory.pipeline import MemoryPipeline
-from memory.manager import MemoryManager
-from memory.hierarchy import MemoryHierarchy
 from memory.vector_store import VectorStore
-from knowledge.retriever import AdvancedRetriever
 
 logger = logging.getLogger("Mai")
 

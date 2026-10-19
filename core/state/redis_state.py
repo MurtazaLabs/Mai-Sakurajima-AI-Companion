@@ -6,20 +6,24 @@ Provides distributed, fault-tolerant state management with Redis backend.
 Falls back to in-memory if Redis unavailable.
 """
 import json
+import logging
 import threading
 import time
-import logging
+from dataclasses import dataclass
 from pathlib import Path
-from typing import Optional, Dict, Any, List
-from dataclasses import dataclass, field
+from typing import Any
 
 import redis
 from redis.connection import ConnectionPool
 
-from core.state.models import (
-    EmotionState, RelationshipValues, GoalState, AttentionState, RuntimeStateFields
-)
 from core.state.db import EvidenceDB
+from core.state.models import (
+    AttentionState,
+    EmotionState,
+    GoalState,
+    RelationshipValues,
+    RuntimeStateFields,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +34,7 @@ class RedisConfig:
     host: str = "localhost"
     port: int = 6379
     db: int = 0
-    password: Optional[str] = None
+    password: str | None = None
     ssl: bool = False
     max_connections: int = 10
     socket_timeout: float = 5.0
@@ -53,8 +57,8 @@ class RedisSharedState:
     def __init__(
         self,
         persistence_dir: Path,
-        redis_config: Optional[RedisConfig] = None,
-        redis_client: Optional[redis.Redis] = None,
+        redis_config: RedisConfig | None = None,
+        redis_client: redis.Redis | None = None,
     ):
         self.persistence_dir = persistence_dir
         self.redis_config = redis_config or RedisConfig()
@@ -130,7 +134,7 @@ class RedisSharedState:
         """Check if Redis is available."""
         return self._available
 
-    def _get_redis(self) -> Optional[redis.Redis]:
+    def _get_redis(self) -> redis.Redis | None:
         """Get Redis client, returning None if unavailable."""
         if not self._available:
             return None
@@ -370,7 +374,7 @@ class InMemoryState:
     """In-memory fallback when Redis unavailable."""
     
     def __init__(self):
-        self._locks: Dict[str, float] = {}
+        self._locks: dict[str, float] = {}
         self._lock = threading.RLock()
 
     def acquire_lock(self, name: str, ttl: int = 10) -> bool:

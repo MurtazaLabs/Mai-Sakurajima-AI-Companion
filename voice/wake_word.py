@@ -1,9 +1,9 @@
-import time
 import logging
+import time
 
 from app.config_loader import (
-    WAKE_WORDS,
     VOICE_COOLDOWN,
+    WAKE_WORDS,
 )
 
 logger = logging.getLogger(__name__)

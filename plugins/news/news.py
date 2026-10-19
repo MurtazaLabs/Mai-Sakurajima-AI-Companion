@@ -1,7 +1,7 @@
 import logging
 import re
-import urllib.request
 import urllib.error
+import urllib.request
 import xml.etree.ElementTree as ET
 from html.parser import HTMLParser
 

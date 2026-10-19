@@ -1,9 +1,7 @@
 # M9 · Evaluation harness tests — transcript, rubric, and stub-session runner.
-import json
 
-import pytest
 
-from evaluation.rubric import AXES, CharacterRubric, RubricReport
+from evaluation.rubric import AXES, CharacterRubric
 from evaluation.transcript import SessionTranscript, TurnRecord
 
 

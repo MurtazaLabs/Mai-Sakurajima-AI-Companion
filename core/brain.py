@@ -1,54 +1,53 @@
 # core/brain.py
-import os
 import logging
-import traceback
+import os
 import time
+import traceback
 from dataclasses import dataclass
-from typing import Optional, Any
+from typing import Any
 
-from core.style_filter import apply_style
-from core.emotion import Emotion
+from app.config_loader import CACHE_DIR, MEMORY_PRUNE_INTERVAL
 from core.behavior_builder import BehaviorBuilder
-from core.personality_state import PersonalityState
-from core.event_bus import EventBus
-from core.cognitive_state import CognitiveState
-from core.post_think_hooks import PostThinkHooks
-from core.memory_coordinator import MemoryCoordinator
-from core.prompt_orchestrator import PromptOrchestrator
-from core.reasoning_coordinator import ReasoningCoordinator
-from core.response_pipeline import ResponsePipeline, PipelineResult
-from core.tool_manager import ToolManager
 from core.brain_memory import BrainMemory
 from core.brain_routing import BrainRouter
-from core.utils import safe_call, safe_attr, TimeOfDay, UserMood
-from app.config_loader import CACHE_DIR, LLM_MAX_CONTEXT, MEMORY_PRUNE_INTERVAL
+from core.cognitive_state import CognitiveState
+from core.emotion import Emotion
+from core.event_bus import EventBus
+from core.memory_coordinator import MemoryCoordinator
+from core.personality_state import PersonalityState
+from core.post_think_hooks import PostThinkHooks
+from core.prompt_orchestrator import PromptOrchestrator
+from core.reasoning_coordinator import ReasoningCoordinator
+from core.response_pipeline import PipelineResult, ResponsePipeline
+from core.style_filter import apply_style
+from core.tool_manager import ToolManager
 
 logger = logging.getLogger(__name__)
 
 
 @dataclass
 class BrainDeps:
-    event_bus: Optional[Any] = None
-    cognitive_state: Optional[Any] = None
-    tool_registry: Optional[Any] = None
-    agent: Optional[Any] = None
-    retriever: Optional[Any] = None
-    reasoning_engine: Optional[Any] = None
-    thought_journal: Optional[Any] = None
-    reflection_engine: Optional[Any] = None
-    learning_engine: Optional[Any] = None
-    goal_manager: Optional[Any] = None
-    world_model: Optional[Any] = None
-    procedural_memory: Optional[Any] = None
-    dream_engine: Optional[Any] = None
-    personality_evolution: Optional[Any] = None
-    dashboard: Optional[Any] = None
-    graph_manager: Optional[Any] = None
-    graph_reasoning: Optional[Any] = None
-    obsidian_writer: Optional[Any] = None
-    memory_hierarchy: Optional[Any] = None
-    relationship_engine: Optional[Any] = None
-    session_manager: Optional[Any] = None
+    event_bus: Any | None = None
+    cognitive_state: Any | None = None
+    tool_registry: Any | None = None
+    agent: Any | None = None
+    retriever: Any | None = None
+    reasoning_engine: Any | None = None
+    thought_journal: Any | None = None
+    reflection_engine: Any | None = None
+    learning_engine: Any | None = None
+    goal_manager: Any | None = None
+    world_model: Any | None = None
+    procedural_memory: Any | None = None
+    dream_engine: Any | None = None
+    personality_evolution: Any | None = None
+    dashboard: Any | None = None
+    graph_manager: Any | None = None
+    graph_reasoning: Any | None = None
+    obsidian_writer: Any | None = None
+    memory_hierarchy: Any | None = None
+    relationship_engine: Any | None = None
+    session_manager: Any | None = None
 
 
 class Brain:
@@ -62,7 +61,7 @@ class Brain:
         memory,
         executor,
         state,
-        deps: Optional[BrainDeps] = None,
+        deps: BrainDeps | None = None,
         **kwargs,
     ):
         # Backward-compat: accept old-style keyword args merged into BrainDeps
@@ -110,7 +109,6 @@ class Brain:
                 belief_engine = getattr(self.retriever, 'belief_engine', None) or None
             except Exception as e:
                 logger.debug("[Brain] belief_engine lookup: %s", e)
-        import os
         from pathlib import Path as _Path
         vault_root = os.environ.get("MAI_OBSIDIAN_VAULT", "")
         if vault_root:
@@ -719,7 +717,7 @@ class Brain:
         (executed through the response pipeline, result emitted), or is
         stripped as an artifact. Bounded by _STREAM_GUARD_MAX_BUFFER."""
         try:
-            from reasoning.thought_packet import parse_thought_packet, _strip_leaked_json
+            from reasoning.thought_packet import _strip_leaked_json, parse_thought_packet
             buffer = ""
             started = False
             for chunk in inner_stream:
@@ -992,8 +990,8 @@ class Brain:
         # Notify event bus
         if self.event_bus:
             try:
-                from core.mai_message import publish_event
                 from core.event_specs import STATE_USER_SWITCHED
+                from core.mai_message import publish_event
                 publish_event(self.event_bus, STATE_USER_SWITCHED, {
                     "old_user": old_user,
                     "new_user": user_id,

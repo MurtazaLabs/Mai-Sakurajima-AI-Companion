@@ -1,7 +1,6 @@
 # core/wake_generator.py
-import time
-import random
 import logging
+import random
 
 logger = logging.getLogger(__name__)
 

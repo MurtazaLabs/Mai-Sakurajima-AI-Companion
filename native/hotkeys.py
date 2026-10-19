@@ -1,6 +1,5 @@
-import threading
 import logging
-from typing import Optional, Callable, Any
+from collections.abc import Callable
 
 logger = logging.getLogger(__name__)
 
@@ -28,7 +27,7 @@ class HotkeyManager:
     """
 
     def __init__(self, host="localhost", port=8000, voice_manager=None,
-                 on_quick_capture: Optional[Callable] = None):
+                 on_quick_capture: Callable | None = None):
         self.host = host
         self.port = port
         self.voice_manager = voice_manager

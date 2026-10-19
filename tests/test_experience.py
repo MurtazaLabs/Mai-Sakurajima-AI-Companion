@@ -1,6 +1,4 @@
 # M6 · Emotional Experience store + schema integration tests.
-import json
-import time
 
 import pytest
 
@@ -149,6 +147,7 @@ class TestReplayDedup:
 
     def test_pipeline_replay_does_not_double_record(self):
         from unittest.mock import Mock
+
         from memory.pipeline import MemoryPipeline
         store = ExperienceStore()
         pipe = MemoryPipeline(experience_store=store, event_bus=Mock())
@@ -179,6 +178,7 @@ class TestMemoryObjectExperienceField:
 class TestPipelineIngestHook:
     def test_emotional_turn_recorded_cheaply(self):
         from unittest.mock import Mock
+
         from memory.experience import ExperienceStore
         from memory.pipeline import MemoryPipeline
         store = ExperienceStore()
@@ -192,6 +192,7 @@ class TestPipelineIngestHook:
 
     def test_low_intensity_turn_not_recorded(self):
         from unittest.mock import Mock
+
         from memory.experience import ExperienceStore
         from memory.pipeline import MemoryPipeline
         store = ExperienceStore()
@@ -203,6 +204,7 @@ class TestPipelineIngestHook:
 
     def test_trivial_turn_skipped_by_validation(self):
         from unittest.mock import Mock
+
         from memory.experience import ExperienceStore
         from memory.pipeline import MemoryPipeline
         store = ExperienceStore()
@@ -214,6 +216,7 @@ class TestPipelineIngestHook:
 
     def test_no_store_noop(self):
         from unittest.mock import Mock
+
         from memory.pipeline import MemoryPipeline
         pipe = MemoryPipeline(event_bus=Mock())
         pipe.emotion_analyzer = Mock(analyze=lambda t: {"type": "joy", "intensity": 0.9})
@@ -224,6 +227,7 @@ class TestPipelineIngestHook:
 class TestPreferenceEvidenceHook:
     def _pipe(self, pref=None):
         from unittest.mock import Mock
+
         from memory.pipeline import MemoryPipeline
         pipe = MemoryPipeline(event_bus=Mock())
         pipe.emotion_analyzer = Mock(analyze=lambda t: {"type": "neutral", "intensity": 0.5})
@@ -234,6 +238,7 @@ class TestPreferenceEvidenceHook:
 
     def test_evidence_recorded_from_turn(self):
         from unittest.mock import Mock
+
         from agency.preference_evolution import PreferenceEvolution
         pref = PreferenceEvolution(threshold=3)
         pref.scan_turn = Mock(wraps=pref.scan_turn)
@@ -248,9 +253,10 @@ class TestPreferenceEvidenceHook:
 
     def test_experience_recorded_event_published(self):
         from unittest.mock import Mock
-        from memory.pipeline import MemoryPipeline
-        from memory.experience import ExperienceStore
+
         from core.mai_message import MaiMessage
+        from memory.experience import ExperienceStore
+        from memory.pipeline import MemoryPipeline
         bus = Mock()
         store = ExperienceStore()
         pipe = MemoryPipeline(experience_store=store, event_bus=bus)

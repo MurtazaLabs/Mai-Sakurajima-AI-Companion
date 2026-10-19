@@ -1,9 +1,8 @@
-import time
 import logging
 import threading
+import time
 
 from fastapi import HTTPException
-from starlette.responses import Response
 
 logger = logging.getLogger("api.middleware.rate_limiter")
 

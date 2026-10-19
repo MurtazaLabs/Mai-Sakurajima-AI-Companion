@@ -3,11 +3,12 @@ Plugin Manifest Schema and Validation
 Defines the structure and validation for plugin manifests.
 """
 import json
-import jsonschema
-from dataclasses import dataclass, field, asdict
-from typing import Optional, List, Dict, Literal, Any
-from pathlib import Path
+from dataclasses import dataclass, field
 from enum import Enum
+from pathlib import Path
+from typing import Any, Literal
+
+import jsonschema
 
 
 class PermissionType(str, Enum):
@@ -30,7 +31,7 @@ class PluginPermission:
     filesystem: Literal["none", "read", "write", "full"] = "none"
     network: Literal["none", "outbound", "inbound", "full"] = "none"
     execution: Literal["none", "subprocess", "eval", "full"] = "none"
-    api_access: List[str] = field(default_factory=list)
+    api_access: list[str] = field(default_factory=list)
     config: Literal["none", "read", "write"] = "none"
 
     def to_permission_set(self) -> set:
@@ -89,14 +90,14 @@ class PluginManifest:
     entry_point: str
     api_version: str = "1.0"
     permissions: PluginPermission = field(default_factory=PluginPermission)
-    dependencies: List[PluginDependency] = field(default_factory=list)
-    hooks: List[str] = field(default_factory=list)
+    dependencies: list[PluginDependency] = field(default_factory=list)
+    hooks: list[str] = field(default_factory=list)
     min_mai_version: str = "1.0.0"
-    max_mai_version: Optional[str] = None
-    homepage: Optional[str] = None
-    repository: Optional[str] = None
+    max_mai_version: str | None = None
+    homepage: str | None = None
+    repository: str | None = None
     license: str = "MIT"
-    tags: List[str] = field(default_factory=list)
+    tags: list[str] = field(default_factory=list)
 
     # JSON Schema for validation
     JSON_SCHEMA = {
@@ -144,7 +145,7 @@ class PluginManifest:
         "additionalProperties": False,
     }
 
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for JSON serialization."""
         return {
             "name": self.name,
@@ -174,7 +175,7 @@ class PluginManifest:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "PluginManifest":
+    def from_dict(cls, data: dict[str, Any]) -> "PluginManifest":
         """Create manifest from dictionary."""
         permissions_data = data.get("permissions", {})
         permissions = PluginPermission(
@@ -206,7 +207,7 @@ class PluginManifest:
             tags=data.get("tags", []),
         )
 
-    def validate(self) -> List[str]:
+    def validate(self) -> list[str]:
         """Validate manifest against schema. Returns list of errors."""
         try:
             jsonschema.validate(instance=self.to_dict(), schema=self.JSON_SCHEMA)
@@ -229,7 +230,7 @@ class PluginManifestValidator:
     """Validator for plugin manifests."""
 
     @staticmethod
-    def validate_manifest_file(path: Path) -> tuple[bool, List[str], Optional[PluginManifest]]:
+    def validate_manifest_file(path: Path) -> tuple[bool, list[str], PluginManifest | None]:
         """Validate a manifest file. Returns (is_valid, errors, manifest)."""
         try:
             data = json.loads(path.read_text())
@@ -243,10 +244,10 @@ class PluginManifestValidator:
         return len(errors) == 0, errors, manifest
 
     @staticmethod
-    def validate_package(package_path: Path) -> tuple[bool, List[str], Optional[PluginManifest]]:
+    def validate_package(package_path: Path) -> tuple[bool, list[str], PluginManifest | None]:
         """Validate a plugin package (.mpkg zip file)."""
-        import zipfile
         import tempfile
+        import zipfile
 
         if not package_path.exists():
             return False, ["Package file not found"], None

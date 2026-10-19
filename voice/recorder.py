@@ -1,7 +1,8 @@
-import time
 import logging
 import threading
-from typing import Optional, List, Callable
+import time
+from collections.abc import Callable
+
 import numpy as np
 from numpy.typing import NDArray
 
@@ -42,13 +43,13 @@ class Recorder:
         self.silence_timeout = silence_timeout
         self.min_recording = min_recording
         self.max_recording = max_recording
-        self._vad: Optional[Any] = vad
+        self._vad: Any | None = vad
         self._speech_onset_frames = speech_onset_frames
-        self._callback: Optional[Callable[[Optional[np.ndarray]], None]] = None
+        self._callback: Callable[[np.ndarray | None], None] | None = None
         self._state = STATE_LISTENING
-        self._audio: List[NDArray[np.float32]] = []
-        self._silence_start: Optional[float] = None
-        self._recording_start: Optional[float] = None
+        self._audio: list[NDArray[np.float32]] = []
+        self._silence_start: float | None = None
+        self._recording_start: float | None = None
         self._speech_frames = 0
         self._lock = threading.RLock()
         self._noise_floor = _MIN_FLOOR
@@ -61,7 +62,7 @@ class Recorder:
         with self._lock:
             return self._state
 
-    def set_callback(self, callback: Callable[[Optional[np.ndarray]], None]) -> None:
+    def set_callback(self, callback: Callable[[np.ndarray | None], None]) -> None:
         self._callback = callback
 
     def add_chunk(self, chunk: NDArray[np.float32]) -> None:
@@ -105,7 +106,7 @@ class Recorder:
 
                 if self._recording_start is None:
                     logger.warning("Recording start is None")
-                    return None
+                    return
                 elapsed = time.time() - self._recording_start
                 if elapsed >= self.max_recording:
                     logger.info("[Recorder] Max duration reached (%.1fs) — finalizing", elapsed)

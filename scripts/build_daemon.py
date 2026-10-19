@@ -10,8 +10,8 @@ Produces:
 Run from project root so PyInstaller can resolve all imports.
 """
 import os
-import sys
 import shutil
+import sys
 from pathlib import Path
 
 try:

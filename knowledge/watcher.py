@@ -1,9 +1,9 @@
-import os
-import time
+import fnmatch
 import hashlib
 import logging
+import os
 import threading
-import fnmatch
+import time
 
 logger = logging.getLogger(__name__)
 

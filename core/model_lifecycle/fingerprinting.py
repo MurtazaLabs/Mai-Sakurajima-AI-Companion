@@ -4,10 +4,9 @@ Computes deterministic fingerprints for model files and configurations.
 """
 import hashlib
 import json
-import os
-from pathlib import Path
-from typing import Dict, Any, Optional, Union
 import logging
+from pathlib import Path
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +18,7 @@ class ModelFingerprinter:
         self.algorithm = algorithm
         self._hasher = hashlib.new(algorithm)
     
-    def fingerprint_file(self, file_path: Union[str, Path]) -> str:
+    def fingerprint_file(self, file_path: str | Path) -> str:
         """Compute fingerprint of a model file."""
         path = Path(file_path)
         if not path.exists():
@@ -32,7 +31,7 @@ class ModelFingerprinter:
         
         return hasher.hexdigest()
     
-    def fingerprint_config(self, config: Dict[str, Any]) -> str:
+    def fingerprint_config(self, config: dict[str, Any]) -> str:
         """Compute fingerprint of model configuration."""
         # Sort keys for deterministic output
         config_str = json.dumps(config, sort_keys=True, separators=(',', ':'))
@@ -40,7 +39,7 @@ class ModelFingerprinter:
         hasher.update(config_str.encode('utf-8'))
         return hasher.hexdigest()
     
-    def fingerprint_combined(self, file_path: Union[str, Path], config: Dict[str, Any]) -> str:
+    def fingerprint_combined(self, file_path: str | Path, config: dict[str, Any]) -> str:
         """Compute combined fingerprint of file and config."""
         file_fp = self.fingerprint_file(file_path)
         config_fp = self.fingerprint_config(config)
@@ -50,7 +49,7 @@ class ModelFingerprinter:
         hasher.update(config_fp.encode('utf-8'))
         return hasher.hexdigest()
     
-    def fingerprint_model_artifacts(self, artifacts_dir: Union[str, Path]) -> str:
+    def fingerprint_model_artifacts(self, artifacts_dir: str | Path) -> str:
         """Compute fingerprint of all model artifacts in a directory."""
         path = Path(artifacts_dir)
         if not path.exists() or not path.is_dir():
@@ -75,8 +74,8 @@ class ModelFingerprinter:
 
 
 def compute_model_fingerprint(
-    file_path: Union[str, Path],
-    config: Optional[Dict[str, Any]] = None,
+    file_path: str | Path,
+    config: dict[str, Any] | None = None,
     algorithm: str = "sha256"
 ) -> str:
     """Compute model fingerprint (file + optional config)."""
@@ -88,16 +87,16 @@ def compute_model_fingerprint(
         return fingerprinter.fingerprint_file(file_path)
 
 
-def compute_config_fingerprint(config: Dict[str, Any], algorithm: str = "sha256") -> str:
+def compute_config_fingerprint(config: dict[str, Any], algorithm: str = "sha256") -> str:
     """Compute configuration fingerprint."""
     fingerprinter = ModelFingerprinter(algorithm)
     return fingerprinter.fingerprint_config(config)
 
 
 def verify_fingerprint(
-    file_path: Union[str, Path],
+    file_path: str | Path,
     expected_fingerprint: str,
-    config: Optional[Dict[str, Any]] = None,
+    config: dict[str, Any] | None = None,
     algorithm: str = "sha256"
 ) -> bool:
     """Verify model fingerprint matches expected value."""
@@ -110,10 +109,10 @@ class FingerprintCache:
     
     def __init__(self, max_size: int = 1000):
         self.max_size = max_size
-        self._cache: Dict[str, str] = {}
+        self._cache: dict[str, str] = {}
         self._access_order: list = []
     
-    def get(self, file_path: Union[str, Path], config: Optional[Dict[str, Any]] = None) -> Optional[str]:
+    def get(self, file_path: str | Path, config: dict[str, Any] | None = None) -> str | None:
         """Get cached fingerprint."""
         key = self._make_key(file_path, config)
         if key in self._cache:
@@ -123,7 +122,7 @@ class FingerprintCache:
             return self._cache[key]
         return None
     
-    def set(self, file_path: Union[str, Path], fingerprint: str, config: Optional[Dict[str, Any]] = None):
+    def set(self, file_path: str | Path, fingerprint: str, config: dict[str, Any] | None = None):
         """Cache fingerprint."""
         key = self._make_key(file_path, config)
         
@@ -137,7 +136,7 @@ class FingerprintCache:
         self._cache[key] = fingerprint
         self._access_order.append(key)
     
-    def _make_key(self, file_path: Union[str, Path], config: Optional[Dict[str, Any]]) -> str:
+    def _make_key(self, file_path: str | Path, config: dict[str, Any] | None) -> str:
         """Create cache key."""
         path_str = str(Path(file_path).absolute())
         if config:
@@ -156,8 +155,8 @@ _fingerprint_cache = FingerprintCache()
 
 
 def get_fingerprint_cached(
-    file_path: Union[str, Path],
-    config: Optional[Dict[str, Any]] = None,
+    file_path: str | Path,
+    config: dict[str, Any] | None = None,
     algorithm: str = "sha256"
 ) -> str:
     """Get fingerprint with caching."""

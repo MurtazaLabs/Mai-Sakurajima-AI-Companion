@@ -1,7 +1,7 @@
 # core/cognitive_state.py
-import time
-import threading
 import logging
+import threading
+import time
 
 logger = logging.getLogger(__name__)
 

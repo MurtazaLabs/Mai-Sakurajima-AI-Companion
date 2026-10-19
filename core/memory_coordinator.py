@@ -4,11 +4,11 @@ MemoryCoordinator - Coordinates memory operations across memory subsystems.
 
 Extracted from Brain to decouple memory orchestration logic.
 """
-import time
 import logging
 import threading
-from typing import Optional, Dict, Any, List
+import time
 from dataclasses import dataclass, field
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -20,12 +20,12 @@ _STOPWORDS = {
     "have", "has", "had", "do", "does", "did", "will", "would", "could",
     "should", "may", "might", "must", "can", "this", "that", "these",
     "those", "i", "you", "he", "she", "it", "we", "they", "me", "him",
-    "her", "us", "them", "my", "your", "his", "her", "its", "our", "their",
-    "mine", "yours", "his", "hers", "ours", "theirs", "am", "are", "is",
+    "her", "us", "them", "my", "your", "his", "its", "our", "their",
+    "mine", "yours", "hers", "ours", "theirs", "am", "are",
 }
 
 
-def _tokenize(text: str) -> List[str]:
+def _tokenize(text: str) -> list[str]:
     """Tokenize text into lowercase words, removing stopwords and punctuation."""
     import re
     tokens = re.findall(r'\b\w+\b', text.lower())
@@ -46,13 +46,13 @@ def _dice_score(text1: str, text2: str) -> float:
 class MemoryCoordinationResult:
     """Result of memory coordination."""
     context: str = ""
-    structured: Dict[str, Any] = field(default_factory=dict)
+    structured: dict[str, Any] = field(default_factory=dict)
     recall: str = ""
     knowledge: str = ""
     graph: str = ""
     experiences: str = ""
     
-    def to_dict(self) -> Dict[str, Any]:
+    def to_dict(self) -> dict[str, Any]:
         """Convert to dictionary for compatibility."""
         return {
             "context": self.context,
@@ -128,7 +128,6 @@ class MemoryCoordinator:
 
         # Publish event
         if self.event_bus:
-            from core.event_specs import MEMORY_EXTRACTED
             from core.mai_message import publish_event
             publish_event(self.event_bus, "memory.extracted", {
                 "user_input": user_input,
@@ -151,7 +150,6 @@ class MemoryCoordinator:
         self._safe_store(user_input, response)
 
         if self.event_bus:
-            from core.event_specs import CONVERSATION_FINISHED
             from core.mai_message import publish_event
             publish_event(self.event_bus, "conversation.finished", {
                 "user_input": user_input,
@@ -164,7 +162,7 @@ class MemoryCoordinator:
         ctx = safe_call(self.memory, "get_context", fallback="", log_name="MEMORY_CONTEXT")
         return str(ctx) if ctx else ""
 
-    def _safe_structured(self) -> Dict[str, Any]:
+    def _safe_structured(self) -> dict[str, Any]:
         try:
             if hasattr(self.memory, "get_structured"):
                 structured = self.memory.get_structured()
@@ -265,6 +263,6 @@ class MemoryCoordinator:
         safe_call(self.memory, "process", user_input, response, fallback=None, log_name="MEMORY_STORE")
         safe_call(self.memory, "store", user_input, response, log_name="MEMORY_STORE")
 
-    def get_structured(self) -> Dict[str, Any]:
+    def get_structured(self) -> dict[str, Any]:
         """Public API for structured memory."""
         return self._safe_structured()

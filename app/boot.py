@@ -1,12 +1,12 @@
 from app.builders import (
+    agency,
+    cognition,
     infrastructure,
     knowledge,
     memory,
     reasoning,
-    agency,
-    cognition,
-    voice,
     runtime,
+    voice,
 )
 
 BOOT_ORDER = [

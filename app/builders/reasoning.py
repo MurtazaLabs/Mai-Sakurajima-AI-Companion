@@ -4,8 +4,8 @@ import app.config_loader as cfg
 from app.metadata import tag_service
 from reasoning.engine import ReasoningEngine
 from reasoning.journal import ThoughtJournal
-from reasoning.reflection import ReflectionEngine
 from reasoning.learning import LearningEngine
+from reasoning.reflection import ReflectionEngine
 
 logger = logging.getLogger("Mai")
 

@@ -1,4 +1,7 @@
-import sys, os, re
+import os
+import re
+import sys
+
 sys.path.insert(0, r'E:\Mai_ai')
 
 print('=== SCANNING FOR COMMON ISSUES ===')
@@ -29,7 +32,7 @@ for root, dirs, files in os.walk(r'E:\Mai_ai'):
                         issues.append(f'{rel}:{i}: Hardcoded Windows path')
                     
                     # Check for hardcoded credentials
-                    if re.search(r'(password|secret|key|token)\s*=\s*[\'"][^\'"]+[\'"]', line, re.I) and 'test' not in path.lower() and 'example' not in path.lower():
+                    if re.search(r'(password|secret|key|token)\s*=\s*[\'"][^\'"]+[\'"]', line, re.IGNORECASE) and 'test' not in path.lower() and 'example' not in path.lower():
                         issues.append(f'{rel}:{i}: Possible hardcoded credential')
                     
                     # Check for TODO/FIXME comments

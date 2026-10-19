@@ -28,8 +28,8 @@ from api.routes_plugins import (
 )
 from core.plugin_system import HookRegistry, PluginLoader
 from plugins.lifecycle import (
-    PluginRegistry,
     PluginRecord,
+    PluginRegistry,
     PluginState,
     create_plugin_lifecycle_manager,
 )

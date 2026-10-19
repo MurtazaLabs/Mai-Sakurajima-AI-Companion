@@ -2,9 +2,8 @@ import hashlib
 import logging
 import os
 import threading
-from pathlib import Path
 from collections import OrderedDict
-from typing import Optional
+from pathlib import Path
 
 os.environ.setdefault("HF_HUB_OFFLINE", "1")
 os.environ.setdefault("HF_HUB_DISABLE_TELEMETRY", "1")
@@ -20,12 +19,12 @@ class EmbeddingService:
 
     def __init__(
         self,
-        model_name: Optional[str] = None,
+        model_name: str | None = None,
         cache_enabled: bool = True,
         cache_max: int = 20000
     ):
         self.model_name = model_name or EMBEDDING_MODEL
-        self.model: Optional[SentenceTransformer] = None
+        self.model: SentenceTransformer | None = None
         self.is_available = False
 
         model_path = Path(self.model_name)
@@ -64,7 +63,7 @@ class EmbeddingService:
 
         self._cache_lock = threading.RLock()
 
-    def embed(self, text: str) -> Optional[list]:
+    def embed(self, text: str) -> list | None:
         if not text or not self.is_available or self.model is None:
             return None
 

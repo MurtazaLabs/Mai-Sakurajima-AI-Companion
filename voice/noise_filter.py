@@ -1,6 +1,6 @@
-import numpy as np
 import logging
-from typing import Optional
+
+import numpy as np
 
 logger = logging.getLogger(__name__)
 
@@ -13,7 +13,7 @@ class NoiseFilter:
         self.high_cut = high_cut
         self.noise_floor_percentile = noise_floor_percentile
         self.reduction_db = reduction_db
-        self._noise_profile: Optional[np.ndarray] = None
+        self._noise_profile: np.ndarray | None = None
 
     @property
     def noise_profile(self):

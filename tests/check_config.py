@@ -1,5 +1,4 @@
 import json
-import os
 from pathlib import Path
 
 with open(r'C:\Users\Administrator\.config\opencode\documentation.json', 'r') as f:

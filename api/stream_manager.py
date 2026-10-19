@@ -1,7 +1,6 @@
-import asyncio
 import json
-import threading
 import logging
+import threading
 from typing import Any
 
 from core.event_specs import VERTEX_SPECS

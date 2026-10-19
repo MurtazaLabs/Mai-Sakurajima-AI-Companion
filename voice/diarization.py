@@ -1,6 +1,6 @@
-import time
 import logging
 import threading
+
 import numpy as np
 
 from voice.vad import VAD

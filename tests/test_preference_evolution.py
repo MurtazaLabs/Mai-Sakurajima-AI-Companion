@@ -1,5 +1,4 @@
 # M6 · Evidence-based preference evolution + identity overlay tests.
-import json
 import time
 
 from agency.preference_evolution import PreferenceEvolution

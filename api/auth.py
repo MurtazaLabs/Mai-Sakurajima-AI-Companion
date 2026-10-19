@@ -6,26 +6,25 @@ for protecting routes. Supports both JWT bearer tokens and the legacy
 for enterprise single sign-on.
 """
 
-import logging
-import os
 import base64
 import hashlib
+import logging
+import os
 import re
 import secrets
 import time
 from datetime import datetime, timedelta, timezone
-from typing import Optional, Dict, Any, List, Set
+from typing import Any
 from urllib.parse import urlencode
 
 import bcrypt
 import httpx
-from fastapi import HTTPException, Request, Depends, Response, Form, APIRouter
-from fastapi.responses import RedirectResponse
-from fastapi.security import HTTPBearer, HTTPAuthorizationCredentials
-from jose import jwt, JWTError
 from cryptography.hazmat.primitives import serialization
 from cryptography.hazmat.primitives.asymmetric import rsa
-from cryptography import x509
+from fastapi import APIRouter, Depends, Form, HTTPException, Request, Response
+from fastapi.responses import RedirectResponse
+from fastapi.security import HTTPBearer
+from jose import JWTError, jwt
 from lxml import etree
 
 logger = logging.getLogger("api.auth")
@@ -36,13 +35,13 @@ _ACCESS_EXPIRE_MINUTES = 15
 _REFRESH_EXPIRE_DAYS = 7
 
 # JWT Key Rotation
-_JWT_KEYS: Dict[str, Dict[str, Any]] = {}  # kid -> {key, alg, created_at, expires_at}
+_JWT_KEYS: dict[str, dict[str, Any]] = {}  # kid -> {key, alg, created_at, expires_at}
 _JWT_CURRENT_KID: str = "default"
 _JWT_KEY_ROTATION_INTERVAL_DAYS = 30
 
 # OIDC/SAML Configuration
-_OIDC_PROVIDERS: Dict[str, Dict[str, Any]] = {}
-_SAML_PROVIDERS: Dict[str, Dict[str, Any]] = {}
+_OIDC_PROVIDERS: dict[str, dict[str, Any]] = {}
+_SAML_PROVIDERS: dict[str, dict[str, Any]] = {}
 
 _bearer_scheme = HTTPBearer(auto_error=False)
 
@@ -86,12 +85,12 @@ def _generate_kid() -> str:
     return secrets.token_urlsafe(16)
 
 
-def _get_current_key() -> Dict[str, Any]:
+def _get_current_key() -> dict[str, Any]:
     """Get the current active signing key."""
     return _JWT_KEYS.get(_JWT_CURRENT_KID, {})
 
 
-def _get_key_by_kid(kid: str) -> Optional[Dict[str, Any]]:
+def _get_key_by_kid(kid: str) -> dict[str, Any] | None:
     """Get a key by its key ID."""
     return _JWT_KEYS.get(kid)
 
@@ -151,7 +150,7 @@ def _init_jwt_keys() -> None:
         logger.info(f"Initialized JWT keys with kid: {kid}")
 
 
-def _get_signing_key(kid: Optional[str] = None) -> tuple[str, str]:
+def _get_signing_key(kid: str | None = None) -> tuple[str, str]:
     """Get the signing key and algorithm for a given kid."""
     if kid is None:
         kid = _JWT_CURRENT_KID
@@ -174,7 +173,7 @@ def _get_signing_key(kid: Optional[str] = None) -> tuple[str, str]:
     return key_info["private"], key_info["alg"]
 
 
-def _get_verification_keys() -> Dict[str, Any]:
+def _get_verification_keys() -> dict[str, Any]:
     """Get all valid verification keys for JWKS endpoint."""
     now = datetime.now(timezone.utc)
     valid_keys = {}
@@ -219,7 +218,7 @@ class OIDCProviderConfig:
         client_id: str,
         client_secret: str,
         redirect_uri: str,
-        scopes: List[str] = None,
+        scopes: list[str] = None,
         issuer_url: str = "",
         jwks_uri: str = "",
         authorization_endpoint: str = "",
@@ -236,12 +235,11 @@ class OIDCProviderConfig:
         self.authorization_endpoint = authorization_endpoint or f"{issuer}/authorize"
         self.token_endpoint = token_endpoint or f"{issuer}/token"
         self.userinfo_endpoint = userinfo_endpoint or f"{issuer}/userinfo"
-        self._jwks_cache: Optional[Dict] = None
+        self._jwks_cache: dict | None = None
         self._jwks_fetched_at: float = 0
 
-    async def fetch_jwks(self) -> Dict[str, Any]:
+    async def fetch_jwks(self) -> dict[str, Any]:
         """Fetch and cache JWKS from the provider."""
-        import time
         if self._jwks_cache and (time.time() - self._jwks_fetched_at) < 3600:
             return self._jwks_cache
         
@@ -252,7 +250,7 @@ class OIDCProviderConfig:
             self._jwks_fetched_at = time.time()
             return self._jwks_cache
 
-    def get_signing_key(self, kid: str) -> Optional[rsa.RSAPublicKey]:
+    def get_signing_key(self, kid: str) -> rsa.RSAPublicKey | None:
         """Get the RSA public key for a given key ID."""
         jwks = self.fetch_jwks()
         for key in jwks.get("keys", []):
@@ -267,7 +265,7 @@ def configure_oidc_provider(
     client_id: str,
     client_secret: str,
     redirect_uri: str,
-    scopes: List[str] = None,
+    scopes: list[str] = None,
     **kwargs,
 ) -> OIDCProviderConfig:
     """Configure an OIDC provider."""
@@ -284,18 +282,18 @@ def configure_oidc_provider(
     return provider
 
 
-def get_oidc_provider(name: str) -> Optional[OIDCProviderConfig]:
+def get_oidc_provider(name: str) -> OIDCProviderConfig | None:
     """Get configured OIDC provider by name."""
     return _OIDC_PROVIDERS.get(name)
 
 
-def list_oidc_providers() -> List[str]:
+def list_oidc_providers() -> list[str]:
     """List configured OIDC providers."""
     return list(_OIDC_PROVIDERS.keys())
 
 
 # ── Token helpers ────────────────────────────────────────────────────────
-def create_access_token(subject: str, extra: Optional[dict] = None) -> str:
+def create_access_token(subject: str, extra: dict | None = None) -> str:
     from jose import jwt
     private_key, alg = _get_signing_key()
     payload = {
@@ -322,7 +320,7 @@ def create_refresh_token(subject: str) -> str:
 
 
 def decode_token(token: str) -> dict:
-    from jose import JWTError, jwt
+    from jose import jwt
     try:
         # Get the key ID from the token header
         header = jwt.get_unverified_header(token)
@@ -355,12 +353,12 @@ class SAMLProviderConfig:
         self,
         entity_id: str,
         acs_url: str,
-        slo_url: Optional[str] = None,
+        slo_url: str | None = None,
         x509_cert: str = "",
         private_key: str = "",
         idp_entity_id: str = "",
         idp_sso_url: str = "",
-        idp_slo_url: Optional[str] = None,
+        idp_slo_url: str | None = None,
         idp_x509_cert: str = "",
     ):
         self.entity_id = entity_id
@@ -375,7 +373,6 @@ class SAMLProviderConfig:
     
     def get_sp_metadata(self) -> str:
         """Generate SP metadata XML."""
-        from lxml import etree
         root = etree.Element(
             "md:EntityDescriptor",
             xmlns="urn:oasis:names:tc:SAML:2.0:metadata",
@@ -387,7 +384,7 @@ class SAMLProviderConfig:
         return etree.tostring(root, pretty_print=True).decode()
 
 
-_SAML_PROVIDERS: Dict[str, SAMLProviderConfig] = {}
+_SAML_PROVIDERS: dict[str, SAMLProviderConfig] = {}
 
 
 def configure_saml_provider(
@@ -417,12 +414,12 @@ def configure_saml_provider(
     return provider
 
 
-def get_saml_provider(name: str) -> Optional[SAMLProviderConfig]:
+def get_saml_provider(name: str) -> SAMLProviderConfig | None:
     """Get configured SAML provider by name."""
     return _SAML_PROVIDERS.get(name)
 
 
-def list_saml_providers() -> List[str]:
+def list_saml_providers() -> list[str]:
     """List configured SAML providers."""
     return list(_SAML_PROVIDERS.keys())
 
@@ -654,7 +651,6 @@ async def saml_acs(provider_name: str, request: Request, SAMLResponse: str = For
         raise HTTPException(status_code=404, detail=f"SAML provider '{provider_name}' not configured")
     
     # Parse and validate SAML response
-    from saml2.response import AuthnResponse
     from saml2 import config as saml_config
     
     config = saml_config.Config()
@@ -685,7 +681,7 @@ async def saml_acs(provider_name: str, request: Request, SAMLResponse: str = For
 # ── RBAC (Role-Based Access Control) ────────────────────────────────────────
 class Role:
     """Role definition with permissions."""
-    def __init__(self, name: str, description: str, permissions: List[str]):
+    def __init__(self, name: str, description: str, permissions: list[str]):
         self.name = name
         self.description = description
         self.permissions = set(permissions)
@@ -703,8 +699,8 @@ DEFAULT_ROLES = {
     "auditor": Role("auditor", "Audit access", ["read", "audit"]),
 }
 
-_ROLE_REGISTRY: Dict[str, Role] = {name: role for name, role in DEFAULT_ROLES.items()}
-_USER_ROLES: Dict[str, Set[str]] = {}  # user_id -> set of role names
+_ROLE_REGISTRY: dict[str, Role] = {name: role for name, role in DEFAULT_ROLES.items()}
+_USER_ROLES: dict[str, set[str]] = {}  # user_id -> set of role names
 
 
 def register_role(role: Role) -> None:
@@ -713,7 +709,7 @@ def register_role(role: Role) -> None:
     logger.info("Registered role: %s", role.name)
 
 
-def get_role(name: str) -> Optional[Role]:
+def get_role(name: str) -> Role | None:
     """Get a role by name."""
     return _ROLE_REGISTRY.get(name)
 
@@ -738,7 +734,7 @@ def revoke_role(user_id: str, role_name: str) -> bool:
     return False
 
 
-def get_user_roles(user_id: str) -> List[str]:
+def get_user_roles(user_id: str) -> list[str]:
     """Get all roles assigned to a user."""
     return list(_USER_ROLES.get(user_id, set()))
 

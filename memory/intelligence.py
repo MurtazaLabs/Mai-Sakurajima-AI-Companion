@@ -1,19 +1,18 @@
 # Mai_ai/memory/intelligence.py
-import time
-import threading
-import json
-import re
 import logging
+import threading
+import time
 
 from memory.scoring import MemoryScorer
 
 logger = logging.getLogger(__name__)
-from memory.node import MemoryNode
-from memory.graph import MemoryGraph
-from memory.recall import RecallEngine
-from memory.router import MemoryRouter
-from memory.reflection import MemoryReflectionEngine
 from memory.decay import MemoryDecay
+from memory.graph import MemoryGraph
+from memory.node import MemoryNode
+from memory.recall import RecallEngine
+from memory.reflection import MemoryReflectionEngine
+from memory.router import MemoryRouter
+
 
 class MemoryIntelligence:
 

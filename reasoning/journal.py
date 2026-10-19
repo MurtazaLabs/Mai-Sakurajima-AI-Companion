@@ -1,19 +1,18 @@
 # reasoning/journal.py
-import time
 import json
-import threading
 import logging
-from typing import Optional
+import threading
+import time
 
 logger = logging.getLogger(__name__)
 
 
 class ThoughtJournal:
 
-    def __init__(self, path: Optional[str] = None, brain_graph=None):
+    def __init__(self, path: str | None = None, brain_graph=None):
         self._lock = threading.RLock()
         self._thoughts = []
-        self._path: Optional[str] = path
+        self._path: str | None = path
         self.brain_graph = brain_graph
 
         if path:
@@ -112,8 +111,7 @@ class ThoughtJournal:
         try:
             with open(self._path, "a", encoding="utf-8") as f:
                 if entry is None:
-                    for e in self._thoughts:
-                        f.write(json.dumps(e, ensure_ascii=False) + "\n")
+                    f.writelines(json.dumps(e, ensure_ascii=False) + "\n" for e in self._thoughts)
                 else:
                     f.write(json.dumps(entry, ensure_ascii=False) + "\n")
         except Exception as e:
@@ -134,8 +132,7 @@ class ThoughtJournal:
                 self._thoughts = json.loads(content)
                 try:
                     with open(self._path, "w", encoding="utf-8") as f:
-                        for e in self._thoughts:
-                            f.write(json.dumps(e, ensure_ascii=False) + "\n")
+                        f.writelines(json.dumps(e, ensure_ascii=False) + "\n" for e in self._thoughts)
                 except Exception as e:
                     logger.error("[ThoughtJournal] Legacy migration error: %s", e)
                 return

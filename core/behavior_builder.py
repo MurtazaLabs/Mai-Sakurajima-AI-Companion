@@ -1,6 +1,6 @@
 # core/behavior_builder.py
-import threading
 import logging
+import threading
 
 logger = logging.getLogger(__name__)
 

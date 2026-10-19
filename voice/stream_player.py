@@ -1,16 +1,16 @@
 # Mai_ai/voice/stream_player.py
-import threading
-import queue
-import time
-import os
 import logging
+import os
+import queue
+import threading
+import time
 
 try:
     import sounddevice as sd
 except ImportError:
     sd = None
-import soundfile as sf
 import numpy as np
+import soundfile as sf
 
 logger = logging.getLogger(__name__)
 

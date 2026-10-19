@@ -6,12 +6,11 @@
 # evidence windows: a topic only moves between likes and dislikes after N≥3
 # approval/disapproval events, at most once per cadence period, and every
 # change is written to a decision trail and is revertible.
-import time
 import json
 import logging
 import re
 import threading
-from typing import Optional
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -27,8 +26,8 @@ class PreferenceEvolution:
 
     SENTIMENTS = ("like", "dislike")
 
-    def __init__(self, threshold=3, cadence_days=7, state_path: Optional[str] = None,
-                 trail_path: Optional[str] = None, event_bus=None, on_change=None):
+    def __init__(self, threshold=3, cadence_days=7, state_path: str | None = None,
+                 trail_path: str | None = None, event_bus=None, on_change=None):
         self.threshold = max(1, int(threshold))
         self.cadence_days = max(1, float(cadence_days))
         self._lock = threading.RLock()

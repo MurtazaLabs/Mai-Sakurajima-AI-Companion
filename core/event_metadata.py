@@ -11,7 +11,8 @@ and export paths carry it without further interpretation.
 from __future__ import annotations
 
 import threading
-from typing import Any, Callable, Dict, Optional
+from collections.abc import Callable
+from typing import Any
 
 # ── Allowlists (static, defensive) ────────────────────────────────
 # Kept local to core/ to avoid layer breaches (agency/ imports are not
@@ -65,7 +66,7 @@ SAFE_RECORD_KEYS = frozenset({
 })
 
 
-def _int_meta(value: Any) -> Optional[int]:
+def _int_meta(value: Any) -> int | None:
     if isinstance(value, bool):
         return None
     if isinstance(value, int):
@@ -75,7 +76,7 @@ def _int_meta(value: Any) -> Optional[int]:
     return None
 
 
-def _text_len(value: Any) -> Optional[int]:
+def _text_len(value: Any) -> int | None:
     return len(value) if isinstance(value, str) else None
 
 
@@ -160,7 +161,7 @@ def _system(payload: dict) -> dict:
     return {}
 
 
-_DEFAULT_EXTRACTORS: Dict[str, Callable[[dict], dict]] = {
+_DEFAULT_EXTRACTORS: dict[str, Callable[[dict], dict]] = {
     "control.speech": _speech,
     "data.memory": _memory,
     "data.tool": _tool,
@@ -179,8 +180,8 @@ class MetadataExtractorRegistry:
     boot, before the fabric starts, and is not mutated at runtime.
     """
 
-    def __init__(self, extractors: Optional[Dict[str, Callable[[dict], dict]]] = None):
-        self._extractors: Dict[str, Callable[[dict], dict]] = dict(
+    def __init__(self, extractors: dict[str, Callable[[dict], dict]] | None = None):
+        self._extractors: dict[str, Callable[[dict], dict]] = dict(
             extractors if extractors is not None else _DEFAULT_EXTRACTORS
         )
 
@@ -222,11 +223,7 @@ class MetadataExtractorRegistry:
                     continue
                 if not value.isprintable():
                     continue
-            elif isinstance(value, bool):
-                pass
-            elif isinstance(value, int):
-                pass
-            elif isinstance(value, float):
+            elif isinstance(value, bool) or isinstance(value, int) or isinstance(value, float):
                 pass
             else:
                 continue

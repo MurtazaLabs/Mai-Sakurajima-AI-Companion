@@ -1,18 +1,10 @@
 import logging
 import threading
 from pathlib import Path
-from typing import Optional
 
 from knowledge.graph_exporter import GraphExporter
-from knowledge.vault_schema import (
-    COMPILER_OWNED_FOLDERS,
-    VAULT_FOLDERS,
-    VAULT_FILES,
-    VAULT_SCHEMA,
-    WriteMode,
-)
-from knowledge.state_dumper import StateDumper
 from knowledge.memory_writer import MemoryWriter
+from knowledge.state_dumper import StateDumper
 
 logger = logging.getLogger(__name__)
 
@@ -21,7 +13,7 @@ from config.paths import OBSIDIAN_VAULT
 
 class ObsidianWriter:
 
-    def __init__(self, graph_manager=None, vault_path=None, subdir="graph", user_id: Optional[str] = None):
+    def __init__(self, graph_manager=None, vault_path=None, subdir="graph", user_id: str | None = None):
         vault = Path(vault_path or OBSIDIAN_VAULT)
         if user_id:
             vault = vault / "users" / user_id

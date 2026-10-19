@@ -4,6 +4,7 @@ Extracted from ``agency.dreaming`` so the engine orchestrator stays small and
 the task definitions are independently importable/testable.
 """
 from __future__ import annotations
+
 from dataclasses import dataclass, field
 
 

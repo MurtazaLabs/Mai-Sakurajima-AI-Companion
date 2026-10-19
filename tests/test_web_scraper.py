@@ -106,7 +106,6 @@ class TestScrapeCaps:
 class TestSSRFGuard:
 
     def test_loopback_initial_target_blocked(self, plugin, monkeypatch):
-        import ipaddress
         monkeypatch.setattr(
             "plugins.web_scraper.web_scraper._resolves_to_public_ip",
             lambda url: False,
@@ -128,8 +127,9 @@ class TestSSRFGuard:
             "plugins.web_scraper.web_scraper._resolves_to_public_ip",
             lambda url: False,
         )
-        from plugins.web_scraper.web_scraper import _SafeRedirectHandler
         import urllib.error
+
+        from plugins.web_scraper.web_scraper import _SafeRedirectHandler
         with pytest.raises(urllib.error.URLError) as exc:
             _SafeRedirectHandler().redirect_request(
                 None, None, 302, "Found", {}, "http://127.0.0.1:8000/internal"
@@ -138,6 +138,7 @@ class TestSSRFGuard:
 
     def test_resolves_to_public_ip_classifies(self, monkeypatch):
         import socket
+
         from plugins.web_scraper.web_scraper import _resolves_to_public_ip
 
         def fake_gai(host, *a, **k):

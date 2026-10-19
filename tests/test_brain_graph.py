@@ -1,8 +1,6 @@
 """Integration tests for BRAIN_GRAPH_PLAN — wiring graph pipeline into conversation flow."""
 
-from unittest.mock import MagicMock, patch
-
-import pytest
+from unittest.mock import MagicMock
 
 
 class TestMemoryPipelineGraphWiring:
@@ -54,6 +52,7 @@ class TestMemoryPipelineJournalEntityLinks:
         """Journaled knowledge_graph entries must enrich vault notes with
         entity links, matching the synchronous path (M-5)."""
         from types import SimpleNamespace
+
         from core.write_journal import WriteJournal
         from memory.pipeline import MemoryPipeline
 
@@ -163,6 +162,7 @@ class TestPostThinkHooksGraphCall:
 
     def test_post_think_export_graph_string_vault_root(self):
         from pathlib import Path
+
         from core.post_think_hooks import PostThinkHooks
         graph = MagicMock()
         graph.process_conversation.return_value = {
@@ -205,10 +205,10 @@ class TestPostThinkHooksGraphCall:
 class TestGraphManagerIntegration:
 
     def test_graph_manager_process_conversation_extracts_entities(self):
-        from knowledge.graph_manager import GraphManager
-        from knowledge.graph import KnowledgeGraph
-        from knowledge.extractor import EntityExtractor
         from knowledge.consolidation import ConsolidationEngine
+        from knowledge.extractor import EntityExtractor
+        from knowledge.graph import KnowledgeGraph
+        from knowledge.graph_manager import GraphManager
 
         graph = KnowledgeGraph()
         mgr = GraphManager(
@@ -225,10 +225,10 @@ class TestGraphManagerIntegration:
         assert summary["entities_added"] >= 1
 
     def test_graph_stats_after_conversation(self):
-        from knowledge.graph_manager import GraphManager
-        from knowledge.graph import KnowledgeGraph
-        from knowledge.extractor import EntityExtractor
         from knowledge.consolidation import ConsolidationEngine
+        from knowledge.extractor import EntityExtractor
+        from knowledge.graph import KnowledgeGraph
+        from knowledge.graph_manager import GraphManager
 
         graph = KnowledgeGraph()
         mgr = GraphManager(
@@ -246,8 +246,8 @@ class TestGraphManagerIntegration:
         assert stats["nodes"] > 0
 
     def test_empty_conversation_does_not_crash(self):
-        from knowledge.graph_manager import GraphManager
         from knowledge.graph import KnowledgeGraph
+        from knowledge.graph_manager import GraphManager
 
         mgr = GraphManager(graph=KnowledgeGraph())
         summary = mgr.process_conversation("", "")

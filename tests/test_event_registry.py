@@ -5,7 +5,6 @@ from core.event_registry import (
     DEAD_LETTER,
     EXPONENTIAL,
     IMMEDIATE,
-    NEVER,
     EventRegistry,
     EventSpec,
     RetryPolicy,

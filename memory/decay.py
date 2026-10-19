@@ -1,11 +1,10 @@
 # Mai_ai/memory/decay.py
-import time
-import threading
 import logging
-from collections import defaultdict
+import threading
+import time
 
-from memory.consolidation import consolidate as core_consolidate
 from app.config_loader import Settings
+from memory.consolidation import consolidate as core_consolidate
 
 logger = logging.getLogger(__name__)
 
@@ -467,7 +466,7 @@ class MemoryDecay:
 
             return float(value)
 
-        except Exception as e:
+        except Exception:
             logger.debug("Failed to parse value as float: %r", value)
             return default
 

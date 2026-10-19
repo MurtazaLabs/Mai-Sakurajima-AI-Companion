@@ -1,8 +1,9 @@
 """Memory lifecycle classification — determines whether a node should be
 kept in working memory, promoted to long-term, archived, or deleted."""
 
-import time
 import logging
+import time
+
 from memory.schema import MemoryObject
 
 logger = logging.getLogger(__name__)

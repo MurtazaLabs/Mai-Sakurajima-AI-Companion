@@ -5,30 +5,22 @@ Redis-backed EventBus implementation.
 Provides distributed event publishing with Redis pub/sub,
 fallback to in-memory when Redis unavailable.
 """
-import json
-import time
-import logging
-import threading
-import queue
-import uuid
 import base64
+import json
+import logging
+import queue
+import threading
+import time
+import uuid
 import zlib
 from collections import deque
-from concurrent.futures import ThreadPoolExecutor
-from typing import Any, Callable, Dict, List, Optional, Tuple, Generator
-from dataclasses import dataclass, field
-from collections import deque
-from concurrent.futures import ThreadPoolExecutor
+from collections.abc import Callable
+from typing import Any, Optional
 
 import redis
 from redis.connection import ConnectionPool
 
 from core.event_registry import (
-    DEAD_LETTER,
-    EXPONENTIAL,
-    IGNORE,
-    IMMEDIATE,
-    NEVER,
     EventRegistry,
     EventSpec,
     RetryPolicy,
@@ -85,7 +77,7 @@ class _RedisPubSub:
         self.redis = redis_client
         self.key_prefix = key_prefix
         self.pubsub = None
-        self._subscriptions: Dict[str, threading.Thread] = {}
+        self._subscriptions: dict[str, threading.Thread] = {}
         self._lock = threading.RLock()
         self._running = False
 
@@ -143,14 +135,14 @@ class _WorkerPool:
         self._bus = bus
         self._workers = max(1, int(workers))
         self._max_queue = max(1, int(max_queue))
-        self._queues: Dict[Priority, "queue.Queue"] = {
+        self._queues: dict[Priority, queue.Queue] = {
             p: queue.Queue(maxsize=self._max_queue) for p in PRIORITY_LEVELS
         }
-        self._dropped: Dict[Priority, int] = {p: 0 for p in PRIORITY_LEVELS}
-        self._enqueued: Dict[Priority, "deque"] = {p: deque() for p in PRIORITY_LEVELS}
+        self._dropped: dict[Priority, int] = {p: 0 for p in PRIORITY_LEVELS}
+        self._enqueued: dict[Priority, deque] = {p: deque() for p in PRIORITY_LEVELS}
         self._cv = threading.Condition(threading.RLock())
         self._running = False
-        self._threads: List[threading.Thread] = []
+        self._threads: list[threading.Thread] = []
         self._active = 0
         self._max_active = 0
 
@@ -233,7 +225,7 @@ class _WorkerPool:
             t.join(timeout=timeout)
         self._threads = []
 
-    def queue_snapshot(self) -> Dict[str, Dict[str, Any]]:
+    def queue_snapshot(self) -> dict[str, dict[str, Any]]:
         with self._cv:
             return {
                 p.name: {
@@ -251,7 +243,7 @@ class _WorkerPool:
             return 0.0
         return round((time.perf_counter() - enq[0]) * 1000.0, 1)
 
-    def info(self) -> Dict[str, int]:
+    def info(self) -> dict[str, int]:
         with self._cv:
             return {
                 "workers": self._workers,
@@ -283,11 +275,11 @@ class RedisEventBus:
         default_source: str = "",
         trace_capacity: int = 2000,
         redis_config: Optional['RedisConfig'] = None,
-        redis_client: Optional[Any] = None,
-        metadata_registry: Optional[Any] = None,
+        redis_client: Any | None = None,
+        metadata_registry: Any | None = None,
     ):
         self._lock = threading.RLock()
-        self._subscribers: Dict[str, List[Subscription]] = {}
+        self._subscribers: dict[str, list[Subscription]] = {}
         self.registry: EventRegistry = registry or EventRegistry()
         self._default_source = default_source
 
@@ -302,15 +294,15 @@ class RedisEventBus:
         self._init_redis()
 
         self._pool = _WorkerPool(self, workers=worker_count, max_queue=max_queue)
-        self._middleware: Dict[str, Callable] = {}
+        self._middleware: dict[str, Callable] = {}
         self._install_default_middleware()
 
         self._traces: deque = deque(maxlen=max(0, trace_capacity))
         self._trace_capacity = trace_capacity
         self._counter_total = 0
-        self._counters: Dict[str, int] = {}
+        self._counters: dict[str, int] = {}
         self._failure_count = 0
-        self._type_failures: Dict[str, int] = {}
+        self._type_failures: dict[str, int] = {}
         self._version_mismatches = 0
         self._dead_letters: deque = deque(maxlen=_DEFAULT_DEAD_LETTER_CAPACITY)
         self._telemetry_enabled = True
@@ -494,7 +486,6 @@ class RedisEventBus:
         if self._redis_available:
             self._publish_to_redis(msg)
         self._dispatch_once(msg, attempt=1)
-        return None
 
     def _publish_to_redis(self, msg: 'MaiMessage'):
         """Publish message to Redis pub/sub."""
@@ -598,10 +589,10 @@ class RedisEventBus:
                 subs.remove(sub)
                 logger.debug("[RedisEventBus] Unsubscribed from '%s'", sub.topic)
 
-    def _matching_subs(self, topic: str) -> List[Subscription]:
+    def _matching_subs(self, topic: str) -> list[Subscription]:
         """Exact-topic matches plus ``prefix.*`` wildcard subscriptions."""
         with self._lock:
-            out: List[Subscription] = []
+            out: list[Subscription] = []
             seen = set()
             for s in self._subscribers.get(topic, ()):
                 out.append(s)
@@ -649,9 +640,9 @@ class RedisEventBus:
     def _dispatch_once(self, msg: MaiMessage, attempt: int = 1):
         """Single dispatch attempt. Returns (outcome, error, results)."""
         t0 = time.perf_counter()
-        results: List[Tuple[Subscription, Any]] = []
-        handler_failures: List[str] = []
-        handler_times: Dict[str, float] = {}
+        results: list[tuple[Subscription, Any]] = []
+        handler_failures: list[str] = []
+        handler_times: dict[str, float] = {}
         try:
             self._run_middleware(msg)
         except Exception as e:
@@ -784,7 +775,7 @@ class RedisEventBus:
     def enable_telemetry(self, enabled: bool = True) -> None:
         self._telemetry_enabled = bool(enabled)
 
-    def traces(self, filters: Optional[Dict[str, Any]] = None) -> List[dict]:
+    def traces(self, filters: dict[str, Any] | None = None) -> list[dict]:
         with self._lock:
             out = list(self._traces)
         if not filters:
@@ -814,7 +805,7 @@ class RedisEventBus:
         with self._lock:
             self._traces.clear()
 
-    def dead_letters(self) -> List[dict]:
+    def dead_letters(self) -> list[dict]:
         with self._lock:
             return list(self._dead_letters)
 

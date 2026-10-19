@@ -7,8 +7,8 @@ import numpy as np
 import soundfile as sf
 
 from app.config_loader import (
-    KOKORO_VOICE,
     KOKORO_LANG_CODE,
+    KOKORO_VOICE,
     VOICE_SAMPLE_RATE,
 )
 

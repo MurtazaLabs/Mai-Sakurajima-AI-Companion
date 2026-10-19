@@ -1,13 +1,13 @@
 # Mai_ai/observability/tracer.py
+import json
 import logging
 import os
 import re
-import json
 import time
 import uuid
 from datetime import datetime
-from typing import Any
 from threading import Lock
+from typing import Any
 
 logger = logging.getLogger(__name__)
 

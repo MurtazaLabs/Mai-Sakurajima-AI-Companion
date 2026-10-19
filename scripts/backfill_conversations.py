@@ -140,10 +140,10 @@ def main():
     sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
     from config.paths import OBSIDIAN_VAULT
-    from knowledge.obsidian_reader import ObsidianReader
+    from knowledge.extractor import EntityExtractor
     from knowledge.graph import KnowledgeGraph
     from knowledge.graph_manager import GraphManager
-    from knowledge.extractor import EntityExtractor
+    from knowledge.obsidian_reader import ObsidianReader
     from knowledge.obsidian_writer import ObsidianWriter
     from knowledge.vault_compiler import VaultCompiler
 

@@ -1,8 +1,7 @@
 import numpy as np
-import pytest
 
-from voice.noise_filter import NoiseFilter
 from voice.full_aec import FullAEC
+from voice.noise_filter import NoiseFilter
 from voice.utterance_segmenter import UtteranceSegmenter
 
 

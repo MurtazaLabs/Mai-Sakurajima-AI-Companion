@@ -1,29 +1,28 @@
-import time
 import logging
-import threading
 import queue
-from typing import Any, Optional
+import threading
+import time
+
 import numpy as np
 
 _DEFAULT_PRIORITY = 2
 
-from voice.stt import TranscriptionUnavailable
-from voice.stt import FasterWhisperSTT
-from voice.audio_buffer import AudioBuffer
-from voice.microphone import Microphone
-from voice.voice_state import VoiceState
-from voice.voice_config import VoiceConfig
 from config.voice import (
+    UTTERANCE_VAD_MAX_FRAMES,
     UTTERANCE_VAD_MIN_MEAN,
     UTTERANCE_VAD_MIN_RATIO,
-    UTTERANCE_VAD_MAX_FRAMES,
 )
+from voice.audio_buffer import AudioBuffer
+from voice.microphone import Microphone
+from voice.stt import TranscriptionUnavailable
+from voice.voice_config import VoiceConfig
+from voice.voice_state import VoiceState
 
 logger = logging.getLogger(__name__)
 
 
 class VoiceManager:
-    def __init__(self, config: Optional[VoiceConfig] = None, **kwargs):
+    def __init__(self, config: VoiceConfig | None = None, **kwargs):
         cfg = config or VoiceConfig()
 
         # Accept overrides via kwargs for backward compatibility
@@ -44,8 +43,8 @@ class VoiceManager:
         self.full_aec = kwargs.get("full_aec")
         self.emotion_detector = kwargs.get("emotion_detector")
         self.diarization_engine = kwargs.get("diarization_engine")
-        self._microphone: Optional[Microphone] = kwargs.get("microphone")
-        self._audio_buffer: Optional[AudioBuffer] = kwargs.get("audio_buffer")
+        self._microphone: Microphone | None = kwargs.get("microphone")
+        self._audio_buffer: AudioBuffer | None = kwargs.get("audio_buffer")
         self._vad = kwargs.get("vad")
         self._recorder = kwargs.get("recorder")
         self._lock = threading.RLock()
@@ -110,12 +109,12 @@ class VoiceManager:
             self._state = VoiceState(new_state) if isinstance(new_state, str) else new_state
         logger.debug("[VoiceManager] State: %s", self._state)
         if self.event_bus and old != self._state:
-            from voice.events import VOICE_STATE_CHANGED, voice_state_changed_data, publish_voice
+            from voice.events import VOICE_STATE_CHANGED, publish_voice, voice_state_changed_data
             publish_voice(self.event_bus, VOICE_STATE_CHANGED, voice_state_changed_data(old, new_state))
 
     def _ensure_components(self):
-        from voice.vad import VAD
         from voice.recorder import Recorder
+        from voice.vad import VAD
         if self._vad is None:
             self._vad = VAD(threshold=self.vad_threshold, sample_rate=self.sample_rate)
             self._vad._load_model()
@@ -249,7 +248,7 @@ class VoiceManager:
         self._set_state(VoiceState.LISTENING_FOR_WAKE)
         self._start_wake_detection()
         if self.event_bus:
-            from voice.events import VOICE_STARTED, voice_started_data, publish_voice
+            from voice.events import VOICE_STARTED, publish_voice, voice_started_data
             publish_voice(self.event_bus, VOICE_STARTED, voice_started_data())
         logger.info("[VoiceManager] Started — mic permanently open, wake detection active")
 
@@ -264,8 +263,14 @@ class VoiceManager:
                 self._recorder.stop()
         self._set_state(VoiceState.OFF)
         if self.event_bus:
-            from voice.events import VOICE_STOPPED, voice_stopped_data, publish_voice
-            from voice.events import STATE_VOICE_IDLE, voice_state_idle_data, publish_voice_state
+            from voice.events import (
+                STATE_VOICE_IDLE,
+                VOICE_STOPPED,
+                publish_voice,
+                publish_voice_state,
+                voice_state_idle_data,
+                voice_stopped_data,
+            )
             publish_voice(self.event_bus, VOICE_STOPPED, voice_stopped_data())
             publish_voice_state(self.event_bus, STATE_VOICE_IDLE, voice_state_idle_data())
         logger.info("[VoiceManager] Stopped")
@@ -384,7 +389,7 @@ class VoiceManager:
             logger.info("[WakeThread] Wake word detected in: %s", text)
             self._wake_event.set()
             if self.event_bus:
-                from voice.events import VOICE_WAKE_FOUND, voice_wake_found_data, publish_voice
+                from voice.events import VOICE_WAKE_FOUND, publish_voice, voice_wake_found_data
                 publish_voice(self.event_bus, VOICE_WAKE_FOUND, voice_wake_found_data(text, len(audio)))
             self._set_state(VoiceState.WAKE_DETECTED)
             while not self._wake_stop.is_set() and self.state == VoiceState.WAKE_DETECTED:
@@ -409,7 +414,11 @@ class VoiceManager:
     def _process_audio(self, audio):
         self._set_state(VoiceState.PROCESSING)
         if self.event_bus:
-            from voice.events import VOICE_RECORDING_COMPLETED, voice_recording_completed_data, publish_voice
+            from voice.events import (
+                VOICE_RECORDING_COMPLETED,
+                publish_voice,
+                voice_recording_completed_data,
+            )
             publish_voice(self.event_bus, VOICE_RECORDING_COMPLETED, voice_recording_completed_data(len(audio), len(audio) / self.sample_rate))
 
         segments = [audio]
@@ -481,8 +490,14 @@ class VoiceManager:
             return None
 
         if combined and self.event_bus:
-            from voice.events import VOICE_RETURNED, voice_returned_data, publish_voice
-            from voice.events import STATE_VOICE_IDLE, voice_state_idle_data, publish_voice_state
+            from voice.events import (
+                STATE_VOICE_IDLE,
+                VOICE_RETURNED,
+                publish_voice,
+                publish_voice_state,
+                voice_returned_data,
+                voice_state_idle_data,
+            )
             extra = {}
             if emotion:
                 extra["emotion"] = emotion
@@ -514,8 +529,14 @@ class VoiceManager:
 
         self._set_state(VoiceState.LISTENING)
         if self.event_bus:
-            from voice.events import VOICE_LISTENING_STARTED, voice_listening_started_data, publish_voice
-            from voice.events import STATE_VOICE_LISTENING, voice_state_listening_data, publish_voice_state
+            from voice.events import (
+                STATE_VOICE_LISTENING,
+                VOICE_LISTENING_STARTED,
+                publish_voice,
+                publish_voice_state,
+                voice_listening_started_data,
+                voice_state_listening_data,
+            )
             publish_voice(self.event_bus, VOICE_LISTENING_STARTED, voice_listening_started_data(wake_required))
             publish_voice_state(self.event_bus, STATE_VOICE_LISTENING, voice_state_listening_data(wake_required))
 
@@ -544,7 +565,7 @@ class VoiceManager:
             logger.error("[VoiceManager] listen error: %s", e)
             self._metrics.record_error()
             if self.event_bus:
-                from voice.events import VOICE_ERROR, voice_error_data, publish_voice
+                from voice.events import VOICE_ERROR, publish_voice, voice_error_data
                 publish_voice(self.event_bus, VOICE_ERROR, voice_error_data("listen_error", e))
             self._set_state(VoiceState.IDLE)
             self._start_wake_detection()
@@ -582,7 +603,7 @@ class VoiceManager:
             logger.error("[VoiceManager] listen_raw error: %s", e)
             self._metrics.record_error()
             if self.event_bus:
-                from voice.events import VOICE_ERROR, voice_error_data, publish_voice
+                from voice.events import VOICE_ERROR, publish_voice, voice_error_data
                 publish_voice(self.event_bus, VOICE_ERROR, voice_error_data("listen_raw_error", e))
             return None
         finally:
@@ -593,7 +614,11 @@ class VoiceManager:
             try:
                 name, conf = self.speaker_identifier.identify(audio)
                 if self.event_bus:
-                    from voice.events import VOICE_SPEAKER_IDENTIFIED, voice_speaker_identified_data, publish_voice
+                    from voice.events import (
+                        VOICE_SPEAKER_IDENTIFIED,
+                        publish_voice,
+                        voice_speaker_identified_data,
+                    )
                     publish_voice(self.event_bus, VOICE_SPEAKER_IDENTIFIED, voice_speaker_identified_data(name, conf))
                 return name, conf
             except Exception as e:
@@ -641,12 +666,18 @@ class VoiceManager:
         duration = len(audio) / self.sample_rate
 
         if self.event_bus:
-            from voice.events import (VOICE_TRANSCRIPTION_COMPLETED, VOICE_WAKE_DETECTED,
-                                      voice_transcription_completed_data, voice_wake_detected_data,
-                                      publish_voice)
-            from voice.events import (STATE_VOICE_SPEAKING, STATE_VOICE_WAKE,
-                                      voice_state_speaking_data, voice_state_wake_data,
-                                      publish_voice_state)
+            from voice.events import (
+                STATE_VOICE_SPEAKING,
+                STATE_VOICE_WAKE,
+                VOICE_TRANSCRIPTION_COMPLETED,
+                VOICE_WAKE_DETECTED,
+                publish_voice,
+                publish_voice_state,
+                voice_state_speaking_data,
+                voice_state_wake_data,
+                voice_transcription_completed_data,
+                voice_wake_detected_data,
+            )
             publish_voice(self.event_bus, VOICE_TRANSCRIPTION_COMPLETED, voice_transcription_completed_data(text, len(audio), duration))
             publish_voice_state(self.event_bus, STATE_VOICE_SPEAKING, voice_state_speaking_data(text, speaker))
             if wake_detected and text:

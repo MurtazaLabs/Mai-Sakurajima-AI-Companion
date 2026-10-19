@@ -3,12 +3,10 @@ import os
 import tempfile
 from unittest.mock import MagicMock, patch
 
-import pytest
-
-from api.server import _build_dashboard_state, MaiAPI, app
 from fastapi.testclient import TestClient
-from observability.tracer import CognitiveAuditor
 
+from api.server import MaiAPI, _build_dashboard_state, app
+from observability.tracer import CognitiveAuditor
 
 # ──────────────────────────────────────────────
 #  Helpers

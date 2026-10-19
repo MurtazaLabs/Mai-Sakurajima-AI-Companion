@@ -1,10 +1,12 @@
-import sys, os, subprocess, json
+import os
+import subprocess
+import sys
+
 sys.path.insert(0, r'E:\Mai_ai')
 
 def test_documentation():
     # Test the documentation system
     from pathlib import Path
-    import json
     
     # Test 1: Check if vault exists and has correct structure
     vault = Path(r'C:\Users\Administrator\Documents\OpenCode Obsidian Vault')

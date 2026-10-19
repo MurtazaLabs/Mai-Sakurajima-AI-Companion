@@ -14,7 +14,7 @@ _SPLITTERS = re.compile(r"(?<=[.!?…])\s+")
 
 class ProsodyPlan:
 
-    __slots__ = ("text", "pause_points", "rate", "sentence_length")
+    __slots__ = ("pause_points", "rate", "sentence_length", "text")
 
     def __init__(self, text, pause_points=0, rate=1.0, sentence_length="balanced"):
         self.text = text

@@ -1,11 +1,11 @@
-import sys, os
 import json
+import os
+import sys
 
 sys.path.insert(0, r'E:\Mai_ai')
 
 def test_documentation():
     from pathlib import Path
-    import json
     
     # Load config
     with open(r'C:\Users\Administrator\.config\opencode\documentation.json', 'r', encoding='utf-8-sig') as f:
@@ -22,11 +22,9 @@ def test_documentation():
         return
     
     # Check project detection
-    from pathlib import Path
-    import subprocess
-    
     # Test git root detection
     import subprocess
+    from pathlib import Path
     result = subprocess.run(['git', '-C', r'E:\Mai_ai', 'rev-parse', '--show-toplevel'], 
                           capture_output=True, text=True, cwd=r'E:\Mai_ai')
     print(f"Git root: {result.stdout.strip()}")
@@ -43,5 +41,4 @@ def test_documentation():
 
 if __name__ == "__main__":
     import os
-    import subprocess
     asyncio.run(main())

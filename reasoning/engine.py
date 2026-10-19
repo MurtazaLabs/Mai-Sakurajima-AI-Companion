@@ -1,6 +1,6 @@
 # reasoning/engine.py
-import time
 import logging
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -163,7 +163,7 @@ class ReasoningEngine:
                 "I'd need to learn more about this."
             )
 
-        conclusion_parts = [f"Based on what I know:"]
+        conclusion_parts = ["Based on what I know:"]
         for k in known[:2]:
             conclusion_parts.append(f"- {k[:100]}")
 

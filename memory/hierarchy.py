@@ -1,7 +1,7 @@
-import time
-import uuid
 import logging
 import threading
+import time
+import uuid
 from enum import Enum
 
 logger = logging.getLogger(__name__)

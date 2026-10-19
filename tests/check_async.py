@@ -1,4 +1,6 @@
-import sys, os
+import os
+import sys
+
 sys.path.insert(0, r'E:\Mai_ai')
 
 print('=== CHECKING ASYNC/AWAIT PATTERNS ===')

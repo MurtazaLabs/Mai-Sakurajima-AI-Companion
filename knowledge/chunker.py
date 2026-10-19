@@ -1,8 +1,7 @@
-import re
 import hashlib
 import logging
-import math
-from typing import Optional, List, Dict, Any
+import re
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -17,7 +16,7 @@ class Chunk:
         text: str,
         index: int,
         source: str,
-        metadata: Optional[Dict[str, Any]] = None,
+        metadata: dict[str, Any] | None = None,
         section_heading: str = "",
         position: int = 0,
         embedding_hash: str = "",
@@ -48,7 +47,7 @@ class Chunk:
         }
 
     @classmethod
-    def from_dict(cls, data: Dict[str, Any]) -> "Chunk":
+    def from_dict(cls, data: dict[str, Any]) -> "Chunk":
         """Reconstruct Chunk from dictionary."""
         chunk = cls(
             text=data.get("text", ""),
@@ -80,7 +79,7 @@ class TextChunker:
     def __init__(
         self,
         chunk_size: int = 512,
-        overlap: Optional[int] = None,
+        overlap: int | None = None,
         embedding_service=None,
         semantic_threshold: float = 0.3,
     ):

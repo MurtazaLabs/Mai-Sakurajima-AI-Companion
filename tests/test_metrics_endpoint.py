@@ -14,7 +14,7 @@ from fastapi import HTTPException
 from fastapi.testclient import TestClient
 from starlette.requests import Request
 
-from api.server import app, _maybe_init_otel, _require_auth
+from api.server import _maybe_init_otel, _require_auth, app
 
 # No lifespan context → mai stays unbootstrapped: fast, side-effect free.
 client = TestClient(app)

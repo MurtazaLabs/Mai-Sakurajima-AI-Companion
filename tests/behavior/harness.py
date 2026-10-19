@@ -18,7 +18,8 @@ from voice.prosody import ProsodyPlanner
 from voice.renderer import StubRenderer
 from voice.speech_style import SpeechStylePlanner
 
-from .fixtures import make_packet, relationship as _default_relationship
+from .fixtures import make_packet
+from .fixtures import relationship as _default_relationship
 
 TRACE_KEYS = (
     "turn", "stimulus", "relationship", "needs", "emotion",

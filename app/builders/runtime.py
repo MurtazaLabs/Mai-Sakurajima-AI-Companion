@@ -1,7 +1,4 @@
 import logging
-import os
-import time
-import threading
 from pathlib import Path
 
 import app.config_loader as cfg
@@ -9,12 +6,12 @@ from app.metadata import tag_service
 from core.os_kernel import AIOSKernel
 from core.plugin_system import HookRegistry, PluginLoader
 from core.wake_generator import WakeGenerator
-from plugins.lifecycle import create_plugin_lifecycle_manager
+from knowledge.builder import KnowledgeBaseBuilder
 from knowledge.chunker import TextChunker
 from knowledge.document_store import DocumentStore
 from knowledge.indexer import Indexer
-from knowledge.builder import KnowledgeBaseBuilder
 from knowledge.watcher import DirectoryWatcher
+from plugins.lifecycle import create_plugin_lifecycle_manager
 
 logger = logging.getLogger("Mai")
 
@@ -65,7 +62,7 @@ def build(app):
 
     logger.info("    Building ModelLifecycleCoordinator...")
     try:
-        from core.model_lifecycle import ModelLifecycleCoordinator, init_coordinator
+        from core.model_lifecycle import init_coordinator
         app.model_lifecycle = init_coordinator(db_path=str(Path(cfg.ROOT_DIR) / "data" / "models.db"))
         tag_service(app, "model_lifecycle", "ModelLifecycleCoordinator", "Runtime", active=True)
         logger.info("    [OK] ModelLifecycleCoordinator")

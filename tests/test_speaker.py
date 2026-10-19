@@ -1,10 +1,7 @@
-import json
-import math
 import os
 import tempfile
 
 import numpy as np
-import pytest
 import soundfile as sf
 
 
@@ -45,8 +42,8 @@ class TestSpeakerProfile:
 class TestSpeakerDatabase:
 
     def test_save_and_load(self):
-        from voice.speaker.speaker_profile import SpeakerProfile
         from voice.speaker.speaker_database import SpeakerDatabase
+        from voice.speaker.speaker_profile import SpeakerProfile
         with tempfile.TemporaryDirectory() as tmp:
             db = SpeakerDatabase(tmp)
             p = SpeakerProfile(name="Bob", embedding=[0.5, 0.6, 0.7])
@@ -63,8 +60,8 @@ class TestSpeakerDatabase:
             assert db.load("Nobody") is None
 
     def test_delete(self):
-        from voice.speaker.speaker_profile import SpeakerProfile
         from voice.speaker.speaker_database import SpeakerDatabase
+        from voice.speaker.speaker_profile import SpeakerProfile
         with tempfile.TemporaryDirectory() as tmp:
             db = SpeakerDatabase(tmp)
             db.save(SpeakerProfile(name="Del"))
@@ -73,8 +70,8 @@ class TestSpeakerDatabase:
             assert db.load("Del") is None
 
     def test_list_all(self):
-        from voice.speaker.speaker_profile import SpeakerProfile
         from voice.speaker.speaker_database import SpeakerDatabase
+        from voice.speaker.speaker_profile import SpeakerProfile
         with tempfile.TemporaryDirectory() as tmp:
             db = SpeakerDatabase(tmp)
             db.save(SpeakerProfile(name="A"))
@@ -82,8 +79,8 @@ class TestSpeakerDatabase:
             assert len(db.list_all()) == 2
 
     def test_count(self):
-        from voice.speaker.speaker_profile import SpeakerProfile
         from voice.speaker.speaker_database import SpeakerDatabase
+        from voice.speaker.speaker_profile import SpeakerProfile
         with tempfile.TemporaryDirectory() as tmp:
             db = SpeakerDatabase(tmp)
             assert db.count() == 0
@@ -91,8 +88,8 @@ class TestSpeakerDatabase:
             assert db.count() == 1
 
     def test_search_exact_match(self):
-        from voice.speaker.speaker_profile import SpeakerProfile
         from voice.speaker.speaker_database import SpeakerDatabase
+        from voice.speaker.speaker_profile import SpeakerProfile
         with tempfile.TemporaryDirectory() as tmp:
             db = SpeakerDatabase(tmp)
             db.save(SpeakerProfile(name="Alice", embedding=[1.0, 0.0, 0.0]))
@@ -103,8 +100,8 @@ class TestSpeakerDatabase:
             assert score >= 0.99
 
     def test_search_no_match(self):
-        from voice.speaker.speaker_profile import SpeakerProfile
         from voice.speaker.speaker_database import SpeakerDatabase
+        from voice.speaker.speaker_profile import SpeakerProfile
         with tempfile.TemporaryDirectory() as tmp:
             db = SpeakerDatabase(tmp)
             db.save(SpeakerProfile(name="Alice", embedding=[1.0, 0.0, 0.0]))
@@ -133,6 +130,7 @@ class TestSpeakerManager:
 
     def test_register_without_encoder(self):
         from unittest.mock import patch
+
         from voice.speaker.speaker_manager import SpeakerManager
         with tempfile.TemporaryDirectory() as tmp:
             mgr = SpeakerManager(profiles_dir=tmp)
@@ -152,9 +150,9 @@ class TestSpeakerManager:
             assert "ready" in s
 
     def test_delete_speaker(self):
+        from voice.speaker.speaker_database import SpeakerDatabase
         from voice.speaker.speaker_manager import SpeakerManager
         from voice.speaker.speaker_profile import SpeakerProfile
-        from voice.speaker.speaker_database import SpeakerDatabase
         with tempfile.TemporaryDirectory() as tmp:
             db = SpeakerDatabase(tmp)
             db.save(SpeakerProfile(name="Bob"))

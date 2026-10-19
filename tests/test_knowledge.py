@@ -1,5 +1,3 @@
-import os
-import json
 from unittest.mock import MagicMock, patch
 
 
@@ -376,24 +374,24 @@ class TestAdvancedRetriever:
         assert isinstance(AdvancedRetriever(vector_store=mock_vs).retrieve("python"), list)
 
     def test_retrieve_from_beliefs(self):
-        from knowledge.retriever import AdvancedRetriever
         from knowledge.belief_engine import BeliefEngine
+        from knowledge.retriever import AdvancedRetriever
         from memory.schema import MemoryObject
         be = BeliefEngine()
         be.update(MemoryObject(content="likes python", memory_type="preference", confidence=0.9))
         assert any(r["source"] == "belief" for r in AdvancedRetriever(belief_engine=be).retrieve("python", top_k=5))
 
     def test_retrieve_from_knowledge_graph(self):
-        from knowledge.retriever import AdvancedRetriever
         from knowledge.graph import KnowledgeGraph
+        from knowledge.retriever import AdvancedRetriever
         kg = KnowledgeGraph()
         kg.add_relation("python", "used_for", "web_dev")
         assert any(r["source"] == "knowledge_graph" for r in AdvancedRetriever(knowledge_graph=kg).retrieve("python", top_k=5))
 
     def test_retrieve_with_attention_focus(self):
-        from knowledge.retriever import AdvancedRetriever
         from knowledge.attention import AttentionSystem
         from knowledge.graph import KnowledgeGraph
+        from knowledge.retriever import AdvancedRetriever
         kg = KnowledgeGraph()
         kg.add_relation("python", "used_for", "data_science")
         attn = AttentionSystem(knowledge_graph=kg)
@@ -414,8 +412,8 @@ class TestAdvancedRetriever:
         assert len(diversified) == 2 and diversified[0]["source"] != diversified[1]["source"]
 
     def test_retrieve_sorts_by_score(self):
-        from knowledge.retriever import AdvancedRetriever
         from knowledge.belief_engine import BeliefEngine
+        from knowledge.retriever import AdvancedRetriever
         from memory.schema import MemoryObject
         be = BeliefEngine()
         be.update(MemoryObject(content="likes hiking", memory_type="preference", confidence=0.3))
@@ -430,9 +428,9 @@ class TestAdvancedRetriever:
         assert mock_bus.publish_message.called
 
     def test_multi_source_retrieval(self):
-        from knowledge.retriever import AdvancedRetriever
         from knowledge.belief_engine import BeliefEngine
         from knowledge.graph import KnowledgeGraph
+        from knowledge.retriever import AdvancedRetriever
         from memory.schema import MemoryObject
         be = BeliefEngine()
         be.update(MemoryObject(content="likes python", memory_type="preference", confidence=0.9))
@@ -444,9 +442,9 @@ class TestAdvancedRetriever:
         assert sources == {"vector", "belief", "knowledge_graph"}
 
     def test_enriched_graph_type_based_retrieval(self):
-        from knowledge.retriever import AdvancedRetriever
-        from knowledge.reasoning import GraphReasoning
         from knowledge.graph import KnowledgeGraph
+        from knowledge.reasoning import GraphReasoning
+        from knowledge.retriever import AdvancedRetriever
         kg = KnowledgeGraph()
         kg.add_entity("OpenRouter", entity_type="technology")
         kg.add_entity("ChromaDB", entity_type="technology")
@@ -459,9 +457,9 @@ class TestAdvancedRetriever:
         assert len(graph_items) >= 1
 
     def test_enriched_graph_neighbor_expansion(self):
-        from knowledge.retriever import AdvancedRetriever
-        from knowledge.reasoning import GraphReasoning
         from knowledge.graph import KnowledgeGraph
+        from knowledge.reasoning import GraphReasoning
+        from knowledge.retriever import AdvancedRetriever
         gr = MagicMock(spec=GraphReasoning)
         gr.neighbors.return_value = [
             {"name": "data_science", "type": "field", "relation": "used_for",
@@ -475,9 +473,9 @@ class TestAdvancedRetriever:
         assert any(r["source"] == "knowledge_graph" for r in results)
 
     def test_enriched_graph_connection_path(self):
-        from knowledge.retriever import AdvancedRetriever
-        from knowledge.reasoning import GraphReasoning
         from knowledge.graph import KnowledgeGraph
+        from knowledge.reasoning import GraphReasoning
+        from knowledge.retriever import AdvancedRetriever
         gr = MagicMock(spec=GraphReasoning)
         gr.what_connects.return_value = [
             "mai --[friend]--> syed",
@@ -491,17 +489,17 @@ class TestAdvancedRetriever:
                     for r in results)
 
     def test_enriched_graph_fallback_when_graph_reasoning_unset(self):
-        from knowledge.retriever import AdvancedRetriever
         from knowledge.graph import KnowledgeGraph
+        from knowledge.retriever import AdvancedRetriever
         kg = KnowledgeGraph()
         kg.add_relation("python", "used_for", "web_dev")
         results = AdvancedRetriever(knowledge_graph=kg).retrieve("python", top_k=5)
         assert any(r["source"] == "knowledge_graph" for r in results)
 
     def test_enriched_graph_reasoning_error_does_not_block(self):
-        from knowledge.retriever import AdvancedRetriever
-        from knowledge.reasoning import GraphReasoning
         from knowledge.graph import KnowledgeGraph
+        from knowledge.reasoning import GraphReasoning
+        from knowledge.retriever import AdvancedRetriever
         gr = MagicMock(spec=GraphReasoning)
         gr.neighbors.side_effect = RuntimeError("graph unreachable")
         kg = KnowledgeGraph()
@@ -688,6 +686,7 @@ class TestDocumentStore:
 
     def test_needs_reindex_file_changed(self, tmp_path):
         import time
+
         from knowledge.document_store import DocumentStore
         f = tmp_path / "test.txt"; f.write_text("original")
         store = DocumentStore()
@@ -704,8 +703,8 @@ class TestIndexer:
         assert Indexer(vector_store=MagicMock(), chunker=MagicMock()).index_text("")["error"] == "no_text"
 
     def test_reindex_drops_stale_chunks_by_metadata(self):
-        from knowledge.indexer import Indexer
         from knowledge.chunker import TextChunker
+        from knowledge.indexer import Indexer
         mock_vs = MagicMock()
         mock_vs.delete_by_metadata.return_value = True
         Indexer(vector_store=mock_vs, chunker=TextChunker(chunk_size=512)).index_text(
@@ -714,31 +713,31 @@ class TestIndexer:
         mock_vs.delete_by_metadata.assert_called_once_with(source="src.txt", memory_type="knowledge")
 
     def test_index_text_chunks_and_stores(self):
-        from knowledge.indexer import Indexer
         from knowledge.chunker import TextChunker
+        from knowledge.indexer import Indexer
         mock_vs = MagicMock()
         result = Indexer(vector_store=mock_vs, chunker=TextChunker(chunk_size=512)).index_text("Hello world. Test.", source="test", doc_type="text")
         assert result["indexed"] >= 1 and mock_vs.add.called
 
     def test_index_text_with_document_store(self):
-        from knowledge.indexer import Indexer
         from knowledge.chunker import TextChunker
         from knowledge.document_store import DocumentStore
+        from knowledge.indexer import Indexer
         ds = DocumentStore()
         result = Indexer(vector_store=MagicMock(), chunker=TextChunker(chunk_size=512), document_store=ds).index_text("Some text.", source="src.txt", doc_type="text", title="Test")
         assert result["indexed"] >= 1 and ds.get_by_source("src.txt") is not None
 
     def test_index_text_updates_existing(self):
-        from knowledge.indexer import Indexer
         from knowledge.chunker import TextChunker
         from knowledge.document_store import DocumentStore
+        from knowledge.indexer import Indexer
         ds = DocumentStore(); ds.add("src.txt", "text", chunk_count=3, total_tokens=60)
         Indexer(vector_store=MagicMock(), chunker=TextChunker(chunk_size=512), document_store=ds).index_text("New text.", source="src.txt", doc_type="text")
         assert ds.get_by_source("src.txt").chunk_count >= 1
 
     def test_index_text_with_metadata(self):
-        from knowledge.indexer import Indexer
         from knowledge.chunker import TextChunker
+        from knowledge.indexer import Indexer
         result = Indexer(vector_store=MagicMock(), chunker=TextChunker(chunk_size=512)).index_text("Content.", source="src", doc_type="text", title="T", metadata={"source_type": "test"})
         assert result["indexed"] >= 1
 
@@ -748,22 +747,22 @@ class TestIndexer:
         assert "file_not_found" in result["error"]
 
     def test_index_file_auto_type(self, tmp_path):
-        from knowledge.indexer import Indexer
         from knowledge.chunker import TextChunker
+        from knowledge.indexer import Indexer
         f = tmp_path / "test.py"; f.write_text("print('hello')")
         assert Indexer(vector_store=MagicMock(), chunker=TextChunker(chunk_size=512)).index_file(str(f))["indexed"] >= 1
 
     def test_index_file_skip_up_to_date(self, tmp_path):
-        from knowledge.indexer import Indexer
         from knowledge.chunker import TextChunker
         from knowledge.document_store import DocumentStore
+        from knowledge.indexer import Indexer
         f = tmp_path / "test.txt"; f.write_text("content")
         ds = DocumentStore(); ds.add(str(f), "text")
         assert Indexer(vector_store=MagicMock(), chunker=TextChunker(chunk_size=512), document_store=ds).index_file(str(f))["error"] == "up_to_date"
 
     def test_index_directory(self, tmp_path):
-        from knowledge.indexer import Indexer
         from knowledge.chunker import TextChunker
+        from knowledge.indexer import Indexer
         d = tmp_path / "docs"; d.mkdir()
         (d / "a.txt").write_text("A"); (d / "b.txt").write_text("B")
         result = Indexer(vector_store=MagicMock(), chunker=TextChunker(chunk_size=512)).index_directory(str(d), pattern="*.txt")
@@ -786,15 +785,15 @@ class TestIndexer:
         assert Indexer(vector_store=MagicMock(), chunker=MagicMock()).stats() == {"total_indexed_chunks": 0}
 
     def test_index_text_publishes_event(self):
-        from knowledge.indexer import Indexer
         from knowledge.chunker import TextChunker
+        from knowledge.indexer import Indexer
         mock_bus = MagicMock()
         Indexer(vector_store=MagicMock(), chunker=TextChunker(chunk_size=512), event_bus=mock_bus).index_text("Hello.", source="src")
         assert mock_bus.publish_message.called
 
     def test_index_directory_publishes_event(self, tmp_path):
-        from knowledge.indexer import Indexer
         from knowledge.chunker import TextChunker
+        from knowledge.indexer import Indexer
         d = tmp_path / "docs"; d.mkdir(); (d / "a.txt").write_text("content")
         mock_bus = MagicMock()
         Indexer(vector_store=MagicMock(), chunker=TextChunker(chunk_size=512), event_bus=mock_bus).index_directory(str(d), pattern="*.txt")
@@ -1012,6 +1011,7 @@ class TestEntityExtractor:
 
     def test_llm_mode_valid_json(self):
         from unittest.mock import MagicMock
+
         from knowledge.extractor import EntityExtractor
         mock_llm = MagicMock()
         mock_llm.generate.return_value = (
@@ -1026,6 +1026,7 @@ class TestEntityExtractor:
 
     def test_llm_mode_invalid_json_falls_back_to_regex(self):
         from unittest.mock import MagicMock
+
         from knowledge.extractor import EntityExtractor
         mock_llm = MagicMock()
         mock_llm.generate.return_value = "not json"
@@ -1035,6 +1036,7 @@ class TestEntityExtractor:
 
     def test_llm_mode_none_falls_back_to_regex(self):
         from unittest.mock import MagicMock
+
         from knowledge.extractor import EntityExtractor
         mock_llm = MagicMock()
         mock_llm.generate.return_value = None
@@ -1044,6 +1046,7 @@ class TestEntityExtractor:
 
     def test_llm_mode_typed_entities(self):
         from unittest.mock import MagicMock
+
         from knowledge.extractor import EntityExtractor
         mock_llm = MagicMock()
         mock_llm.generate.return_value = (
@@ -1092,9 +1095,9 @@ class TestConsolidationEngine:
         assert ce.merge_candidates([]) == []
 
     def test_deduplicate_new_entities(self):
-        from knowledge.graph import KnowledgeGraph
+
         from knowledge.consolidation import ConsolidationEngine
-        from unittest.mock import MagicMock
+        from knowledge.graph import KnowledgeGraph
         kg = KnowledgeGraph()
         ce = ConsolidationEngine()
         entities = [{"name": "Python", "type": "skill"}]
@@ -1102,8 +1105,8 @@ class TestConsolidationEngine:
         assert len(entities_out) == 1
 
     def test_deduplicate_skips_duplicates(self):
-        from knowledge.graph import KnowledgeGraph
         from knowledge.consolidation import ConsolidationEngine
+        from knowledge.graph import KnowledgeGraph
         kg = KnowledgeGraph()
         kg.add_entity("Python", entity_type="skill")
         ce = ConsolidationEngine()
@@ -1113,8 +1116,8 @@ class TestConsolidationEngine:
         assert entities_out[0]["name"] == "JavaScript"
 
     def test_deduplicate_remaps_relations(self):
-        from knowledge.graph import KnowledgeGraph
         from knowledge.consolidation import ConsolidationEngine
+        from knowledge.graph import KnowledgeGraph
         kg = KnowledgeGraph()
         kg.add_entity("python", entity_type="skill")
         ce = ConsolidationEngine()
@@ -1126,8 +1129,8 @@ class TestConsolidationEngine:
         assert relations_out[0]["target"] == "python"
 
     def test_deduplicate_self_relation_skipped(self):
-        from knowledge.graph import KnowledgeGraph
         from knowledge.consolidation import ConsolidationEngine
+        from knowledge.graph import KnowledgeGraph
         ce = ConsolidationEngine()
         relations = [{"source": "x", "relation": "self", "target": "x"}]
         _, rels_out = ce.deduplicate(KnowledgeGraph(), [], relations)
@@ -1137,10 +1140,9 @@ class TestConsolidationEngine:
 class TestGraphManager:
 
     def test_process_conversation_adds_entities(self):
-        from unittest.mock import MagicMock
-        from knowledge.graph_manager import GraphManager
-        from knowledge.graph import KnowledgeGraph
         from knowledge.extractor import EntityExtractor
+        from knowledge.graph import KnowledgeGraph
+        from knowledge.graph_manager import GraphManager
         gm = GraphManager(
             graph=KnowledgeGraph(),
             extractor=EntityExtractor(),
@@ -1150,7 +1152,6 @@ class TestGraphManager:
         assert summary["relations_added"] >= 0
 
     def test_process_conversation_empty(self):
-        from unittest.mock import MagicMock
         from knowledge.graph_manager import GraphManager
         gm = GraphManager()
         summary = gm.process_conversation("", "")
@@ -1218,6 +1219,7 @@ class TestGraphManager:
 
     def test_event_publishing(self):
         from unittest.mock import MagicMock
+
         from knowledge.graph_manager import GraphManager
         bus = MagicMock()
         gm = GraphManager(event_bus=bus)
@@ -1328,8 +1330,9 @@ class TestGraphReasoning:
         assert all(e["type"] == "ai" for e in ents)
 
     def test_recent_entities(self):
-        from knowledge.reasoning import GraphReasoning
         import time
+
+        from knowledge.reasoning import GraphReasoning
         gm = self._make_graph_mock()
         now = time.time()
         ent_old = _MockEntity("old", "person", now - 7200)
@@ -1439,8 +1442,8 @@ class TestGraphReasoning:
 class TestObsidianWriter:
 
     def test_sync_creates_markdown_files(self, tmp_path):
-        from knowledge.obsidian_writer import ObsidianWriter
         from knowledge.graph import KnowledgeGraph
+        from knowledge.obsidian_writer import ObsidianWriter
         gm = KnowledgeGraph()
         gm.add_entity("Mai", entity_type="character", metadata={"source": "test"})
         gm.add_entity("Syed", entity_type="person")
@@ -1455,8 +1458,8 @@ class TestObsidianWriter:
         assert syed_path.exists()
 
     def test_markdown_contains_frontmatter_and_links(self, tmp_path):
-        from knowledge.obsidian_writer import ObsidianWriter
         from knowledge.graph import KnowledgeGraph
+        from knowledge.obsidian_writer import ObsidianWriter
         gm = KnowledgeGraph()
         gm.add_entity("Mai", entity_type="character", metadata={"source": "test"})
         gm.add_entity("Syed", entity_type="person")
@@ -1469,8 +1472,8 @@ class TestObsidianWriter:
         assert "[[syed]]" in content
 
     def test_delete_stale_entities(self, tmp_path):
-        from knowledge.obsidian_writer import ObsidianWriter
         from knowledge.graph import KnowledgeGraph
+        from knowledge.obsidian_writer import ObsidianWriter
         gm = KnowledgeGraph()
         gm.add_entity("Mai", entity_type="character")
         writer = ObsidianWriter(graph_manager=gm, vault_path=str(tmp_path), subdir="graph")
@@ -1481,8 +1484,8 @@ class TestObsidianWriter:
         assert stats["written"] == 0
 
     def test_sanitize_handles_special_chars(self, tmp_path):
-        from knowledge.obsidian_writer import ObsidianWriter
         from knowledge.graph import KnowledgeGraph
+        from knowledge.obsidian_writer import ObsidianWriter
         gm = KnowledgeGraph()
         gm.add_entity("Test@Entity#1!", entity_type="test")
         writer = ObsidianWriter(graph_manager=gm, vault_path=str(tmp_path), subdir="graph")
@@ -1491,8 +1494,8 @@ class TestObsidianWriter:
         assert expected_file.exists()
 
     def test_backlinks_section(self, tmp_path):
-        from knowledge.obsidian_writer import ObsidianWriter
         from knowledge.graph import KnowledgeGraph
+        from knowledge.obsidian_writer import ObsidianWriter
         gm = KnowledgeGraph()
         gm.add_entity("Mai", entity_type="character")
         gm.add_entity("Syed", entity_type="person")
@@ -1507,8 +1510,8 @@ class TestObsidianWriter:
         assert "[[haruki]]" in mai_content
 
     def test_empty_graph_produces_zero_writes(self, tmp_path):
-        from knowledge.obsidian_writer import ObsidianWriter
         from knowledge.graph import KnowledgeGraph
+        from knowledge.obsidian_writer import ObsidianWriter
         gm = KnowledgeGraph()
         writer = ObsidianWriter(graph_manager=gm, vault_path=str(tmp_path))
         stats = writer.sync()
@@ -1570,7 +1573,7 @@ class TestObsidianWriter:
         The compiled file keeps its facts; the raw turn goes to conversation/.
         """
         from knowledge.obsidian_writer import ObsidianWriter
-        from memory.state import MemoryState, IdentityFact
+        from memory.state import IdentityFact, MemoryState
         writer = ObsidianWriter(vault_path=str(tmp_path))
         state = MemoryState()
         state.identity.append(IdentityFact(fact="I am 25", category="age", timestamp="2026-01-01"))
@@ -1743,6 +1746,7 @@ class TestObsidianWriter:
 
     def test_write_important_creates_file(self, tmp_path):
         from datetime import datetime
+
         from knowledge.obsidian_writer import ObsidianWriter
         writer = ObsidianWriter(vault_path=str(tmp_path))
         result = writer.write_important("important note")
@@ -1759,6 +1763,7 @@ class TestObsidianWriter:
 
     def test_archive_creates_file(self, tmp_path):
         from datetime import datetime
+
         from knowledge.obsidian_writer import ObsidianWriter
         writer = ObsidianWriter(vault_path=str(tmp_path))
         result = writer.archive("old data")
@@ -1790,7 +1795,7 @@ class TestObsidianWriter:
 
     def test_dump_identity_creates_file(self, tmp_path):
         from knowledge.obsidian_writer import ObsidianWriter
-        from memory.state import MemoryState, IdentityFact
+        from memory.state import IdentityFact, MemoryState
         writer = ObsidianWriter(vault_path=str(tmp_path))
         state = MemoryState()
         state.identity.append(IdentityFact(fact="I am 25", category="age", timestamp="2026-07-17"))
@@ -1817,7 +1822,7 @@ class TestObsidianWriter:
 
     def test_dump_knowledge_creates_file(self, tmp_path):
         from knowledge.obsidian_writer import ObsidianWriter
-        from memory.state import MemoryState, KnowledgeEntry
+        from memory.state import KnowledgeEntry, MemoryState
         writer = ObsidianWriter(vault_path=str(tmp_path))
         state = MemoryState()
         state.knowledge.append(KnowledgeEntry(topic="Python", fact="a language", timestamp="2026-07-17"))
@@ -2075,8 +2080,8 @@ class TestVaultJanitor:
 
     def test_sweep_note_files_keeps_living_acronym_note(self, tmp_path):
         """Note files for living entities are never removed as junk."""
-        from knowledge.vault_janitor import VaultJanitor
         from knowledge.graph import KnowledgeGraph
+        from knowledge.vault_janitor import VaultJanitor
         graph = KnowledgeGraph()
         graph.add_entity("AI", "technology", {"confidence": 0.8})
         graph_dir = tmp_path / "graph"
@@ -2091,8 +2096,8 @@ class TestVaultJanitor:
 class TestVaultPostProcessor:
 
     def test_process_no_vault(self):
-        from knowledge.vault_post_processor import VaultPostProcessor
         from knowledge.vault_compiler import VaultCompiler
+        from knowledge.vault_post_processor import VaultPostProcessor
         writer = MagicMock()
         writer.vault_root = None
         pp = VaultPostProcessor(compiler=VaultCompiler(writer))
@@ -2100,18 +2105,18 @@ class TestVaultPostProcessor:
         writer.dump.assert_not_called()
 
     def test_process_calls_dump(self, tmp_path):
-        from knowledge.vault_post_processor import VaultPostProcessor
         from knowledge.obsidian_writer import ObsidianWriter
         from knowledge.vault_compiler import VaultCompiler
+        from knowledge.vault_post_processor import VaultPostProcessor
         writer = ObsidianWriter(vault_path=str(tmp_path))
         pp = VaultPostProcessor(compiler=VaultCompiler(writer))
         pp.process("I am a software engineer named Rida", "That's great!", ["greeting"], {"type": "happy", "intensity": 0.5})
         assert (tmp_path / "identity" / "user.md").exists()
 
     def test_populate_from_regex_identity(self, tmp_path):
-        from knowledge.vault_post_processor import VaultPostProcessor
         from knowledge.obsidian_writer import ObsidianWriter
         from knowledge.vault_compiler import VaultCompiler
+        from knowledge.vault_post_processor import VaultPostProcessor
         from memory.state import MemoryState
         writer = ObsidianWriter(vault_path=str(tmp_path))
         pp = VaultPostProcessor(compiler=VaultCompiler(writer))
@@ -2121,9 +2126,9 @@ class TestVaultPostProcessor:
         assert any("rida" in f.fact.lower() for f in state.identity)
 
     def test_populate_from_regex_preferences(self, tmp_path):
-        from knowledge.vault_post_processor import VaultPostProcessor
         from knowledge.obsidian_writer import ObsidianWriter
         from knowledge.vault_compiler import VaultCompiler
+        from knowledge.vault_post_processor import VaultPostProcessor
         from memory.state import MemoryState
         writer = ObsidianWriter(vault_path=str(tmp_path))
         pp = VaultPostProcessor(compiler=VaultCompiler(writer))
@@ -2133,9 +2138,9 @@ class TestVaultPostProcessor:
         assert any("meetings" in d.lower() for d in state.dislikes)
 
     def test_populate_from_regex_dreams(self, tmp_path):
-        from knowledge.vault_post_processor import VaultPostProcessor
         from knowledge.obsidian_writer import ObsidianWriter
         from knowledge.vault_compiler import VaultCompiler
+        from knowledge.vault_post_processor import VaultPostProcessor
         from memory.state import MemoryState
         writer = ObsidianWriter(vault_path=str(tmp_path))
         pp = VaultPostProcessor(compiler=VaultCompiler(writer))
@@ -2144,9 +2149,9 @@ class TestVaultPostProcessor:
         assert any("japan" in d.lower() for d in state.dreams)
 
     def test_populate_from_llm_identity(self, tmp_path):
-        from knowledge.vault_post_processor import VaultPostProcessor
         from knowledge.obsidian_writer import ObsidianWriter
         from knowledge.vault_compiler import VaultCompiler
+        from knowledge.vault_post_processor import VaultPostProcessor
         from memory.state import MemoryState
         writer = ObsidianWriter(vault_path=str(tmp_path))
         pp = VaultPostProcessor(compiler=VaultCompiler(writer))
@@ -2163,10 +2168,10 @@ class TestVaultPostProcessor:
         assert any(k.topic == "Python" for k in state.knowledge)
 
     def test_process_with_graph_entities(self, tmp_path):
-        from knowledge.vault_post_processor import VaultPostProcessor
+        from knowledge.graph import KnowledgeGraph
         from knowledge.obsidian_writer import ObsidianWriter
         from knowledge.vault_compiler import VaultCompiler
-        from knowledge.graph import KnowledgeGraph
+        from knowledge.vault_post_processor import VaultPostProcessor
         gm = KnowledgeGraph()
         gm.add_entity("Alice", entity_type="person", metadata={"confidence": 0.9})
         gm.add_entity("Tokyo", entity_type="place", metadata={"confidence": 0.8})
@@ -2183,9 +2188,9 @@ class TestVaultPostProcessor:
         assert "tokyo" in places_content.lower()
 
     def test_llm_extract_parses_json(self, tmp_path):
-        from knowledge.vault_post_processor import VaultPostProcessor
         from knowledge.obsidian_writer import ObsidianWriter
         from knowledge.vault_compiler import VaultCompiler
+        from knowledge.vault_post_processor import VaultPostProcessor
         writer = ObsidianWriter(vault_path=str(tmp_path))
         llm = MagicMock()
         llm.generate.return_value = '{"identity": [{"fact": "I am a coder", "category": "work"}], "preferences": {"likes": ["Python"]}, "knowledge": [{"topic": "AI", "fact": "AI is cool"}]}'
@@ -2226,8 +2231,8 @@ class TestObsidianReader:
         assert "statistics" in data
 
     def test_read_and_list_entity(self, tmp_path):
-        from knowledge.obsidian_reader import ObsidianReader
         from knowledge.graph import KnowledgeGraph
+        from knowledge.obsidian_reader import ObsidianReader
         from knowledge.obsidian_writer import ObsidianWriter
         gm = KnowledgeGraph()
         gm.add_entity("TestEntity", entity_type="test")
@@ -2318,8 +2323,8 @@ class TestCognitiveGraph:
 class TestGraphReflection:
 
     def test_identify_clusters_single(self):
-        from knowledge.graph_reflection import GraphReflection
         from knowledge.graph import KnowledgeGraph
+        from knowledge.graph_reflection import GraphReflection
         kg = KnowledgeGraph()
         kg.add_entity("A", entity_type="test")
         kg.add_entity("B", entity_type="test")
@@ -2331,8 +2336,8 @@ class TestGraphReflection:
         assert "b" in clusters[0]
 
     def test_identify_clusters_multiple(self):
-        from knowledge.graph_reflection import GraphReflection
         from knowledge.graph import KnowledgeGraph
+        from knowledge.graph_reflection import GraphReflection
         kg = KnowledgeGraph()
         kg.add_entity("A", entity_type="test")
         kg.add_entity("B", entity_type="test")
@@ -2345,14 +2350,14 @@ class TestGraphReflection:
         assert len(clusters) == 2
 
     def test_identify_clusters_empty(self):
-        from knowledge.graph_reflection import GraphReflection
         from knowledge.graph import KnowledgeGraph
+        from knowledge.graph_reflection import GraphReflection
         gr = GraphReflection(KnowledgeGraph())
         assert gr.identify_clusters() == []
 
     def test_isolated_entities(self):
-        from knowledge.graph_reflection import GraphReflection
         from knowledge.graph import KnowledgeGraph
+        from knowledge.graph_reflection import GraphReflection
         kg = KnowledgeGraph()
         kg.add_entity("Connected", entity_type="test")
         kg.add_entity("Alone", entity_type="test")
@@ -2363,16 +2368,16 @@ class TestGraphReflection:
         assert "alone" in names
 
     def test_suggest_new_relations_empty_when_one_cluster(self):
-        from knowledge.graph_reflection import GraphReflection
         from knowledge.graph import KnowledgeGraph
+        from knowledge.graph_reflection import GraphReflection
         kg = KnowledgeGraph()
         kg.add_entity("A", entity_type="test")
         gr = GraphReflection(kg)
         assert gr.suggest_new_relations() == []
 
     def test_suggest_new_relations_returns_suggestions(self):
-        from knowledge.graph_reflection import GraphReflection
         from knowledge.graph import KnowledgeGraph
+        from knowledge.graph_reflection import GraphReflection
         kg = KnowledgeGraph()
         kg.add_entity("A", entity_type="test")
         kg.add_entity("B", entity_type="test")
@@ -2385,8 +2390,8 @@ class TestGraphReflection:
         assert len(suggestions) >= 1
 
     def test_summary_contains_keys(self):
-        from knowledge.graph_reflection import GraphReflection
         from knowledge.graph import KnowledgeGraph
+        from knowledge.graph_reflection import GraphReflection
         kg = KnowledgeGraph()
         kg.add_entity("A", entity_type="test")
         gr = GraphReflection(kg)
@@ -2398,9 +2403,9 @@ class TestGraphReflection:
         assert "suggested_new_relations" in s
 
     def test_recent_activity(self):
-        from knowledge.graph_reflection import GraphReflection
+
         from knowledge.graph import KnowledgeGraph
-        import time
+        from knowledge.graph_reflection import GraphReflection
         kg = KnowledgeGraph()
         kg.add_entity("Old", entity_type="test")  # created now
         gr = GraphReflection(kg)

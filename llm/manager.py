@@ -4,11 +4,11 @@ import logging
 import re
 import threading
 import time
-from typing import Iterator, Optional
+from collections.abc import Iterator
 
+from app.config_loader import LLM_PROVIDER, OPENROUTER_API_KEY
 from llm.providers.ollama import OllamaProvider
 from llm.providers.openrouter import OpenRouterProvider
-from app.config_loader import OPENROUTER_API_KEY, LLM_PROVIDER
 
 logger = logging.getLogger("Mai.LLMManager")
 
@@ -128,7 +128,7 @@ class LLMManager:
         self,
         system: str = "",
         user: str = "",
-        history: Optional[list] = None,
+        history: list | None = None,
     ) -> str:
 
         self._probe()
@@ -225,7 +225,7 @@ class LLMManager:
         self,
         system: str = "",
         user: str = "",
-        history: Optional[list] = None,
+        history: list | None = None,
     ) -> Iterator[str]:
 
         self._probe()
@@ -264,7 +264,7 @@ class LLMManager:
         self,
         system: str,
         user: str,
-        history: Optional[list],
+        history: list | None,
         priority: list,
     ) -> Iterator[str]:
         """Yield chunks from the first working provider; on a mid-stream

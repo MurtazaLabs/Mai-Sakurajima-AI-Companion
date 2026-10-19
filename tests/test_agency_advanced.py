@@ -3,7 +3,6 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
-
 # ---------------------------------------------------------------------------
 #  GoalManager tests
 # ---------------------------------------------------------------------------
@@ -700,8 +699,8 @@ class TestPersonalityEvolution:
         assert applied == {}
 
     def test_evolve_unknown_trait_in_adjustment_skipped(self, personality_state):
-        from agency.evolution import TRAIT_SIGNAL_MAP, PersonalityEvolution
         import agency.evolution as evo_mod
+        from agency.evolution import TRAIT_SIGNAL_MAP, PersonalityEvolution
         orig = TRAIT_SIGNAL_MAP.copy()
         evo_mod.TRAIT_SIGNAL_MAP = {"test_signal": {"nonexistent_trait": 0.1}}
         try:

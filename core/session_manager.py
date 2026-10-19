@@ -1,13 +1,11 @@
 """
 Session Manager — manages active user sessions with expiry and limits.
 """
-import time
-import threading
-import uuid
 import logging
+import threading
+import time
+import uuid
 from dataclasses import dataclass, field
-from typing import Optional, Dict, List
-from pathlib import Path
 
 logger = logging.getLogger(__name__)
 
@@ -19,7 +17,7 @@ class Session:
     created_at: float
     last_activity: float
     expires_at: float
-    metadata: Dict = field(default_factory=dict)
+    metadata: dict = field(default_factory=dict)
 
 
 class SessionManager:
@@ -37,11 +35,11 @@ class SessionManager:
         self.max_total_sessions = max_total_sessions
         self.cleanup_interval = cleanup_interval_seconds
 
-        self._sessions: Dict[str, Session] = {}
-        self._user_sessions: Dict[str, List[str]] = {}
+        self._sessions: dict[str, Session] = {}
+        self._user_sessions: dict[str, list[str]] = {}
         self._lock = threading.RLock()
 
-        self._cleanup_thread: Optional[threading.Thread] = None
+        self._cleanup_thread: threading.Thread | None = None
         self._stop_cleanup = threading.Event()
 
     def start(self):
@@ -79,7 +77,7 @@ class SessionManager:
             for sid in expired:
                 self._remove_session(sid)
 
-    def create_session(self, user_id: str, metadata: Optional[Dict] = None) -> Session:
+    def create_session(self, user_id: str, metadata: dict | None = None) -> Session:
         """Create a new session for a user."""
         with self._lock:
             # Enforce per-user limit
@@ -116,7 +114,7 @@ class SessionManager:
             self._user_sessions[user_id].append(session.session_id)
             return session
 
-    def get_session(self, session_id: str) -> Optional[Session]:
+    def get_session(self, session_id: str) -> Session | None:
         """Get session by ID, extending expiry on access."""
         with self._lock:
             session = self._sessions.get(session_id)
@@ -128,7 +126,7 @@ class SessionManager:
                 self._remove_session(session_id)
             return None
 
-    def get_user_sessions(self, user_id: str) -> List[Session]:
+    def get_user_sessions(self, user_id: str) -> list[Session]:
         """Get all active sessions for a user."""
         with self._lock:
             session_ids = self._user_sessions.get(user_id, [])
@@ -172,7 +170,7 @@ class SessionManager:
             return True
         return False
 
-    def stats(self) -> Dict:
+    def stats(self) -> dict:
         """Get session statistics."""
         with self._lock:
             now = time.time()

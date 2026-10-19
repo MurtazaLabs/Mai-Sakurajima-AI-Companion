@@ -2,20 +2,18 @@
 Plugin Signature Verification
 Provides Ed25519 signature verification for plugin packages.
 """
-import os
 import base64
 import hashlib
 import json
-import time
 import shutil
-from pathlib import Path
-from typing import Optional, Tuple
-from dataclasses import dataclass
-from cryptography.hazmat.primitives import hashes, serialization
-from cryptography.hazmat.primitives.asymmetric import ed25519
-from cryptography.exceptions import InvalidSignature
-import base64
+import time
 import zipfile
+from dataclasses import dataclass
+from pathlib import Path
+
+from cryptography.exceptions import InvalidSignature
+from cryptography.hazmat.primitives import serialization
+from cryptography.hazmat.primitives.asymmetric import ed25519
 
 
 @dataclass
@@ -34,7 +32,7 @@ class PluginSigner:
     # Standard algorithm identifier
     ALGORITHM = "Ed25519"
     
-    def __init__(self, private_key: Optional[ed25519.Ed25519PrivateKey] = None):
+    def __init__(self, private_key: ed25519.Ed25519PrivateKey | None = None):
         """
         Initialize the signer.
         
@@ -45,7 +43,7 @@ class PluginSigner:
         self.public_key = self.private_key.public_key()
     
     @classmethod
-    def generate_keypair(cls) -> Tuple[ed25519.Ed25519PrivateKey, ed25519.Ed25519PublicKey]:
+    def generate_keypair(cls) -> tuple[ed25519.Ed25519PrivateKey, ed25519.Ed25519PublicKey]:
         """Generate a new Ed25519 keypair."""
         private_key = ed25519.Ed25519PrivateKey.generate()
         return private_key, private_key.public_key()
@@ -132,9 +130,8 @@ class PluginSigner:
         Returns:
             Path to the created package
         """
-        import zipfile
-        import tempfile
         import json
+        import tempfile
         
         source_dir = Path(source_dir)
         
@@ -199,7 +196,7 @@ class PluginSigner:
             
             return output_path
         
-        except Exception as e:
+        except Exception:
             if temp_path.exists():
                 temp_path.unlink()
             raise
@@ -229,9 +226,7 @@ class PluginVerifier:
     @classmethod
     def from_package(cls, package_path: Path) -> "PluginVerifier":
         """Extract and create verifier from package signature."""
-        import zipfile
         import json
-        import tempfile
         
         with zipfile.ZipFile(package_path, "r") as zf:
             # Look for signature file
@@ -247,16 +242,14 @@ class PluginVerifier:
             
             return PluginVerifier(public_key)
     
-    def verify_package(self, package_path: Path) -> Tuple[bool, Optional[str]]:
+    def verify_package(self, package_path: Path) -> tuple[bool, str | None]:
         """
         Verify a plugin package signature.
         
         Returns:
             Tuple of (is_valid, error_message)
         """
-        import zipfile
         import json
-        import tempfile
         
         if not zipfile.is_zipfile(package_path):
             return False, "Not a valid zip file"
@@ -327,10 +320,8 @@ class PluginVerifier:
         except Exception as e:
             return False, f"Verification failed: {e}"
     
-    def verify_package_integrity(self, package_path: Path) -> Tuple[bool, Optional[str]]:
+    def verify_package_integrity(self, package_path: Path) -> tuple[bool, str | None]:
         """Verify package integrity without checking signature (for unsigned packages)."""
-        import zipfile
-        import hashlib
         
         if not zipfile.is_zipfile(package_path):
             return False, "Not a valid zip file"
@@ -356,7 +347,7 @@ class PluginVerifier:
             return False, f"Integrity check failed: {e}"
 
 
-def verify_plugin_package(package_path: Path, trusted_keys: Optional[list] = None) -> Tuple[bool, Optional[str], Optional[dict]]:
+def verify_plugin_package(package_path: Path, trusted_keys: list | None = None) -> tuple[bool, str | None, dict | None]:
     """
     Verify a plugin package signature and integrity.
     
@@ -367,9 +358,8 @@ def verify_plugin_package(package_path: Path, trusted_keys: Optional[list] = Non
     Returns:
         Tuple of (is_valid, error_message, signature_info)
     """
-    import zipfile
-    import json
     import base64
+    import json
     
     try:
         with zipfile.ZipFile(package_path, "r") as zf:
@@ -469,7 +459,6 @@ class PluginSignatureManager:
     
     def _load_trusted_keys(self):
         """Load trusted keys from the keys directory."""
-        import json
         for key_file in self.keys_dir.glob("*.pem"):
             try:
                 with open(key_file, "rb") as f:
@@ -546,7 +535,7 @@ class PluginSignatureManager:
         """Get list of trusted key fingerprints."""
         return list(self._trusted_keys.keys())
     
-    def verify_package(self, package_path: Path) -> tuple[bool, Optional[str], Optional[dict]]:
+    def verify_package(self, package_path: Path) -> tuple[bool, str | None, dict | None]:
         """
         Verify a package against trusted keys.
         

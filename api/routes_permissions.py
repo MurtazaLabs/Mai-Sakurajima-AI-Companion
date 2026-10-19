@@ -5,6 +5,7 @@ call sites. See ``api.server`` for how this is composed.
 """
 import logging
 from typing import Any
+
 from api.errors import safe_error
 
 logger = logging.getLogger("api.server")
@@ -19,8 +20,8 @@ class PermissionsMixin:
     def permissions_all(self):
         info = {}
         try:
-            from execution.handlers import _ALLOWED_APPS, _DESTRUCTIVE_PATTERNS
             from agency.tools import _EXECUTE_ALLOWED_TYPES
+            from execution.handlers import _ALLOWED_APPS, _DESTRUCTIVE_PATTERNS
             info["allowed_apps"] = sorted(_ALLOWED_APPS)
             info["destructive_hotkeys"] = _DESTRUCTIVE_PATTERNS
             info["allowed_action_types"] = sorted(_EXECUTE_ALLOWED_TYPES)
@@ -31,8 +32,12 @@ class PermissionsMixin:
             info["allowed_action_types"] = []
         try:
             from app.config_loader import (
-                EXECUTOR_MODE, EXECUTOR_COOLDOWN, EXECUTOR_MIN_CONFIDENCE,
-                EXECUTOR_BLOCKED_COMMANDS, API_REQUIRE_AUTH, API_RATE_LIMIT_PER_MINUTE,
+                API_RATE_LIMIT_PER_MINUTE,
+                API_REQUIRE_AUTH,
+                EXECUTOR_BLOCKED_COMMANDS,
+                EXECUTOR_COOLDOWN,
+                EXECUTOR_MIN_CONFIDENCE,
+                EXECUTOR_MODE,
             )
             info["mode"] = EXECUTOR_MODE
             info["cooldown"] = EXECUTOR_COOLDOWN

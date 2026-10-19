@@ -1,12 +1,12 @@
-import json
 import asyncio
+import json
 import logging
-from typing import Any, Optional
+from typing import Any
 
 from fastapi import WebSocket, WebSocketDisconnect
 
-from api.stream_manager import STREAM_TOPICS
 from api.errors import safe_error
+from api.stream_manager import STREAM_TOPICS
 
 logger = logging.getLogger("api.server")
 

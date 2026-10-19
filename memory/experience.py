@@ -4,13 +4,12 @@
 # at ingest; reflection / lessons / growth are computed lazily at dreaming.
 # M8 · Replay dedup — the same event text is recorded once (md5 fingerprint,
 # reload-safe). Replays of the same turn no longer double-record (spec §9).
-import time
-import json
-import threading
-import logging
-import uuid
 import hashlib
-from typing import Optional
+import json
+import logging
+import threading
+import time
+import uuid
 
 logger = logging.getLogger(__name__)
 
@@ -18,8 +17,16 @@ logger = logging.getLogger(__name__)
 class EmotionExperience:
 
     __slots__ = (
-        "id", "event", "meaning", "emotion", "relationship_impact",
-        "reflection", "lessons", "growth", "significance", "timestamp",
+        "emotion",
+        "event",
+        "growth",
+        "id",
+        "lessons",
+        "meaning",
+        "reflection",
+        "relationship_impact",
+        "significance",
+        "timestamp",
     )
 
     def __init__(
@@ -95,7 +102,7 @@ class ExperienceStore:
     Fingerprints are rebuilt on load, so the dedup survives restarts.
     """
 
-    def __init__(self, path: Optional[str] = None):
+    def __init__(self, path: str | None = None):
         self._lock = threading.RLock()
         self._path = str(path) if path else None
         self._experiences = []
@@ -148,8 +155,8 @@ class ExperienceStore:
         self,
         event: str,
         meaning: str = "",
-        emotion: Optional[dict] = None,
-        relationship_impact: Optional[dict] = None,
+        emotion: dict | None = None,
+        relationship_impact: dict | None = None,
         significance: float = 0.5,
     ) -> EmotionExperience:
         exp = EmotionExperience(
@@ -190,8 +197,7 @@ class ExperienceStore:
             return
         try:
             with open(self._path, "w", encoding="utf-8") as fh:
-                for e in self._experiences:
-                    fh.write(json.dumps(e.to_dict()) + "\n")
+                fh.writelines(json.dumps(e.to_dict()) + "\n" for e in self._experiences)
         except Exception as e:
             logger.debug("[ExperienceStore] rewrite failed: %s", e)
 

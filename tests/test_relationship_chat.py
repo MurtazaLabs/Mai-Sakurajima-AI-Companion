@@ -1,6 +1,5 @@
 # M10 · Relationship dynamics on the chat path.
 # Deterministic analyzer unit tests + think() integration + M9 session tests.
-from unittest.mock import MagicMock
 
 import pytest
 

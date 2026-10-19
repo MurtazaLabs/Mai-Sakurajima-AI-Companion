@@ -11,11 +11,11 @@ The emitted markdown format is preserved exactly (Closeness / Trust /
 Interactions / LastInteraction / LastInteractionUnix) so that ObsidianReader and
 the autonomy engine keep parsing it unchanged.
 """
+import logging
 import os
 import re
-import time
-import logging
 import threading
+import time
 from dataclasses import dataclass
 from pathlib import Path
 

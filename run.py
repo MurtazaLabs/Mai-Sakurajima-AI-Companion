@@ -12,21 +12,20 @@ Usage:
   python run.py --mode daemon
   python run.py --mode api
 """
-import sys
-import os
-import logging
-import warnings
 import argparse
-import threading
+import logging
+import os
 import signal
-from pathlib import Path
+import sys
+import threading
+import warnings
 from logging.handlers import RotatingFileHandler
+from pathlib import Path
 
 # ==================================================
 # 🧠 LOGGING
 # ==================================================
 from app.config_loader import LOG_LEVEL
-from logging.handlers import RotatingFileHandler
 
 # Configure root logger with both console and rotating file handler
 log_dir = Path(__file__).resolve().parent / "logs"
@@ -179,7 +178,7 @@ def run_daemon_mode(window=True):
     from execution.handlers import ClipboardActions, FileSystemActions, _configure_sandbox
     mai.clipboard_actions = ClipboardActions()
     mai.filesystem_actions = FileSystemActions()
-    from config.paths import ROOT_DIR, OBSIDIAN_VAULT
+    from config.paths import OBSIDIAN_VAULT, ROOT_DIR
     _configure_sandbox(str(ROOT_DIR), str(OBSIDIAN_VAULT))
 
     from app.config_loader import API_HOST, API_PORT
@@ -269,8 +268,9 @@ def run_daemon_mode(window=True):
 def run_api_mode():
     """API server only, no kernel FSM."""
     logger.info("[API] Starting Mai AI API server only...")
-    from api.server import MaiAPI, app
     import uvicorn
+
+    from api.server import MaiAPI, app
     from app.config_loader import API_HOST, API_PORT
 
     mai = MaiAPI()

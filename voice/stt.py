@@ -1,18 +1,17 @@
 import logging
 import threading
-from typing import Any, Optional, Union
+from typing import Any
+
 import numpy as np
 from numpy.typing import NDArray
 
 from app.config_loader import Settings
-from config.voice import MICROPHONE_DEVICE
 
 logger = logging.getLogger(__name__)
 
 
 class TranscriptionUnavailable(Exception):
     """Raised when Faster-Whisper model cannot be initialized for transcription."""
-    pass
 
 
 class FasterWhisperSTT:
@@ -36,7 +35,7 @@ class FasterWhisperSTT:
 
         self._input_device = input_device
         self._lock = threading.RLock()
-        self.model: Optional[Any] = None
+        self.model: Any | None = None
         self._device_resolved = False
 
     def _resolve_device(self) -> None:
@@ -63,7 +62,7 @@ class FasterWhisperSTT:
         self._device_resolved = True
 
     @property
-    def input_device(self) -> Optional[int]:
+    def input_device(self) -> int | None:
         self._resolve_device()
         return self._input_device
 
@@ -88,7 +87,7 @@ class FasterWhisperSTT:
                 logger.error("Failed to load Faster-Whisper model: %s", e)
                 return False
 
-    def transcribe(self, audio: NDArray[np.float32], language: str = "en", initial_prompt: Optional[str] = None) -> str:
+    def transcribe(self, audio: NDArray[np.float32], language: str = "en", initial_prompt: str | None = None) -> str:
         if not self._ensure_model():
             raise TranscriptionUnavailable(
                 "Faster-Whisper unavailable: model failed to load"

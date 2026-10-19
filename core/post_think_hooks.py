@@ -1,6 +1,6 @@
-import time
 import logging
 import threading
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -96,7 +96,10 @@ class PostThinkHooks:
                     try:
                         with self._lock:
                             self._reflection_count += 1
-                        from core.event_specs import REFLECTION_GENERATED, STATE_REASONING_REFLECTION
+                        from core.event_specs import (
+                            REFLECTION_GENERATED,
+                            STATE_REASONING_REFLECTION,
+                        )
                         from core.mai_message import publish_event
                         publish_event(event_bus, REFLECTION_GENERATED, {
                             "type": "daily",
@@ -109,7 +112,7 @@ class PostThinkHooks:
                             "topics": reflection.topics,
                             "patterns": reflection.patterns,
                         }, source="cognition")
-                        pass  # skip — reflection is published via event_bus, no need to store as conversation
+                        # skip — reflection is published via event_bus, no need to store as conversation
                     except Exception as e:
                         logger.warning("[PostThink] reflection store: %s", e)
 

@@ -1,18 +1,17 @@
+import builtins
+import importlib
+import json
+import logging
 import os
 import sys
-import time
-import logging
-import importlib
 import threading
 import zipfile
-import tempfile
-import json
-from types import ModuleType
-from typing import Optional, List, Dict, Any
 from pathlib import Path
+from types import ModuleType
+from typing import Any, Optional
 
-from plugins.plugin_manifest import PluginManifest, PluginManifestValidator, PluginPermission
-from plugins.sandbox import PluginSandbox, Permission, create_sandbox_for_plugin
+from plugins.plugin_manifest import PluginManifestValidator
+from plugins.sandbox import PluginSandbox, create_sandbox_for_plugin
 
 logger = logging.getLogger(__name__)
 
@@ -65,26 +64,22 @@ class Plugin:
         self.name = name
         self.version = version
         self.description = description
-        self.module: Optional[ModuleType] = None
+        self.module: ModuleType | None = None
         self.initialized = False
-        self._sandbox: Optional["PluginSandbox"] = None
+        self._sandbox: PluginSandbox | None = None
         self._state: str = "discovered"
 
     def on_load(self, hooks, brain, event_bus):
         """Called when plugin is loaded (after discovery)."""
-        pass
 
     def on_activate(self, hooks, brain, event_bus):
         """Called when plugin is activated (enabled and ready to handle events)."""
-        pass
 
     def on_deactivate(self):
         """Called when plugin is deactivated (disabled but still loaded)."""
-        pass
 
     def on_unload(self):
         """Called when plugin is completely unloaded."""
-        pass
 
     def get_sandbox(self) -> Optional["PluginSandbox"]:
         return self._sandbox
@@ -114,7 +109,7 @@ class PluginLoader:
         # Ensure plugin directory exists
         self.plugin_dir.mkdir(parents=True, exist_ok=True)
 
-    def discover(self) -> List[str]:
+    def discover(self) -> list[str]:
         """Discover available plugins using plugins.json manifest, fallback to filesystem scan."""
         # Ensure plugin directory exists
         if not self.plugin_dir.is_dir():
@@ -151,7 +146,7 @@ class PluginLoader:
         logger.debug("[Plugins] Discovered %d plugins from filesystem scan", len(found))
         return found
 
-    def load(self, name: str, brain=None, event_bus=None, config: Optional[Dict] = None):
+    def load(self, name: str, brain=None, event_bus=None, config: dict | None = None):
         """Load a plugin by name with manifest and sandbox support."""
         with self._lock:
             if name in self._plugins:
@@ -178,7 +173,7 @@ class PluginLoader:
             logger.debug("[Plugins] Traceback: %s", traceback.format_exc())
             return None
 
-    def _load_from_manifest(self, manifest_path: Path, brain, event_bus, config) -> Optional[Plugin]:
+    def _load_from_manifest(self, manifest_path: Path, brain, event_bus, config) -> Plugin | None:
         """Load plugin using manifest.json."""
         # Validate manifest
         is_valid, errors, manifest = PluginManifestValidator.validate_manifest_file(manifest_path)
@@ -267,7 +262,7 @@ class PluginLoader:
         logger.info("[Plugins] Loaded: %s v%s", manifest.name, manifest.version)
         return plugin
 
-    def _load_legacy(self, name: str, brain=None, event_bus=None) -> Optional[Plugin]:
+    def _load_legacy(self, name: str, brain=None, event_bus=None) -> Plugin | None:
         """Legacy plugin loading for plugins without manifest."""
         if self.plugin_dir not in sys.path:
             sys.path.insert(0, str(self.plugin_dir))
@@ -372,12 +367,12 @@ class PluginLoader:
                 return True
             return False
 
-    def list(self) -> Dict[str, Dict[str, Any]]:
+    def list(self) -> dict[str, dict[str, Any]]:
         with self._lock:
             return {n: {"name": p.name, "version": p.version, "initialized": p.initialized} 
                     for n, p in self._plugins.items()}
 
-    def get_plugin_metadata(self, name: str) -> Optional[Dict[str, Any]]:
+    def get_plugin_metadata(self, name: str) -> dict[str, Any] | None:
         """Get full plugin metadata from plugins.json manifest."""
         manifest_path = self.plugin_dir / "plugins.json"
         if not manifest_path.exists():
@@ -395,7 +390,7 @@ class PluginLoader:
         
         return None
 
-    def get_all_plugin_metadata(self) -> List[Dict[str, Any]]:
+    def get_all_plugin_metadata(self) -> builtins.list[dict[str, Any]]:
         """Get all plugin metadata from plugins.json manifest."""
         manifest_path = self.plugin_dir / "plugins.json"
         if not manifest_path.exists():
@@ -409,7 +404,7 @@ class PluginLoader:
             logger.warning("[Plugins] Failed to read plugins.json: %s", e)
             return []
 
-    def load_all(self, brain=None, event_bus=None, config: Optional[Dict] = None):
+    def load_all(self, brain=None, event_bus=None, config: dict | None = None):
         """Load all discovered plugins."""
         names = self.discover()
         results = []

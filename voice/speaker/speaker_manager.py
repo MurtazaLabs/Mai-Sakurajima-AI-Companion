@@ -4,9 +4,9 @@ import time
 
 import numpy as np
 
-from voice.speaker.speaker_profile import SpeakerProfile
-from voice.speaker.speaker_encoder import SpeakerEncoder
 from voice.speaker.speaker_database import SpeakerDatabase
+from voice.speaker.speaker_encoder import SpeakerEncoder
+from voice.speaker.speaker_profile import SpeakerProfile
 
 logger = logging.getLogger("Mai.SpeakerManager")
 

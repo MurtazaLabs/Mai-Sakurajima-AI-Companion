@@ -13,7 +13,7 @@ class TurnRecord:
     """One evaluated turn: what the user said, what Mai said, and the
     dev-side evidence snapshot captured right after generation."""
 
-    __slots__ = ("index", "user_input", "response", "evidence", "timestamp")
+    __slots__ = ("evidence", "index", "response", "timestamp", "user_input")
 
     def __init__(self, index=0, user_input="", response="", evidence=None, timestamp=None):
         self.index = int(index or 0)
@@ -82,8 +82,7 @@ class SessionTranscript:
     def save(self, path):
         path = str(path)
         with open(path, "w", encoding="utf-8") as fh:
-            for t in self._turns:
-                fh.write(json.dumps(t.to_dict(), ensure_ascii=False) + "\n")
+            fh.writelines(json.dumps(t.to_dict(), ensure_ascii=False) + "\n" for t in self._turns)
 
     @classmethod
     def load(cls, path):

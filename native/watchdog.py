@@ -13,15 +13,14 @@ Two usage modes:
 
    Polls ``/api/health`` every 10s; emits events on failure/recovery.
 """
-import os
-import sys
-import time
-import json
 import logging
+import os
 import subprocess
+import sys
 import threading
-import urllib.request
+import time
 import urllib.error
+import urllib.request
 
 logger = logging.getLogger(__name__)
 

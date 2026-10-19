@@ -6,10 +6,10 @@ import logging
 import re
 import threading
 import time
-from typing import Iterator, Optional, AsyncIterator
+from collections.abc import AsyncIterator, Iterator
 
-from llm.http_client import HTTPClientFactory
 from app.config_loader import LLM_RETRY_COUNT, LLM_TIMEOUT, OPENROUTER_DEFAULT_MODEL
+from llm.http_client import HTTPClientFactory
 
 logger = logging.getLogger(__name__)
 
@@ -24,7 +24,7 @@ class OpenRouterProvider:
     def __init__(
         self,
         api_key: str,
-        models: Optional[list[str]] = None,
+        models: list[str] | None = None,
         max_retry_budget: float = 45.0,
     ) -> None:
 
@@ -118,7 +118,7 @@ class OpenRouterProvider:
             self._circuit_open_until = 0.0
 
     @staticmethod
-    def _retry_after_from_error(e: Exception) -> Optional[float]:
+    def _retry_after_from_error(e: Exception) -> float | None:
         """Extract a Retry-After delay (seconds) from an HTTP 429/503 error."""
         resp = getattr(e, "response", None)
         if resp is None:
@@ -140,7 +140,7 @@ class OpenRouterProvider:
     _PERMANENT_STATUS = (400, 401, 403, 404, 422)
 
     @staticmethod
-    def _status_code(e: Exception) -> Optional[int]:
+    def _status_code(e: Exception) -> int | None:
         """HTTP status of a raise_for_status error, or None if not an HTTP error."""
         resp = getattr(e, "response", None)
         if resp is None:
@@ -177,7 +177,7 @@ class OpenRouterProvider:
         self,
         system: str = "",
         user: str = "",
-        history: Optional[list] = None,
+        history: list | None = None,
     ) -> list:
 
         messages = []
@@ -199,11 +199,11 @@ class OpenRouterProvider:
         self,
         system: str = "",
         user: str = "",
-        history: Optional[list] = None,
+        history: list | None = None,
         simple: bool = False,
     ) -> str:
 
-        last_error: Optional[Exception] = None
+        last_error: Exception | None = None
 
         combined = system + user
         if self._has_image_reference(combined):
@@ -315,7 +315,7 @@ class OpenRouterProvider:
         self,
         system: str = "",
         user: str = "",
-        history: Optional[list] = None,
+        history: list | None = None,
     ) -> Iterator[str]:
 
         if self._circuit_open():
@@ -375,11 +375,11 @@ class OpenRouterProvider:
         self,
         system: str = "",
         user: str = "",
-        history: Optional[list] = None,
+        history: list | None = None,
         simple: bool = False,
     ) -> str:
 
-        last_error: Optional[Exception] = None
+        last_error: Exception | None = None
 
         combined = system + user
         if self._has_image_reference(combined):
@@ -481,10 +481,9 @@ class OpenRouterProvider:
         self,
         system: str = "",
         user: str = "",
-        history: Optional[list] = None,
+        history: list | None = None,
     ) -> AsyncIterator[str]:
 
-        import asyncio
 
         if self._circuit_open():
             logger.warning("[OpenRouter] Circuit open — skipping stream")

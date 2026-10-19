@@ -1,7 +1,7 @@
 # core/idle_behavior.py
+import logging
 import random
 import time
-import logging
 
 logger = logging.getLogger(__name__)
 

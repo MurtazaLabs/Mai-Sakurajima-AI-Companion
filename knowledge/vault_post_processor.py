@@ -4,14 +4,14 @@ import json
 import logging
 import re
 from datetime import datetime
-from typing import TYPE_CHECKING, Optional
+from typing import TYPE_CHECKING
 
 if TYPE_CHECKING:
     from memory.state import MemoryState
 
 
 def _memory_state():
-    from memory.state import MemoryState, IdentityFact, KnowledgeEntry
+    from memory.state import IdentityFact, KnowledgeEntry, MemoryState
     return MemoryState, IdentityFact, KnowledgeEntry
 
 logger = logging.getLogger(__name__)
@@ -311,7 +311,7 @@ class VaultPostProcessor:
                 logger.warning("[VaultPostProcessor] entity fetch: %s", e)
         return []
 
-    def _llm_extract(self, user, ai) -> Optional[dict]:
+    def _llm_extract(self, user, ai) -> dict | None:
         if not self.llm or not self._llm_available():
             return None
         prompt = VAULT_EXTRACT_PROMPT.format(user=(user or "")[:1000], ai=(ai or "")[:1000])

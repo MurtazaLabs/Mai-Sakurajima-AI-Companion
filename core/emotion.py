@@ -1,7 +1,7 @@
 # core/emotion.py
-import time
-import threading
 import logging
+import threading
+import time
 
 from app.config_loader import Settings
 from core.event_bus import EventBus
@@ -80,7 +80,12 @@ class Emotion:
         # 🧠 EMOTION PROFILES
         # ==================================================
 
-        from core.emotion_system import EmotionHistory, EmotionTriggerLog, find_closest_profile, EMOTION_PROFILES
+        from core.emotion_system import (
+            EMOTION_PROFILES,
+            EmotionHistory,
+            EmotionTriggerLog,
+            find_closest_profile,
+        )
         self.history = EmotionHistory()
         self.triggers = EmotionTriggerLog()
         self._find_closest_profile = find_closest_profile

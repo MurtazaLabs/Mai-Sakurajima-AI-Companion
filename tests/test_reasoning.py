@@ -4,10 +4,7 @@ import json
 import sys
 import tempfile
 import time
-import unittest
-from unittest.mock import MagicMock, patch
-
-import pytest
+from unittest.mock import MagicMock
 
 sys.path.insert(0, ".")
 
@@ -142,7 +139,6 @@ class TestThoughtJournal:
     def test_persist_incremental_append_and_legacy_array_load(self):
         """New entries append without rewriting the file (P-3); legacy
         JSON-array journals still load."""
-        import json
         from reasoning.journal import ThoughtJournal
         with tempfile.NamedTemporaryFile(
             mode="w", suffix=".json", delete=False, encoding="utf-8"
@@ -174,8 +170,9 @@ class TestThoughtJournal:
             os.unlink(path)
 
     def test_thread_safety(self):
-        from reasoning.journal import ThoughtJournal
         import threading
+
+        from reasoning.journal import ThoughtJournal
         j = ThoughtJournal()
         errors = []
 

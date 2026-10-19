@@ -1,5 +1,4 @@
-import pytest
-from unittest.mock import MagicMock, call
+from unittest.mock import MagicMock
 
 from voice import events
 from voice.metrics import VoiceMetrics
@@ -148,8 +147,8 @@ class TestVoiceMetrics:
         assert stats["wake_detections"] == 100
 
     def test_events_wired_in_voice_manager(self):
-        from voice.voice_manager import VoiceManager
         from core.event_bus import EventBus
+        from voice.voice_manager import VoiceManager
         eb = EventBus()
         published = []
         def capture(data):

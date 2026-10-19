@@ -4,8 +4,9 @@ Reads page HTML from ``api/static`` and renders it, or returns a fallback
 error page when a page is missing. Used by ``api.server`` to mount the
 dashboard routes.
 """
-import os
 import logging
+import os
+
 from fastapi.responses import HTMLResponse
 
 logger = logging.getLogger("api.server")

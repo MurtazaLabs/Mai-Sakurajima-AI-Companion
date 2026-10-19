@@ -1,8 +1,6 @@
 """Desktop application shell tests (run_daemon, app window, tray, startup)."""
 import socket
 
-import pytest
-
 
 class TestPortProbe:
     def test_port_in_use_true_when_bound(self):
@@ -97,6 +95,7 @@ class TestStartup:
     def test_default_exe_prefers_pythonw(self):
         import sys
         from pathlib import Path
+
         from native.startup import StartupManager
         pythonw = Path(sys.executable).parent / "pythonw.exe"
         exe = StartupManager._default_exe()

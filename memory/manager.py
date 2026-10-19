@@ -11,9 +11,9 @@ Migration status (Phase 3 of 3):
 - Phase 3: ➡ MemoryManager.pipeline.store() is now the primary write path;
            old Memory.store() is the fallback when no pipeline is configured.
 """
-import time
 import logging
 import threading
+import time
 
 from core.event_bus import EventBus
 

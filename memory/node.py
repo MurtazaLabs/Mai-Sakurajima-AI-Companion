@@ -1,8 +1,7 @@
 # Mai_ai/memory/node.py
+import logging
 import time
 import uuid
-import threading
-import logging
 
 from app.config_loader import Settings
 

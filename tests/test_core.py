@@ -1,22 +1,18 @@
-import io
 import json
-import os
 import tempfile
 import time
 from pathlib import Path
-from unittest.mock import MagicMock, patch, call, mock_open, PropertyMock
+from unittest.mock import MagicMock, patch
 
 import pytest
 
 from core.state.models import (
-    EmotionState,
-    RelationshipValues,
-    EvidenceModel,
-    GoalState,
     AttentionState,
+    EmotionState,
+    GoalState,
+    RelationshipValues,
     RuntimeStateFields,
 )
-
 
 # ──────────────────────────────────────────────
 #  State Models
@@ -390,8 +386,8 @@ class TestRelationshipEngineV2:
 
     def test_recalculate_derived_scores_applies_evidence(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            from core.state.shared_state import SharedState
             from core.state.relationship import RelationshipEngineV2
+            from core.state.shared_state import SharedState
 
             with patch("core.state.shared_state.EvidenceDB") as mock_db_cls:
                 mock_db = MagicMock()
@@ -417,9 +413,8 @@ class TestRelationshipEngineV2:
 
     def test_recalculate_derived_scores_empty_evidence(self):
         with tempfile.TemporaryDirectory() as tmpdir:
-            from core.state.db import EvidenceDB
-            from core.state.shared_state import SharedState
             from core.state.relationship import RelationshipEngineV2
+            from core.state.shared_state import SharedState
 
             with patch("core.state.shared_state.EvidenceDB") as mock_db_cls:
                 mock_db = MagicMock()
@@ -435,34 +430,29 @@ class TestRelationshipEngineV2:
                 assert state.relationship_scores.comfort == 0.5
 
     def test_extract_json_direct(self):
-        from core.state.relationship import RelationshipEngineV2
         eng = self._make()
 
         result = eng._extract_json('{"key": "value"}')
         assert result == {"key": "value"}
 
     def test_extract_json_from_text(self):
-        from core.state.relationship import RelationshipEngineV2
         eng = self._make()
 
         result = eng._extract_json('Some text {"key": "value"} more text')
         assert result == {"key": "value"}
 
     def test_extract_json_none(self):
-        from core.state.relationship import RelationshipEngineV2
         eng = self._make()
 
         assert eng._extract_json(None) == {}
         assert eng._extract_json("") == {}
 
     def test_extract_json_no_braces(self):
-        from core.state.relationship import RelationshipEngineV2
         eng = self._make()
 
         assert eng._extract_json("not json at all") == {}
 
     def test_extract_json_nested_braces(self):
-        from core.state.relationship import RelationshipEngineV2
         eng = self._make()
 
         result = eng._extract_json('{"outer": {"inner": "value"}}')
@@ -800,9 +790,10 @@ class TestAIOSKernel:
     def test_identify_skipped_when_not_ready(self, mock_identity, mock_wg,
                                               mock_auto, mock_sched, mock_idle,
                                               mock_cog, mock_attn):
-        import sys
-        import numpy as np
         from unittest.mock import MagicMock
+
+        import numpy as np
+
         from core.os_kernel import AIOSKernel
 
         brain = MagicMock()

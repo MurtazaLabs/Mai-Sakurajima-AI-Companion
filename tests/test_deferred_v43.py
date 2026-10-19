@@ -1,7 +1,5 @@
-import time
-import uuid
 import logging
-import pytest
+
 import numpy as np
 
 logging.basicConfig(level=logging.DEBUG)
@@ -418,9 +416,10 @@ class TestVoiceManagerIntegration:
         assert hasattr(vm.emotion_detector, 'detect')
 
     def test_voice_manager_passes_emotion_to_event(self):
-        from voice.voice_manager import VoiceManager
-        from voice.voice_event import VoiceEvent
         import numpy as np
+
+        from voice.voice_event import VoiceEvent
+        from voice.voice_manager import VoiceManager
         vm = VoiceManager(sample_rate=16000, stt=None)
         vm._ensure_components()
         audio = np.sin(np.linspace(0, 2 * np.pi * 440, 16000)).astype(np.float32)
@@ -430,11 +429,11 @@ class TestVoiceManagerIntegration:
         assert event.emotion["label"] == "happy"
 
     def test_voice_manager_with_explicit_new_components(self):
-        from voice.voice_manager import VoiceManager
         from voice.adaptive_noise_filter import AdaptiveNoiseFilter
-        from voice.full_aec import FullAEC
-        from voice.emotion_detector import VoiceEmotionDetector
         from voice.diarization import DiarizationEngine
+        from voice.emotion_detector import VoiceEmotionDetector
+        from voice.full_aec import FullAEC
+        from voice.voice_manager import VoiceManager
         anf = AdaptiveNoiseFilter(sample_rate=16000)
         aec = FullAEC(sample_rate=16000)
         ed = VoiceEmotionDetector(sample_rate=16000)
@@ -452,9 +451,10 @@ class TestVoiceManagerIntegration:
         assert vm.diarization_engine is de
 
     def test_send_playback_audio_uses_full_aec(self):
-        from voice.voice_manager import VoiceManager
-        from voice.full_aec import FullAEC
         import numpy as np
+
+        from voice.full_aec import FullAEC
+        from voice.voice_manager import VoiceManager
         aec = FullAEC(sample_rate=16000)
         vm = VoiceManager(sample_rate=16000, full_aec=aec)
         audio = np.random.randn(512).astype(np.float32)
@@ -471,15 +471,15 @@ class TestVoiceManagerIntegration:
 
 class TestMemoryHierarchyIntegration:
     def test_pipeline_accepts_memory_hierarchy(self):
-        from memory.pipeline import MemoryPipeline
         from memory.hierarchy import MemoryHierarchy
+        from memory.pipeline import MemoryPipeline
         mh = MemoryHierarchy()
         pipeline = MemoryPipeline(memory_hierarchy=mh)
         assert pipeline.memory_hierarchy is mh
 
     def test_pipeline_store_feeds_hierarchy(self):
-        from memory.pipeline import MemoryPipeline
         from memory.hierarchy import MemoryHierarchy
+        from memory.pipeline import MemoryPipeline
         from memory.schema import MemoryObject
         mh = MemoryHierarchy()
         pipeline = MemoryPipeline(memory_hierarchy=mh)

@@ -1,7 +1,7 @@
 import json
 import logging
 import re
-from typing import Any, Optional
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +23,7 @@ _STOPWORDS = frozenset({
     "all", "each", "every", "both", "few", "more", "most", "other",
     "some", "such", "no", "nor", "not", "only", "own", "same",
     "so", "than", "too", "very", "just", "also", "now",
-    "yes", "no", "ok", "okay", "hey", "hi", "hello", "thanks",
+    "yes", "ok", "okay", "hey", "hi", "hello", "thanks",
     "thank", "please", "sorry",
 })
 
@@ -51,8 +51,8 @@ Text:
 
 class EntityExtractor:
 
-    def __init__(self, llm: Optional[Any] = None):
-        self.llm: Optional[Any] = llm
+    def __init__(self, llm: Any | None = None):
+        self.llm: Any | None = llm
 
     def extract(self, text):
         if self.llm:

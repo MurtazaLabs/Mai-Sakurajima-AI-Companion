@@ -1,7 +1,7 @@
 # core/scheduler.py
+import logging
 import threading
 import time
-import logging
 import traceback
 
 from app.config_loader import Settings

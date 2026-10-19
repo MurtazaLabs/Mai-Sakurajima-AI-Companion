@@ -1,22 +1,20 @@
 """
 Tests for Plugin Signing and Verification
 """
-import pytest
-import tempfile
-import os
-import time
-from pathlib import Path
-from plugins.signing import (
-    PluginSigner, PluginVerifier, verify_plugin_package, 
-    PluginSignatureManager, PluginSigner, PluginVerifier
-)
-from plugins.plugin_manifest import PluginManifest, PluginPermission, PluginDependency
-import tempfile
-import zipfile
 import json
-import base64
-from cryptography.hazmat.primitives import serialization
+import tempfile
 import zipfile
+from pathlib import Path
+
+import pytest
+from cryptography.hazmat.primitives import serialization
+
+from plugins.signing import (
+    PluginSignatureManager,
+    PluginSigner,
+    PluginVerifier,
+    verify_plugin_package,
+)
 
 
 class TestPluginSigner:
@@ -49,10 +47,8 @@ class TestPluginSigner:
     
     def test_sign_and_verify_package(self):
         """Test creating and verifying a signed package."""
-        import zipfile
         import json
         import tempfile
-        import shutil
         
         # Create a temporary plugin directory with manifest
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -110,10 +106,8 @@ class TestPluginSigner:
     
     def test_signature_verification_fails_on_tampering(self):
         """Test that tampered packages fail verification."""
-        import zipfile
         import json
         import tempfile
-        import shutil
         
         with tempfile.TemporaryDirectory() as tmpdir:
             plugin_dir = Path(tmpdir) / "test_plugin"
@@ -175,7 +169,6 @@ class TestPluginVerifier:
     
     def test_verify_package_integrity(self):
         """Test package integrity verification without signature."""
-        import zipfile
         import tempfile
         
         with tempfile.TemporaryDirectory() as tmpdir:
@@ -233,7 +226,6 @@ class TestPluginSignatureManager:
     
     def test_add_and_verify_trusted_key(self):
         """Test adding and using trusted keys."""
-        import tempfile
         
         with tempfile.TemporaryDirectory() as tmpdir:
             keys_dir = Path(tmpdir) / "keys"
@@ -303,7 +295,6 @@ class TestPluginSignatureManager:
     
     def test_untrusted_key_rejected(self):
         """Test that untrusted keys are rejected."""
-        import tempfile
         
         with tempfile.TemporaryDirectory() as tmpdir:
             keys_dir = Path(tmpdir) / "keys"

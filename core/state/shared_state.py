@@ -1,12 +1,17 @@
 # core/state/shared_state.py
 import json
-import threading
 import logging
+import threading
 from pathlib import Path
-from core.state.models import (
-    EmotionState, RelationshipValues, GoalState, AttentionState, RuntimeStateFields
-)
+
 from core.state.db import EvidenceDB
+from core.state.models import (
+    AttentionState,
+    EmotionState,
+    GoalState,
+    RelationshipValues,
+    RuntimeStateFields,
+)
 
 logger = logging.getLogger("Mai.SharedState")
 

@@ -5,34 +5,43 @@ Topic constants are the semantic ``data.voice.*`` names declared in
 existing ``from voice.events import VOICE_STARTED`` imports keep working.
 """
 from core.event_specs import (
-    VOICE_STARTED,
-    VOICE_STOPPED,
-    VOICE_STATE_CHANGED,
+    STATE_VOICE_IDLE,
+    STATE_VOICE_LISTENING,
+    STATE_VOICE_SPEAKING,
+    STATE_VOICE_WAKE,
+    VOICE_ERROR,
     VOICE_LISTENING_STARTED,
     VOICE_RECORDING_COMPLETED,
+    VOICE_RETURNED,
     VOICE_SPEAKER_IDENTIFIED,
+    VOICE_STARTED,
+    VOICE_STATE_CHANGED,
+    VOICE_STOPPED,
     VOICE_TRANSCRIPTION_COMPLETED,
     VOICE_WAKE_DETECTED,
     # Fired once when VoiceManager detects a wake word during idle listening.
     # Published for observability — kernel polls WakeWord (which reads
     # VoiceManager._wake_event) rather than subscribing to this event.
     VOICE_WAKE_FOUND,
-    VOICE_RETURNED,
-    VOICE_ERROR,
-    STATE_VOICE_LISTENING,
-    STATE_VOICE_SPEAKING,
-    STATE_VOICE_IDLE,
-    STATE_VOICE_WAKE,
 )
 from core.mai_message import publish_event
 
 __all__ = [
-    "VOICE_STARTED", "VOICE_STOPPED", "VOICE_STATE_CHANGED",
-    "VOICE_LISTENING_STARTED", "VOICE_RECORDING_COMPLETED",
-    "VOICE_SPEAKER_IDENTIFIED", "VOICE_TRANSCRIPTION_COMPLETED",
-    "VOICE_WAKE_DETECTED", "VOICE_WAKE_FOUND", "VOICE_RETURNED", "VOICE_ERROR",
-    "STATE_VOICE_LISTENING", "STATE_VOICE_SPEAKING", "STATE_VOICE_IDLE",
+    "STATE_VOICE_IDLE",
+    "STATE_VOICE_LISTENING",
+    "STATE_VOICE_SPEAKING",
     "STATE_VOICE_WAKE",
+    "VOICE_ERROR",
+    "VOICE_LISTENING_STARTED",
+    "VOICE_RECORDING_COMPLETED",
+    "VOICE_RETURNED",
+    "VOICE_SPEAKER_IDENTIFIED",
+    "VOICE_STARTED",
+    "VOICE_STATE_CHANGED",
+    "VOICE_STOPPED",
+    "VOICE_TRANSCRIPTION_COMPLETED",
+    "VOICE_WAKE_DETECTED",
+    "VOICE_WAKE_FOUND",
 ]
 
 

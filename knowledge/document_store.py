@@ -1,10 +1,9 @@
-import os
-import time
-import json
 import hashlib
+import json
 import logging
+import os
 import threading
-from typing import Optional
+import time
 
 logger = logging.getLogger(__name__)
 
@@ -40,8 +39,8 @@ class DocumentRecord:
 
 class DocumentStore:
 
-    def __init__(self, path: Optional[str] = None):
-        self.path: Optional[str] = path
+    def __init__(self, path: str | None = None):
+        self.path: str | None = path
         self._lock = threading.RLock()
         self._records = {}
         self._dirty = False

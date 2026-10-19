@@ -1,6 +1,4 @@
-import json
 import logging
-from typing import Optional, Any
 
 from core.utils import TimeOfDay, UserMood
 
@@ -127,8 +125,8 @@ class BrainRouter:
             "mode": "agent",
         }, source="cognition")
         self.post_think_hooks(user_input, agent_result, self.memory_coordinator.get_structured())
-        from core.style_filter import apply_style
         from core.brain import Brain
+        from core.style_filter import apply_style
         generation_input = (
             f"{Brain._delimit_user_input(user_input)}\n\n"
             f"[Agent task completed — summarize the outcome naturally in your own voice]\n"

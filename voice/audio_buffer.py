@@ -1,5 +1,6 @@
-import numpy as np
 import threading
+
+import numpy as np
 
 
 class AudioBuffer:
@@ -34,13 +35,11 @@ class AudioBuffer:
         if n <= 0:
             return np.array([], dtype=np.float32)
         with self._lock:
-            if n > self.max_samples:
-                n = self.max_samples
+            n = min(n, self.max_samples)
             if not self._full and self._pos == 0:
                 return np.array([], dtype=np.float32)
             available = self._pos if not self._full else self.max_samples
-            if available < n:
-                n = available
+            n = min(n, available)
             if n == 0:
                 return np.array([], dtype=np.float32)
             start = self._pos - n

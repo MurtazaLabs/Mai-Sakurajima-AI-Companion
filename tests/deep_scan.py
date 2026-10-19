@@ -1,4 +1,7 @@
-import sys, os, re, ast
+import os
+import re
+import sys
+
 sys.path.insert(0, r'E:\Mai_ai')
 
 print('=== DEEP CODE SCAN ===')
@@ -77,7 +80,7 @@ for root, dirs, files in os.walk(r'E:\Mai_ai'):
                     if lock_acquires > lock_releases:
                         issues.append(f'{rel}: Lock acquire/release imbalance: {lock_acquires} acquires, {lock_releases} releases')
 
-            except Exception as e:
+            except Exception:
                 pass
 
 print('=== DEEP SCAN COMPLETE ===')

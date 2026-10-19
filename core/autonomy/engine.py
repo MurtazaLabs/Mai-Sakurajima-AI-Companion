@@ -1,8 +1,8 @@
 # core/autonomy/engine.py
 import logging
-import time
 import random
 import threading
+import time
 
 logger = logging.getLogger("Mai.Autonomy")
 

@@ -2,28 +2,23 @@
 Plugin Dependency Resolution with Semantic Versioning
 Provides full semantic version resolution with conflict detection.
 """
-from typing import List, Dict, Set, Tuple, Optional
 from dataclasses import dataclass, field
-from enum import Enum
-from packaging.version import Version, parse
+from typing import Optional
+
 from packaging.specifiers import SpecifierSet
-from packaging.requirements import Requirement
-import re
+from packaging.version import Version, parse
 
 
 class DependencyResolutionError(Exception):
     """Raised when dependency resolution fails."""
-    pass
 
 
 class VersionConflictError(DependencyResolutionError):
     """Raised when version conflicts are detected."""
-    pass
 
 
 class CircularDependencyError(DependencyResolutionError):
     """Raised when circular dependencies are detected."""
-    pass
 
 
 @dataclass
@@ -39,9 +34,9 @@ class ResolvedDependency:
 class DependencyNode:
     """Node in the dependency graph."""
     manifest: "PluginManifest"
-    dependencies: List["DependencyNode"] = field(default_factory=list)
-    dependents: List["DependencyNode"] = field(default_factory=list)
-    resolved_version: Optional[str] = None
+    dependencies: list["DependencyNode"] = field(default_factory=list)
+    dependents: list["DependencyNode"] = field(default_factory=list)
+    resolved_version: str | None = None
     state: str = "pending"  # pending, resolved, failed
 
 
@@ -53,7 +48,7 @@ class DependencyResolver:
     
     def __init__(self, registry: Optional["PluginRegistry"] = None):
         self.registry = registry
-        self._version_cache: Dict[str, Version] = {}
+        self._version_cache: dict[str, Version] = {}
     
     def parse_version(self, version_str: str) -> Version:
         """Parse version string with caching."""
@@ -79,7 +74,7 @@ class DependencyResolver:
         except Exception:
             return False
     
-    def get_best_version(self, available_versions: List[str], specifier: str) -> Optional[str]:
+    def get_best_version(self, available_versions: list[str], specifier: str) -> str | None:
         """Find the best matching version from available versions."""
         spec = self._parse_specifier(specifier)
         matching = []
@@ -99,9 +94,9 @@ class DependencyResolver:
     def resolve_dependencies(
         self, 
         manifest: "PluginManifest",
-        installed_plugins: Dict[str, "PluginManifest"],
-        available_packages: Dict[str, List[str]] = None
-    ) -> List[ResolvedDependency]:
+        installed_plugins: dict[str, "PluginManifest"],
+        available_packages: dict[str, list[str]] = None
+    ) -> list[ResolvedDependency]:
         """
         Resolve all dependencies for a plugin manifest.
         
@@ -121,7 +116,7 @@ class DependencyResolver:
         visited = set()
         path = set()
         
-        def resolve(dep_name: str, constraint: str, path: Set[str]) -> ResolvedDependency:
+        def resolve(dep_name: str, constraint: str, path: set[str]) -> ResolvedDependency:
             if dep_name in path:
                 raise CircularDependencyError(f"Circular dependency detected: {' -> '.join(path)} -> {dep_name}")
             
@@ -183,7 +178,7 @@ class DependencyResolver:
             try:
                 resolved = resolve(dep.name, dep.version, set())
                 results.append(resolved)
-            except (VersionConflictError, CircularDependencyError) as e:
+            except (VersionConflictError, CircularDependencyError):
                 raise
             except Exception as e:
                 if not dep.optional:
@@ -198,7 +193,7 @@ class DependencyGraph:
     """Manages the dependency graph for installed plugins."""
     
     def __init__(self):
-        self.nodes: Dict[str, DependencyNode] = {}
+        self.nodes: dict[str, DependencyNode] = {}
         self._lock = threading.RLock()
     
     def add_plugin(self, manifest: "PluginManifest") -> DependencyNode:
@@ -239,7 +234,7 @@ class DependencyGraph:
                 if from_node not in to_node.dependents:
                     to_node.dependents.append(from_node)
     
-    def check_circular(self, start: str, target: str, visited: Set[str] = None) -> bool:
+    def check_circular(self, start: str, target: str, visited: set[str] = None) -> bool:
         """Check if adding an edge would create a cycle."""
         if visited is None:
             visited = set()
@@ -260,7 +255,7 @@ class DependencyGraph:
         
         return False
     
-    def get_install_order(self) -> List[str]:
+    def get_install_order(self) -> list[str]:
         """Get topological sort for installation order (dependencies first)."""
         with self._lock:
             # Kahn's algorithm for topological sort
@@ -287,7 +282,7 @@ class DependencyGraph:
             
             return result
     
-    def get_affected_plugins(self, name: str) -> Set[str]:
+    def get_affected_plugins(self, name: str) -> set[str]:
         """Get all plugins that depend on the given plugin (transitively)."""
         affected = set()
         
@@ -303,7 +298,7 @@ class DependencyGraph:
         return affected
     
     def check_conflicts(self, new_manifest: "PluginManifest", 
-                       installed_plugins: Dict[str, "PluginManifest"]) -> List[str]:
+                       installed_plugins: dict[str, "PluginManifest"]) -> list[str]:
         """Check for conflicts when installing a new plugin."""
         conflicts = []
         

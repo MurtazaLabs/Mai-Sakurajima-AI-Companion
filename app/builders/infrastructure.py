@@ -6,13 +6,13 @@ import app.config_loader as cfg
 from app.metadata import tag_service
 from core.event_bus import EventBus
 from core.event_bus_redis import RedisEventBus
-from core.state.shared_state import SharedState
+from core.session_manager import create_session_manager
 from core.state.redis_state import RedisSharedState
 from core.state.relationship import RelationshipEngineV2
+from core.state.shared_state import SharedState
 from core.write_journal import WriteJournal
-from core.session_manager import create_session_manager
-from observability.health import HealthRegistry
 from llm.manager import LLMManager
+from observability.health import HealthRegistry
 
 logger = logging.getLogger("Mai")
 

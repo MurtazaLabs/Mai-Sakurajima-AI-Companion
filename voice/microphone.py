@@ -1,7 +1,5 @@
-import time
 import logging
 import threading
-import numpy as np
 
 from config.voice import MICROPHONE_DEVICE
 

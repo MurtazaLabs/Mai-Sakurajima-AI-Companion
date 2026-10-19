@@ -1,12 +1,12 @@
-import time
-import threading
 import logging
+import threading
+import time
 
 from app.config_loader import (
+    EXECUTOR_BLOCKED_COMMANDS,
     EXECUTOR_COOLDOWN,
     EXECUTOR_MIN_CONFIDENCE,
     EXECUTOR_MODE,
-    EXECUTOR_BLOCKED_COMMANDS,
 )
 
 logger = logging.getLogger(__name__)
@@ -68,8 +68,8 @@ class SafeExecutor:
             self._log(action, "success")
             return result
         except Exception as e:
-            self._log(action, f"error:{str(e)}")
-            return f"[Execution error: {str(e)}]"
+            self._log(action, f"error:{e!s}")
+            return f"[Execution error: {e!s}]"
 
     _SHELL_METACHARACTERS = set(";&|`$><\n(){}[]*?!\n\\")
 

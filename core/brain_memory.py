@@ -1,5 +1,6 @@
 import logging
-from core.utils import safe_call, safe_attr
+
+from core.utils import safe_attr, safe_call
 
 logger = logging.getLogger(__name__)
 
