@@ -96,3 +96,15 @@ completion event) was audited 1:1 in the Oct 6 event-fabric alignment and remain
 ### 5. Full-suite validation (recorded)
 - Baseline before the verification pass: **1,977 passed / 2 skipped** (2m51s, mai_env)
 - After SSRF guard + symlink + hook/concurrency proofs: **1,986 passed / 2 skipped / 0 failures** (1m46s, mai_env) - +9 tests, zero regressions.
+
+### 1b. DNS-to-connected-peer + proxy non-bypass (same day, auditor hardening point)
+
+The auditor flagged that pre-connect DNS validation is vulnerable to rebinding/time-of-check divergence (urllib performs its own resolution at connect time) and that proxy configuration could route around the policy. BOTH closed in plugins/web_scraper/web_scraper.py:
+
+- assert_public_peer(resp) - fail-closed post-open check of the CONNECTED peer IP (resp.fp.raw.sock.getpeername() through _connected_peer_ip()); private/loopback/link-local/reserved/multicast peer -> abort before the body is read; unverifiable peer -> abort. Redirect targets stay revalidated (_SafeRedirectHandler), initial target stays fail-fast (require_public_target).
+- Opener now built with ProxyHandler({}) - env/system proxies disabled for scraper fetches, so a proxy host cannot smuggle the request past the SSRF policy.
+- MAI_SCRAPER_ALLOW_PRIVATE=1 skips both the pre-connect and peer checks (dev opt-in unchanged).
+
++4 tests (TestConnectedPeer): private peer aborts, unverifiable peer fails closed, public peer passes, empty ProxyHandler present in opener chain. Full-suite gate: 1,990 passed / 2 skipped / 0 failures in 1m45s under mai_env (baseline for this hardening: 1,986 + 4).
+
+Tracked residual risks (deliberate, documented): (1) in-process eval() is not a secure sandbox - env-gated, first-party only, untrusted code on run_subprocess(); (2) symlink resolve-then-open TOCTOU is inherent to in-process resolvers - OS-level handle-based ops recommended if a concurrently-modifying attacker enters the threat model.

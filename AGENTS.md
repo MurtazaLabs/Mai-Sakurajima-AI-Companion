@@ -1651,3 +1651,13 @@ External review demanded independent verification beyond the fix report. All fiv
 5. Full-suite gate re-run: 1,986 passed / 2 skipped / 0 failures in 1m46s under mai_env (baseline 1,977 + 9).
 
 Tooling notes: PS 5.1 Add-Content double-quote strings interpret backtick-t as tab (PowerShell escape) - test names in docs written without inline backticks or via single-quoted strings; one mangled line in the report doc repaired.
+
+## DNS-Peer Hardening - Sprint Truly Closed - Oct 19 2026
+
+Auditor verdict: remediation sprint successful (1,986 passed / 2 skipped evidence accepted with the caveat they were self-reported), two residual risks confirmed as tracked security work. Third hardening point implemented same day, not deferred.
+
+1. Connected-peer TOCTOU guard - plugins/web_scraper/web_scraper.py assert_public_peer(): after opener.open(), extracts the ACTUAL connected peer IP (resp.fp.raw.sock.getpeername()) and fails closed unless provably public; private peer -> "Connected to non-public peer" abort BEFORE body read; unverifiable peer -> "Could not verify connected peer IP" abort. Complements (not replaces) the fail-fast require_public_target() and per-redirect revalidation, covering DNS rebinding between check and connect.
+2. Proxy bypass closed - scraper opener built with ProxyHandler({}): env/system proxies disabled for these fetches so no proxy host can route around the SSRF policy.
+3. Gate: tests/test_web_scraper.py TestConnectedPeer +4 (private peer aborts, unverifiable fails closed, public passes, empty ProxyHandler in opener chain); scraper now 21 tests. Full suite 1,990 passed / 2 skipped / 0 failures, 1m45s, mai_env.
+
+Residuals officially tracked (report doc, Independent Verification section 1b): in-process eval() not a sandbox (env-gated, first-party only, run_subprocess() for untrusted); symlink resolve-then-open TOCTOU (inherent; OS handle-based ops if attacker-concurrent threat model lands). No further security work queued beyond these two - original bug-audit sprint CLOSED.

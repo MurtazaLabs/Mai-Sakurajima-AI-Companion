@@ -58,14 +58,29 @@ class TestExtractUrlIntent:
 
 class TestScrapeCaps:
 
+    @staticmethod
+    def _fake_resp(payload: bytes, content_type: str, ip: str = "93.184.216.34"):
+        """BytesIO fake shaped like an http.client response: the peer-guard
+        reads resp.fp.raw.sock.getpeername()."""
+
+        class _Sock:
+            def getpeername(self):
+                return (ip, 443)
+
+        class _Raw:
+            sock = _Sock()
+
+        class _FP:
+            raw = _Raw()
+
+        resp = io.BytesIO(payload)
+        resp.headers = {"Content-Type": content_type}
+        resp.fp = _FP()
+        return resp
+
     def test_oversized_body_capped(self, plugin, monkeypatch):
         big = b"<html><body>ok" + b"x" * (MAX_READ_BYTES + 10) + b"</body></html>"
-
-        class _FakeResp(io.BytesIO):
-            headers = {"Content-Type": "text/html"}
-
-        resp = _FakeResp(big)
-        resp.seek(0)
+        resp = self._fake_resp(big, "text/html")
 
         class _FakeOpener:
             def open(self, req, timeout=15):
@@ -82,11 +97,7 @@ class TestScrapeCaps:
         assert "exceeds" in out and "limit" in out
 
     def test_bad_content_type_not_fetched_into_text(self, plugin, monkeypatch):
-        class _FakeResp(io.BytesIO):
-            headers = {"Content-Type": "application/pdf"}
-
-        resp = _FakeResp(b"%PDF-1.4")
-        resp.seek(0)
+        resp = self._fake_resp(b"%PDF-1.4", "application/pdf")
 
         class _FakeOpener:
             def open(self, req, timeout=15):
@@ -170,3 +181,95 @@ class TestSSRFGuard:
         )
         out = plugin._scrape("http://127.0.0.1:8000/status")
         assert "Content from" in out
+
+
+class TestConnectedPeer:
+    """Connected-peer TOCTOU guard: assert_public_peer() re-checks the IP the
+    socket actually connected to, after every pre-connect DNS validation."""
+
+    def test_private_peer_aborts(self, plugin, monkeypatch):
+        resp = TestScrapeCaps._fake_resp(
+            b"<html><body>secret</body></html>", "text/html", ip="10.0.0.5"
+        )
+
+        class _FakeOpener:
+            def open(self, req, timeout=15):
+                return resp
+
+        monkeypatch.setattr(
+            "plugins.web_scraper.web_scraper.require_public_target", lambda url: None
+        )
+        monkeypatch.setattr(
+            "plugins.web_scraper.web_scraper.urllib.request.build_opener",
+            lambda *a, **k: _FakeOpener(),
+        )
+        out = plugin._scrape("https://example.com/page")
+        assert "non-public peer" in out
+
+    def test_unverifiable_peer_fails_closed(self, plugin, monkeypatch):
+        resp = TestScrapeCaps._fake_resp(b"<html><body>ok</body></html>", "text/html")
+
+        class _DeadSock:
+            def getpeername(self):
+                raise OSError(10057, "Socket is not connected")
+
+        resp.fp.raw.sock = _DeadSock()
+
+        class _FakeOpener:
+            def open(self, req, timeout=15):
+                return resp
+
+        monkeypatch.setattr(
+            "plugins.web_scraper.web_scraper.require_public_target", lambda url: None
+        )
+        monkeypatch.setattr(
+            "plugins.web_scraper.web_scraper.urllib.request.build_opener",
+            lambda *a, **k: _FakeOpener(),
+        )
+        out = plugin._scrape("https://example.com/page")
+        assert "Could not verify connected peer IP" in out
+
+    def test_public_peer_passes(self, plugin, monkeypatch):
+        resp = TestScrapeCaps._fake_resp(
+            b"<html><body>hello world</body></html>", "text/html"
+        )
+
+        class _FakeOpener:
+            def open(self, req, timeout=15):
+                return resp
+
+        monkeypatch.setattr(
+            "plugins.web_scraper.web_scraper.require_public_target", lambda url: None
+        )
+        monkeypatch.setattr(
+            "plugins.web_scraper.web_scraper.urllib.request.build_opener",
+            lambda *a, **k: _FakeOpener(),
+        )
+        out = plugin._scrape("https://example.com/page")
+        assert "Content from" in out and "hello world" in out
+
+    def test_empty_proxy_handler_in_opener_chain(self, plugin, monkeypatch):
+        captured = {}
+
+        class _FakeOpener:
+            def open(self, req, timeout=15):
+                return TestScrapeCaps._fake_resp(
+                    b"<html><body>hi</body></html>", "text/html"
+                )
+
+        def fake_build(*handlers, **kwargs):
+            captured["handlers"] = handlers
+            return _FakeOpener()
+
+        monkeypatch.setattr(
+            "plugins.web_scraper.web_scraper.require_public_target", lambda url: None
+        )
+        monkeypatch.setattr(
+            "plugins.web_scraper.web_scraper.urllib.request.build_opener", fake_build
+        )
+        plugin._scrape("https://example.com/page")
+        proxies = [
+            h for h in captured["handlers"]
+            if isinstance(h, __import__("urllib.request", fromlist=["ProxyHandler"]).ProxyHandler)
+        ]
+        assert proxies and proxies[0].proxies == {}

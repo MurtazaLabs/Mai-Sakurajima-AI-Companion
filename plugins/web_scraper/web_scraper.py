@@ -72,6 +72,44 @@ def require_public_target(url: str) -> None:
         raise urllib.error.URLError(f"Blocked non-public target: {url}")
 
 
+def _ip_is_non_public(ip_str: str) -> bool:
+    try:
+        ip = ipaddress.ip_address(ip_str)
+    except ValueError:
+        return True
+    return (
+        ip.is_loopback
+        or ip.is_private
+        or ip.is_link_local
+        or ip.is_reserved
+        or ip.is_multicast
+        or ip.is_unspecified
+    )
+
+
+def _connected_peer_ip(resp) -> str | None:
+    """Best-effort extraction of the IP the connection was actually made to
+    (DNS-validation TOCTOU guard: the pre-connect getaddrinfo check does not
+    constrain urllib's own resolution or rebinding)."""
+    conn = getattr(getattr(resp, "fp", None), "raw", None)
+    sock = getattr(conn, "sock", None)
+    try:
+        return sock.getpeername()[0]
+    except (AttributeError, OSError, IndexError, TypeError):
+        return None
+
+
+def assert_public_peer(resp) -> None:
+    """Fail closed: abort unless the CONNECTED peer IP is provably public."""
+    if _private_targets_allowed():
+        return
+    ip = _connected_peer_ip(resp)
+    if ip is None:
+        raise urllib.error.URLError("Could not verify connected peer IP")
+    if _ip_is_non_public(ip):
+        raise urllib.error.URLError(f"Connected to non-public peer: {ip}")
+
+
 class _SafeRedirectHandler(urllib.request.HTTPRedirectHandler):
     """Block redirects to non-http(s) schemes (file:, ftp:, data: ...) and to
     non-public destinations (SSRF guard)."""
@@ -161,8 +199,14 @@ class WebScraperPlugin(Plugin):
                     "Accept": "text/html,application/xhtml+xml",
                 },
             )
-            opener = urllib.request.build_opener(_SafeRedirectHandler)
-            with opener.open(req, timeout=15) as resp:
+            # ProxyHandler({}) disables env/config proxies for this fetch so a
+            # proxy host cannot route the request past the SSRF policy.
+            opener = urllib.request.build_opener(
+                _SafeRedirectHandler, urllib.request.ProxyHandler({})
+            )
+            resp = opener.open(req, timeout=15)
+            assert_public_peer(resp)
+            with resp:
                 content_type = resp.headers.get("Content-Type", "")
                 if "text/html" not in content_type:
                     return f"Cannot extract text from non-HTML content ({content_type})"
