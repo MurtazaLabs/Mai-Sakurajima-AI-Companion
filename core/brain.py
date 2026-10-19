@@ -919,8 +919,7 @@ class Brain:
             # Wrapped thread safe stream handler to disable flag on closure
             def stream_wrapper(inner_stream):
                 try:
-                    for chunk in inner_stream:
-                        yield chunk
+                    yield from inner_stream
                 finally:
                     with self.state.lock:
                         self.state.runtime.is_thinking = False

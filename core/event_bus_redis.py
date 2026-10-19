@@ -444,7 +444,7 @@ class RedisEventBus:
             return
         try:
             # Subscribe to all registered topics
-            for topic in self.registry._specs.keys():
+            for topic in self.registry._specs:
                 self._subscribe_to_redis(topic)
         except Exception as e:
             logger.warning("[RedisEventBus] Failed to init pubsub: %s", e)
@@ -542,20 +542,7 @@ class RedisEventBus:
             if value is not None:
                 yield value
 
-    # ── Lifecycle ────────────────────────────────────────────────
-    def shutdown(self, timeout: float = 2.0) -> None:
-        self._pool.shutdown(timeout=timeout)
-        if self._redis:
-            try:
-                self._redis.close()
-            except Exception:
-                pass
-
-    def __repr__(self):
-        return f"<RedisEventBus subs={sum(len(v) for v in self._subscribers.values())} traces={len(self._traces)} redis={'on' if self._redis_available else 'off'}>"
-
-
-# ── Subscribers ──────────────────────────────────────────────
+    # ── Subscribers ──────────────────────────────────────────────
 
     def subscribe(self, topic, handler, receive_message=False, versions=None):
         if not callable(handler):
@@ -681,7 +668,7 @@ class RedisEventBus:
             error = f"{len(handler_failures)} handler(s) failed: {handler_failures[0]}"
             self._record(msg, attempt, "FAILED", error, sub_names, 0.0, execution,
                          handler_times=handler_times, handler_failures=handler_failures)
-            return "FAILED", e, results
+            return "FAILED", RuntimeError(error), results
         self._record(msg, attempt, "SUCCESS", None, sub_names, 0.0, execution,
                      handler_times=handler_times, handler_failures=handler_failures)
         return "SUCCESS", None, results

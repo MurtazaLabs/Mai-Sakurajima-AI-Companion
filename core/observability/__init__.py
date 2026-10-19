@@ -14,9 +14,9 @@ from .opentelemetry_tracing import (
     init_tracing,
     inject_trace_context,
     record_exception,
-    record_llm_request,
-    record_memory_operation,
-    record_tool_execution,
+    # NOTE: record_llm_request / record_memory_operation / record_tool_execution
+    # intentionally come from prometheus_metrics below (same names shadowed;
+    # __all__ lists the Prometheus implementations as the public surface).
     set_trace_id,
     setup_tracing_middleware,
     trace_function,

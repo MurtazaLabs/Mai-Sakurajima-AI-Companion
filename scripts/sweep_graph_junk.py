@@ -40,7 +40,7 @@ def main():
 
     vault = Path(OBSIDIAN_VAULT)
     graph = KnowledgeGraph()
-    graph_manager = GraphManager(graph=graph)
+    GraphManager(graph=graph)
     graph_path = vault / "graph"
 
     # Rebuild the graph from exported notes if a graph.json exists

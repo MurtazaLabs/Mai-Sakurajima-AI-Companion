@@ -52,7 +52,6 @@ def build(app):
 
     app.stt = FasterWhisperSTT()
 
-    deferred_ok = True
     try:
         if cfg.voice_config.ADAPTIVE_NOISE_ENABLED:
             from voice.adaptive_noise_filter import AdaptiveNoiseFilter
@@ -97,7 +96,6 @@ def build(app):
         logger.info("    ✓ DiarizationEngine")
     except Exception as e:
         logger.warning("    Deferred voice components: %s", e)
-        deferred_ok = False
 
     logger.info("    Building VoiceManager...")
     try:

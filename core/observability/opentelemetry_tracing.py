@@ -6,6 +6,7 @@ import importlib
 import logging
 import os
 from contextvars import ContextVar
+from functools import wraps
 
 from opentelemetry import trace
 from opentelemetry.exporter.otlp.proto.grpc.trace_exporter import OTLPSpanExporter
@@ -158,12 +159,12 @@ def trace_function(name: str, attributes: dict = None):
     def decorator(func):
         @wraps(func)
         async def async_wrapper(*args, **kwargs):
-            with tracer.start_as_current_span(name, attributes=attributes) as span:
+            with tracer.start_as_current_span(name, attributes=attributes):
                 return await func(*args, **kwargs)
         
         @wraps(func)
         def sync_wrapper(*args, **kwargs):
-            with tracer.start_as_current_span(name, attributes=attributes) as span:
+            with tracer.start_as_current_span(name, attributes=attributes):
                 return func(*args, **kwargs)
         
         import asyncio
@@ -351,39 +352,6 @@ def record_memory_operation(operation: str, duration_ms: float, success: bool = 
     record_memory_operation(operation, "success" if success else "error", duration_ms / 1000.0)
 
 
-def record_tool_execution(tool_name: str, duration_ms: float, success: bool = True, error: str = None):
-    """Record tool execution metrics and tracing."""
-    from opentelemetry import trace
-
-    from core.observability.prometheus_metrics import record_tool_execution
-    
-    span = trace.get_current_span()
-    if span:
-        span.set_attribute("tool.name", tool_name)
-        span.set_attribute("tool.duration_ms", duration_ms)
-        span.set_attribute("tool.success", success)
-        if error:
-            span.set_attribute("tool.error", error)
-            span.set_status(trace.Status(trace.StatusCode.ERROR, error))
-    
-    record_tool_execution(tool_name, duration_ms / 1000.0, success=success, error=error)
-
-
-def record_memory_operation(operation: str, duration_ms: float, success: bool = True):
-    """Record memory operation metrics and tracing."""
-    from opentelemetry import trace
-
-    from core.observability.prometheus_metrics import record_memory_operation
-    
-    span = trace.get_current_span()
-    if span:
-        span.set_attribute("memory.operation", operation)
-        span.set_attribute("memory.duration_ms", duration_ms)
-        span.set_attribute("memory.success", success)
-    
-    record_memory_operation(operation, "success" if success else "error", duration_ms / 1000.0)
-
-
 def init_observability(
     service_name: str = "mai-ai",
     otlp_endpoint: str = None,
@@ -443,7 +411,6 @@ def setup_tracing_middleware(app):
 # Export key functions and classes
 __all__ = [
     "SpanAttributes",
-    "TraceAttributes",
     "add_span_attributes",
     "add_span_event",
     "extract_trace_context",

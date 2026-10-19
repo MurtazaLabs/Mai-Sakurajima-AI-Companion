@@ -129,7 +129,7 @@ def _rotate_jwt_keys() -> str:
 
 def _init_jwt_keys() -> None:
     """Initialize JWT keys on startup."""
-    global _JWT_KEYS, _JWT_CURRENT_KID
+    global _JWT_CURRENT_KID
     
     if not _JWT_KEYS:
         # Generate initial key pair
@@ -589,7 +589,7 @@ async def oidc_callback(provider_name: str, request: Request, code: str = "", st
 
 async def validate_id_token(id_token: str, provider: OIDCProviderConfig) -> dict:
     """Validate OIDC ID token."""
-    jwks = await provider.fetch_jwks()
+    await provider.fetch_jwks()
     header = jwt.get_unverified_header(id_token)
     kid = header.get("kid")
     key = provider.get_signing_key(kid)
@@ -655,7 +655,9 @@ async def saml_acs(provider_name: str, request: Request, SAMLResponse: str = For
     
     config = saml_config.Config()
     # ... configure SP settings from provider ...
-    
+
+    from saml2.client import Saml2Client
+
     client = Saml2Client(config)
     authn_response = client.parse_authn_request_response(
         SAMLResponse,
@@ -664,7 +666,7 @@ async def saml_acs(provider_name: str, request: Request, SAMLResponse: str = For
     
     # Extract user identity
     user_id = authn_response.get_subject().text
-    attributes = authn_response.get_identity()
+    authn_response.get_identity()
     
     # Create session
     access_token = create_access_token(user_id, extra={"auth_method": "saml", "provider": provider_name})
@@ -776,7 +778,6 @@ def require_role(role_name: str):
 
 # Include routers
 __all__ = [
-    "router",
     "oidc_router",
     "saml_router",
     "configure_oidc_provider",

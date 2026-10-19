@@ -112,7 +112,7 @@ class WakeGenerator:
         cognitive = context.get("cognitive_state") or {}
         time_of_day = context.get("time_of_day") or "day"
 
-        name = identity.get("name", "Mai")
+        identity.get("name", "Mai")
 
         emotion_type = "neutral"
         if isinstance(emotion_data, dict):

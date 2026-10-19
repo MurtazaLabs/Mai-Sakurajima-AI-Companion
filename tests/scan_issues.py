@@ -41,7 +41,7 @@ for root, dirs, files in os.walk(r'E:\Mai_ai'):
                         
                     # Check for bare except (already checked - none found)
                     
-            except:
+            except Exception:
                 pass
 
 # Print summary

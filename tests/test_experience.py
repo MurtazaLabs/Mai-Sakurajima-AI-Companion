@@ -73,7 +73,7 @@ class TestExperienceStore:
 
     def test_unreflected_filter_and_reflected(self, store):
         a = store.record_event("a", significance=0.9)
-        b = store.record_event("b", significance=0.9)
+        store.record_event("b", significance=0.9)
         store.mark_reflected(a.id, meaning="done")
         unreflected = store.unreflected(0.6)
         assert [e.event for e in unreflected] == ["b"]

@@ -12,6 +12,8 @@ from datetime import datetime
 from enum import Enum
 from typing import Any
 
+from core.model_lifecycle.rollout import RolloutPhase, RolloutState
+
 logger = logging.getLogger(__name__)
 
 
@@ -522,7 +524,6 @@ class AutoRollbackManager:
     
     def manual_rollback(self, model_id: str, version: str, reason: str = "Manual trigger"):
         """Manually trigger rollback."""
-        rollout_key = f"{model_id}:{version}"
         state = self.rollout_manager.get_rollout_state(model_id, version)
         
         if state:

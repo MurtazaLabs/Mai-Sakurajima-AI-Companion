@@ -14,7 +14,7 @@ logger = logging.getLogger("api.server")
 from typing import Any
 
 import uvicorn
-from fastapi import Depends, FastAPI, HTTPException, Request, WebSocket
+from fastapi import Depends, FastAPI, Request, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
@@ -487,10 +487,7 @@ async def rate_limit_middleware(request: Request, call_next):
     if RateLimiter.is_static_path(path):
         return await call_next(request)
     client = request.client.host if request.client else "anon"
-    try:
-        info = _rate_limiter.check(client, path, request.method)
-    except HTTPException:
-        raise
+    info = _rate_limiter.check(client, path, request.method)
     response = await call_next(request)
     response.headers["X-RateLimit-Limit"] = str(info["limit"])
     response.headers["X-RateLimit-Remaining"] = str(info["remaining"])

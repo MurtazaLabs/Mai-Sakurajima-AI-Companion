@@ -98,7 +98,7 @@ class VectorStore:
 
                     safe[key] = value
 
-                elif isinstance(value, dict) or isinstance(value, list):
+                elif isinstance(value, (dict, list)):
 
                     safe[key] = json.dumps(value)
 

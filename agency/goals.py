@@ -89,7 +89,6 @@ class GoalManager:
         try:
             mult = self.emotion.influence("goal_priority")
             value = {"low": 0, "normal": 1, "high": 2}
-            rev = {0: "low", 1: "normal", 2: "high"}
             base = value.get(priority, 1)
             adjusted = base * mult
             if adjusted >= 1.5:

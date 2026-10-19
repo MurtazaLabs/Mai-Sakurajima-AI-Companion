@@ -9,7 +9,6 @@ import time
 import urllib.error
 import urllib.parse
 import urllib.request
-from functools import lru_cache
 from typing import Any
 
 logger = logging.getLogger("Mai.Plugin.Weather")
@@ -83,7 +82,6 @@ class WeatherPlugin:
         city = parts[1].strip()
         return self._fetch_weather(city)
 
-    @lru_cache(maxsize=100)
     def _fetch_weather(self, city: str) -> str:
         """Fetch weather with caching."""
         # Check cache first
@@ -129,25 +127,3 @@ class WeatherPlugin:
         # Cache result
         self._cache[cache_key] = (time.time(), result)
         return result
-
-    def _fetch_weather(self, city: str) -> str:
-        """Wrapper for cached fetch."""
-        return self._fetch_weather(city)
-
-
-# For backward compatibility with old plugin system
-class WeatherPlugin:
-    """Legacy wrapper for old plugin system."""
-    
-    def __init__(self):
-        self._impl = None
-    
-    def __getattr__(self, name):
-        if self._impl is None:
-            from plugins.weather import WeatherPlugin as NewWeatherPlugin
-            self._impl = NewWeatherPlugin()
-        return getattr(self._impl, name)
-
-    def __init__(self):
-        self._impl = WeatherPlugin()
-        self.__dict__.update(self._impl.__dict__)

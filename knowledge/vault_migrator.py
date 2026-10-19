@@ -163,7 +163,7 @@ def _merge_md_file(old_file, new_file):
     Entries are blocks separated by a line containing only '---'.
     """
     old_text = old_file.read_text(encoding="utf-8")
-    old_ids = set(_extract_ids(old_text))
+    set(_extract_ids(old_text))
 
     if new_file.exists():
         new_text = new_file.read_text(encoding="utf-8")

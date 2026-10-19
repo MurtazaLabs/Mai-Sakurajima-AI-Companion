@@ -13,6 +13,8 @@ from enum import Enum
 from pathlib import Path
 from typing import Any
 
+from core.model_lifecycle.fingerprinting import compute_model_fingerprint
+
 logger = logging.getLogger(__name__)
 
 

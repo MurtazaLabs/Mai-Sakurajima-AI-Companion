@@ -223,7 +223,7 @@ class MetadataExtractorRegistry:
                     continue
                 if not value.isprintable():
                     continue
-            elif isinstance(value, bool) or isinstance(value, int) or isinstance(value, float):
+            elif isinstance(value, (bool, int, float)):
                 pass
             else:
                 continue

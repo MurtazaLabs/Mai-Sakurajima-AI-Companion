@@ -3,10 +3,17 @@ Plugin Dependency Resolution with Semantic Versioning
 Provides full semantic version resolution with conflict detection.
 """
 from dataclasses import dataclass, field
-from typing import Optional
+from typing import TYPE_CHECKING, Optional
 
 from packaging.specifiers import SpecifierSet
 from packaging.version import Version, parse
+
+from plugins.plugin_manifest import PluginManifest
+
+# lifecycle.py imports this module at module level, so PluginRegistry stays a
+# lazy/annotation-only reference to avoid a top-level circular import.
+if TYPE_CHECKING:
+    from plugins.lifecycle import PluginRegistry
 
 
 class DependencyResolutionError(Exception):
@@ -82,7 +89,7 @@ class DependencyResolver:
             try:
                 if self.parse_version(v) in spec:
                     matching.append((self.parse_version(v), v))
-            except Exception:
+            except Exception:  # noqa: S112  invalid version strings are tolerated and skipped
                 continue
         
         if not matching:
@@ -113,14 +120,12 @@ class DependencyResolver:
             CircularDependencyError: If circular dependencies detected
         """
         resolved = []
-        visited = set()
-        path = set()
         
         def resolve(dep_name: str, constraint: str, path: set[str]) -> ResolvedDependency:
             if dep_name in path:
                 raise CircularDependencyError(f"Circular dependency detected: {' -> '.join(path)} -> {dep_name}")
             
-            new_path = path | {dep_name}
+            path | {dep_name}
             
             # Check if already installed
             if dep_name in self.registry._registry if self.registry else {}:
@@ -140,11 +145,6 @@ class DependencyResolver:
             available_versions = []
             if dep_name in available_packages:
                 available_versions = available_packages[dep_name]
-            else:
-                # Check installed plugins
-                for name, manifest in available_packages.items():
-                    if name == dep_name:
-                        available_versions.append(manifest.version)
             
             best_version = self.get_best_version(available_versions, constraint)
             if best_version:
@@ -156,13 +156,13 @@ class DependencyResolver:
                 )
             
             # Check installed plugins
-            for name, manifest in available_packages.items():
-                if name == dep_name:
-                    if self.satisfies(manifest.version, constraint):
+            for pkg_name, pkg_manifest in available_packages.items():
+                if pkg_name == dep_name:
+                    if self.satisfies(pkg_manifest.version, constraint):
                         return ResolvedDependency(
                             name=dep_name,
                             required_version=constraint,
-                            resolved_version=manifest.version,
+                            resolved_version=pkg_manifest.version,
                             optional=False
                         )
             

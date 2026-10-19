@@ -83,7 +83,7 @@ class ThoughtJournal:
             ]
         if self.brain_graph:
             graph_nodes = self.brain_graph.search_entities(topic, node_type="thought")
-            graph_ids = {n.metadata.get("thought_id", "") for n in graph_nodes}
+            {n.metadata.get("thought_id", "") for n in graph_nodes}
             local_ids = {t["id"] for t in results}
             for n in graph_nodes:
                 tid = n.metadata.get("thought_id", "")

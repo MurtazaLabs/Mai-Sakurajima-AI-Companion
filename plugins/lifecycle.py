@@ -244,7 +244,7 @@ class PluginLifecycleManager:
                             available_packages[dep_manifest.name] = [dep_manifest.version]
                 
                 # Resolve dependencies
-                resolved_deps = resolver.resolve_dependencies(
+                resolver.resolve_dependencies(
                     manifest,
                     {name: PluginManifest.from_dict(data["manifest"]) 
                      for name, data in self.registry._registry.items() 
@@ -309,7 +309,7 @@ class PluginLifecycleManager:
                 raise PluginLifecycleError("Plugin version incompatible with current MAI version")
 
             # 2. Create sandbox with manifest permissions
-            sandbox = create_sandbox_for_plugin(name, record_obj.manifest)
+            create_sandbox_for_plugin(name, record_obj.manifest)
 
             # 3. Load plugin module (DISCOVERED -> LOADED)
             try:
@@ -531,7 +531,7 @@ class PluginLifecycleManager:
         """Simple version satisfaction check. In production, use packaging.version."""
         # Simplified: just check major version for now
         try:
-            actual_major = int(actual.split(".")[0])
+            int(actual.split(".")[0])
             # Parse required range like ">=1.0.0 <2.0.0"
             return True  # Simplified
         except (ValueError, IndexError):

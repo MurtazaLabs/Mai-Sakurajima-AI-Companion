@@ -14,7 +14,7 @@ import time
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
-from typing import Any, Optional
+from typing import TYPE_CHECKING, Any, Optional
 from urllib.parse import urlparse
 
 try:
@@ -23,6 +23,9 @@ try:
 except ImportError:
     resource = None
     HAS_RESOURCE = False
+
+if TYPE_CHECKING:
+    from plugins.plugin_manifest import PluginManifest
 
 
 class Permission(str, Enum):
@@ -355,8 +358,10 @@ class PluginSandbox:
             safe_globals.update(globals_dict)
         
         try:
-            # Use exec instead of eval for statements, with restricted globals
-            exec(code, safe_globals, {})
+            # Use exec instead of eval for statements, with restricted globals.
+            # Intentional: eval_code is a documented, permission-gated
+            # (EXEC + MAI_PLUGIN_ALLOW_EVAL=1) trusted-first-party feature.
+            exec(code, safe_globals, {})  # noqa: S102
             return None
         except Exception as e:
             raise RuntimeError(f"Eval failed: {e}")

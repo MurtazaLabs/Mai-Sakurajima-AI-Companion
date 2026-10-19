@@ -319,7 +319,7 @@ Examples:
     search_parser.add_argument("--category", help="Filter by category")
     
     # list
-    list_parser = subparsers.add_parser("list", help="List installed plugins")
+    subparsers.add_parser("list", help="List installed plugins")
     
     # enable
     enable_parser = subparsers.add_parser("enable", help="Enable a plugin")

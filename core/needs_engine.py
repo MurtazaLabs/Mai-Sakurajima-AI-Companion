@@ -103,8 +103,6 @@ class NeedsEngine:
             if not isinstance(relationship, dict):
                 relationship = {}
             closeness = relationship.get("closeness", Settings.DEFAULT_RELATIONSHIP_CLOSENESS)
-            attachment = relationship.get("attachment", Settings.DEFAULT_RELATIONSHIP_ATTACHMENT)
-            affection = relationship.get("affection", Settings.DEFAULT_RELATIONSHIP_ATTACHMENT)
             trust = relationship.get("trust", Settings.DEFAULT_RELATIONSHIP_TRUST)
             text = str(text).lower()
             triggered = []

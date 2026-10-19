@@ -25,8 +25,8 @@ for root, dirs, files in os.walk(r'E:\Mai_ai'):
                             print(f'BLOCKING_HTTP: {rel}:{i}: {line.strip()[:80]}')
                         if 'requests.post' in line and 'await' not in line and 'aiohttp' not in content:
                             print(f'BLOCKING_HTTP_POST: {rel}:{i}: {line.strip()[:80]}')
-                            
-            except:
+
+            except Exception:
                 pass
 
 print('Done checking async patterns.')

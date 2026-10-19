@@ -51,13 +51,6 @@ class BrainGraph:
             topic = topic.lower()
             return [b for b in all_b if b.topic == topic]
         return all_b
-        if topic:
-            topic = topic.lower()
-            return [
-                n for n in nodes
-                if n.metadata.get("topic") == topic
-            ]
-        return nodes
 
     def add_memory_node(self, memory_id, text, memory_type="conversation",
                         score=0.5, tags=None, emotion=None, importance=0.5, source="user"):

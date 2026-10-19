@@ -402,7 +402,7 @@ class MarketplaceClient:
                 ), package_path
 
             # Install via lifecycle manager
-            record = lifecycle_manager.install(
+            lifecycle_manager.install(
                 package_path,
                 verify_signature=bool(trusted_keys),
                 force=force,

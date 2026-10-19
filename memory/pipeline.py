@@ -128,7 +128,7 @@ class MemoryPipeline:
         if not self.validate(user):
             return None
 
-        extracted = self.extract(user)
+        self.extract(user)
 
         # ==================================================
         # Intelligence.process() handles: tag extraction, emotion analysis,

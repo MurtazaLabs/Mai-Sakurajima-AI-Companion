@@ -61,8 +61,8 @@ def _deterministic_deltas(user_message: str, mai_response: str = "") -> dict[str
         deltas["familiarity"] += Settings.RELATIONSHIP_FAMILIARITY_BOOST
 
     clamp = Settings.RELATIONSHIP_MAX_DELTA
-    for k in deltas:
-        deltas[k] = max(-clamp, min(clamp, deltas[k]))
+    for k, value in deltas.items():
+        deltas[k] = max(-clamp, min(clamp, value))
     return deltas
 
 class RelationshipEngineV2:

@@ -77,7 +77,6 @@ class LLMManager:
             self._probe_at = now + PROBE_TTL
             probe_openrouter = now >= self._openrouter_cooldown_until
             probe_ollama = now >= self._ollama_cooldown_until
-            current_openrouter = self._openrouter_available
             current_ollama = self._ollama_available
 
         # ── network I/O outside the lock ────────────────────────────────

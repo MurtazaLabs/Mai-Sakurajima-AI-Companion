@@ -323,8 +323,6 @@ class Emotion:
                 logger.warning("Emotion modify amount conversion failed: %s", e)
                 return
 
-            old_val = self.state[emotion]
-
             self.state[emotion] += amount
 
             self.triggers.record("modify", f"{emotion} += {amount}",

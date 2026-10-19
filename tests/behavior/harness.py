@@ -133,7 +133,7 @@ class ScenarioDriver:
 
         # 7 · renderer (StubRenderer records the call)
         renderer = StubRenderer()
-        output_path = renderer.render(style, prosody, output_path=None)
+        renderer.render(style, prosody, output_path=None)
 
         mechanisms = list(dict.fromkeys(
             self._pending_mechanisms + ["emotion_decay", "needs_recovery"]

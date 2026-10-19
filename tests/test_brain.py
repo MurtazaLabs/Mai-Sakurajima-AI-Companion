@@ -318,7 +318,7 @@ class TestBrainThink:
         brain = self._make_brain()
         action = json.dumps({"type": "invalid_action", "content": "test"})
         brain.llm.generate_with_tools.return_value = action
-        result = brain.think("do something")
+        brain.think("do something")
         assert brain.executor.run.called is False
 
     @patch("core.brain.apply_style", side_effect=lambda x, **kw: x)
@@ -330,7 +330,7 @@ class TestBrainThink:
         brain.tool_registry = registry
         action = json.dumps({"type": "speak", "content": "hello"})
         brain.llm.generate_with_tools.return_value = action
-        result = brain.think("say hello")
+        brain.think("say hello")
         assert brain.executor.run.called is False
 
     def test_think_llm_none_returns_fallback_with_context(self):

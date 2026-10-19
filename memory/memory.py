@@ -248,7 +248,7 @@ AI:
         try:
 
             # 🏷️ tags
-            tags = self.tagger.extract_tags(query) or []
+            self.tagger.extract_tags(query) or []
 
             # 🔍 vector semantic search
             vector_memories = self.vector.search(

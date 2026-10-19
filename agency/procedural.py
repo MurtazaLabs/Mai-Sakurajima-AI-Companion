@@ -77,7 +77,6 @@ class ProceduralMemory:
                     matches.append(r)
         if self.brain_graph:
             graph_rules = self.brain_graph.get_rules(context=context, min_confidence=min_confidence)
-            graph_rules_text = {n.metadata.get("rule", "") for n in graph_rules}
             local_text = {r.rule for r in matches}
             for n in graph_rules:
                 r_text = n.metadata.get("rule", "")

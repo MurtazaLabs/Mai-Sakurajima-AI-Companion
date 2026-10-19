@@ -163,7 +163,7 @@ class PluginSigner:
                 # Add signature file
                 manifest_path = source_dir / "manifest.json"
                 with open(manifest_path, "r") as f:
-                    manifest_data = json.load(f)
+                    json.load(f)
                 
                 # Sign the package content - use a single timestamp for consistency
                 signed_at = time.time()
@@ -266,7 +266,7 @@ class PluginVerifier:
                 
                 # Extract signature
                 signature = base64.b64decode(sig_data["signature"])
-                signed_at = sig_data.get("signed_at", 0)
+                sig_data.get("signed_at", 0)
                 
                 # Verify the public key matches
                 public_key_pem_verify = base64.b64encode(
@@ -370,14 +370,14 @@ def verify_plugin_package(package_path: Path, trusted_keys: list | None = None) 
             if not sig_files:
                 return False, "No signature found in package", None
             
-            sig_name = sig_files[0]
+            sig_files[0]
             sig_data = json.loads(zf.read(sig_files[0]).decode())
             
             # Extract signature info
             signature = base64.b64decode(sig_data["signature"])
-            public_key_pem = base64.b64decode(sig_data["public_key"])
+            base64.b64decode(sig_data["public_key"])
             signed_at = sig_data.get("signed_at", 0)
-            algorithm = sig_data.get("algorithm", "Ed25519")
+            sig_data.get("algorithm", "Ed25519")
             
             # Verify against trusted keys if provided
             if trusted_keys:

@@ -121,8 +121,6 @@ from config.experience import (
     EXPERIENCE_RELEVANCE_MIN_SCORE,
 )
 from config.llm import (
-    OPENROUTER_API_KEY,  # noqa: F401  re-exported mirror name
-    OPENROUTER_DEFAULT_MODEL,  # noqa: F401  re-exported mirror name
     LLM_MAX_CONTEXT,
     LLM_MODEL,
     LLM_PROVIDER,
@@ -132,6 +130,8 @@ from config.llm import (
     LLM_TEMPERATURE,
     LLM_TIMEOUT,
     LLM_TOP_P,
+    OPENROUTER_API_KEY,  # noqa: F401  re-exported mirror name
+    OPENROUTER_DEFAULT_MODEL,  # noqa: F401  re-exported mirror name
 )
 from config.memory import (
     DECAY_CONVERSATION,
@@ -210,7 +210,6 @@ from config.needs import (
     NEED_SECURITY_BASELINE,
 )
 from config.paths import (
-    ROOT_DIR,  # noqa: F401  re-exported mirror name
     CACHE_DIR,
     LOG_DIR,
     MEMORY_DIR,
@@ -221,6 +220,7 @@ from config.paths import (
     OBSIDIAN_MAX_FILE_SIZE,
     OBSIDIAN_TAGS_ENABLED,
     OBSIDIAN_VAULT,
+    ROOT_DIR,  # noqa: F401  re-exported mirror name
     TEMP_AUDIO_DIR,
     VECTOR_DB_DIR,
 )
@@ -278,26 +278,25 @@ from config.relationship import (
     RELATIONSHIP_VULNERABILITY_WORDS,
 )
 from config.runtime import (
+    API_AUTH_TOKEN,
     # Re-exported mirror names (unused here by design; consumed via `from
     # config.settings import *` / app.config_loader and API modules):
-    # noqa: F401
-    API_CORS_ORIGINS,
-    API_TRUSTED_HOSTS,
-    API_AUTH_TOKEN,
+    API_CORS_ORIGINS,  # noqa: F401
     API_HOST,
+    API_JWT_ACCESS_EXPIRE_MINUTES,  # noqa: F401  re-exported mirror name
+    API_JWT_REFRESH_EXPIRE_DAYS,  # noqa: F401  re-exported mirror name
+    API_JWT_SECRET,  # noqa: F401  re-exported mirror name
     API_PORT,
-    API_RATE_LIMIT_PER_MINUTE,
-    API_RATE_LIMIT_CHAT,  # noqa: F401  re-exported mirror name
     API_RATE_LIMIT_AUTH,  # noqa: F401  re-exported mirror name
+    API_RATE_LIMIT_CHAT,  # noqa: F401  re-exported mirror name
+    API_RATE_LIMIT_GENERAL,  # noqa: F401  re-exported mirror name
     API_RATE_LIMIT_HEALTH,  # noqa: F401  re-exported mirror name
     API_RATE_LIMIT_INGEST,  # noqa: F401  re-exported mirror name
-    API_RATE_LIMIT_GENERAL,  # noqa: F401  re-exported mirror name
+    API_RATE_LIMIT_PER_MINUTE,
     API_REQUIRE_AUTH,
     API_SSL_CERTFILE,
     API_SSL_KEYFILE,
-    API_JWT_SECRET,  # noqa: F401  re-exported mirror name
-    API_JWT_ACCESS_EXPIRE_MINUTES,  # noqa: F401  re-exported mirror name
-    API_JWT_REFRESH_EXPIRE_DAYS,  # noqa: F401  re-exported mirror name
+    API_TRUSTED_HOSTS,  # noqa: F401
     DATABASE_URL,
     DB_MAX_OVERFLOW,
     DB_POOL_SIZE,

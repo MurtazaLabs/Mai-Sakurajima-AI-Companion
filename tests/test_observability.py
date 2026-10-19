@@ -520,7 +520,7 @@ class TestCognitiveAuditor:
     def test_ensure_log_directory_creates(self):
         with tempfile.TemporaryDirectory() as tmpdir:
             log_dir = os.path.join(tmpdir, "nested", "audit")
-            auditor = CognitiveAuditor(log_dir=log_dir)
+            CognitiveAuditor(log_dir=log_dir)
             assert os.path.isdir(log_dir)
 
     def test_flush_redacts_pii_on_disk(self):

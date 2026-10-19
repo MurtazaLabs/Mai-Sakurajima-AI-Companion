@@ -38,6 +38,7 @@ from collections import deque
 from collections.abc import Callable
 from typing import Any
 
+from core.event_metadata import MetadataExtractorRegistry
 from core.event_registry import (
     EventRegistry,
     EventSpec,

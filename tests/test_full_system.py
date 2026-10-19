@@ -39,6 +39,4 @@ def test_documentation():
             print(f"  File: {os.path.relpath(os.path.join(root, f), vault)}")
 
 if __name__ == "__main__":
-    import os
-    import subprocess
-    asyncio.run(test_documentation())
+    test_documentation()

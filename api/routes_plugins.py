@@ -270,7 +270,7 @@ async def list_installed_plugins():
 @router.get("/marketplace/search")
 async def search_marketplace(
     q: str = "",
-    tags: list[str] | None = Query(None),
+    tags: list[str] | None = Query(None),  # noqa: B008  FastAPI DI idiom
     category: str | None = None,
     page: int = 1,
     limit: int = 20,
@@ -453,7 +453,7 @@ async def update_plugin_config(
 
 @router.post("/marketplace/publish")
 async def publish_plugin(
-    file: UploadFile = File(...),
+    file: UploadFile = File(...),  # noqa: B008  FastAPI DI idiom
     api_key: str = Header(..., alias="X-API-Key"),
 ):
     """Publish a plugin to the marketplace (authenticated)."""

@@ -86,7 +86,7 @@ class TestFullAEC:
         far_end = np.zeros(1600, dtype=np.float32)
         aec.add_playback(far_end)
         aec.process(near_end)
-        dt1 = aec.is_double_talk()
+        aec.is_double_talk()
         aec.reset()
         near_end2 = np.random.randn(1600).astype(np.float32) * 0.5
         far_end2 = np.ones(1600, dtype=np.float32) * 0.01

@@ -9,6 +9,20 @@ from core.identity.preferences import PREFERENCES
 from core.identity.speech import SPEECH
 from core.identity.values import VALUES
 
+# Test/tool patch and import surface for this package (keeps re-exports lint-quiet).
+__all__ = [
+    "BOUNDARIES",
+    "CANON_KEYS",
+    "IDENTITY",
+    "PERSONALITY",
+    "PREFERENCES",
+    "SPEECH",
+    "VALUES",
+    "IdentityCore",
+    "check_drift",
+    "get_identity",
+]
+
 
 def get_identity():
     return {

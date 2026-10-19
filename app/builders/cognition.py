@@ -133,7 +133,7 @@ def build(app):
         if memory_graph is not None and hasattr(memory_graph, "graph"):
             mg = memory_graph.graph
             if mg and hasattr(mg, "nodes") and mg.nodes:
-                imported = app.knowledge_graph.import_from_memory_graph(mg)
+                app.knowledge_graph.import_from_memory_graph(mg)
                 logger.info("    ✓ Imported %d memory nodes into knowledge graph", len(mg.nodes))
     except Exception as e:
         logger.warning("    Memory graph import skipped: %s", e)

@@ -120,7 +120,7 @@ class TestSafetyFilter:
         assert set(meta) == {"query_len"}
 
     def test_value_length_capped(self):
-        meta = extract_metadata("data.memory.search", {"query": "y"})
+        extract_metadata("data.memory.search", {"query": "y"})
         big = {"result_count": 1, "payload_text": "z" * 500}
         reg = MetadataExtractorRegistry()
         reg.register("x", lambda p: big)

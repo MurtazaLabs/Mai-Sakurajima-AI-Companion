@@ -93,7 +93,7 @@ def _try_cryptography() -> bool:
             .add_extension(
                 x509.SubjectAlternativeName([
                     x509.DNSName("localhost"),
-                    x509.IPAddress(ipaddr := __import__("ipaddress").ip_address("127.0.0.1")),
+                    x509.IPAddress(_ipaddr := __import__("ipaddress").ip_address("127.0.0.1")),
                 ]),
                 critical=False,
             )

@@ -79,7 +79,7 @@ class StartupManager:
     @staticmethod
     def is_service() -> bool:
         try:
-            import win32serviceutil
+            import win32serviceutil  # noqa: F401  availability probe
             return True
         except ImportError:
             return False

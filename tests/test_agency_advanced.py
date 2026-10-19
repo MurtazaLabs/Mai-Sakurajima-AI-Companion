@@ -74,9 +74,9 @@ class TestGoalManager:
     def test_list_active_goals_sorted_by_priority(self):
         from agency.goals import GoalManager
         mgr = GoalManager()
-        g1 = mgr.create("Low priority", priority="low")
-        g2 = mgr.create("High priority", priority="high")
-        g3 = mgr.create("Normal priority", priority="normal")
+        mgr.create("Low priority", priority="low")
+        mgr.create("High priority", priority="high")
+        mgr.create("Normal priority", priority="normal")
         active = mgr.list(status="active")
         assert len(active) == 3
         assert active[0].priority == "high"
@@ -174,7 +174,7 @@ class TestGoalManager:
         from agency.goals import GoalManager
         mgr = GoalManager()
         g1 = mgr.create("Active one")
-        g2 = mgr.create("Active two")
+        mgr.create("Active two")
         mgr.complete(g1.id)
         stats = mgr.stats()
         assert stats["total"] == 2
@@ -642,7 +642,7 @@ class TestPersonalityEvolution:
         evo = PersonalityEvolution(personality_state)
         personality_state.state["warmth"] = 0.2
         adjustments = {"energy_conservation": 1.0}
-        applied = evo.evolve(behavior_adjustments=adjustments)
+        evo.evolve(behavior_adjustments=adjustments)
         # patience should increase, confidence should decrease
         assert personality_state.state["patience"] > 0.7
         assert personality_state.state["confidence"] >= 0.2

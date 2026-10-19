@@ -71,7 +71,7 @@ class TestProsodyPlanner:
     def test_short_sentence_splitting(self):
         text = " ".join(["word"] * 30)
         plan = ProsodyPlanner().plan(text, SpeechStyle(sentence_length="short"))
-        parts = plan.text.split(" ")
+        plan.text.split(" ")
         # short target = 12 words → at least 2 chunks: 30/12 = 3 chunks
         assert plan.text.count("word") == 30
         assert plan.pause_points >= 0

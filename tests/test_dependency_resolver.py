@@ -89,7 +89,7 @@ class TestDependencyResolver:
         
         resolver = DependencyResolver(None)
         
-        manifest = PluginManifest(
+        PluginManifest(
             name="test",
             version="1.0.0",
             description="test",
@@ -121,8 +121,8 @@ class TestDependencyResolver:
         manifest_a = PluginManifest(name="a", version="1.0.0", description="", author="", entry_point="")
         manifest_b = PluginManifest(name="b", version="1.0.0", description="", author="", entry_point="")
         
-        node_a = graph.add_plugin(manifest_a)
-        node_b = graph.add_plugin(manifest_b)
+        graph.add_plugin(manifest_a)
+        graph.add_plugin(manifest_b)
         
         graph.add_dependency("a", "b")
         graph.add_dependency("b", "a")

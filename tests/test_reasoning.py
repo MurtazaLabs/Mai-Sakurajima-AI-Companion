@@ -811,7 +811,7 @@ class TestLearningEngine:
         from reasoning.learning import LearningEngine
         mock_belief = MagicMock()
         engine = LearningEngine(belief_engine=mock_belief)
-        result = engine.generalize([
+        engine.generalize([
             {"text": "I like coffee", "memory_type": "preference"},
         ])
         # belief_engine is stored but not called by generalize directly

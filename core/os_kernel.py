@@ -15,12 +15,12 @@ import time
 
 import numpy as np
 
-from core.state.models import ConversationPhase, KernelMode
+from core.attention import Attention  # noqa: F401  patch target for tests
 from core.autonomy.engine import Autonomy  # noqa: F401  patch target for tests
 from core.cognition import Cognition  # noqa: F401  patch target for tests
 from core.idle_behavior import IdleBehavior  # noqa: F401  patch target for tests
 from core.scheduler import Scheduler  # noqa: F401  patch target for tests
-from core.attention import Attention  # noqa: F401  patch target for tests
+from core.state.models import ConversationPhase, KernelMode
 from core.wake_generator import WakeGenerator  # noqa: F401  patch target for tests
 from voice.stt import TranscriptionUnavailable
 
@@ -219,7 +219,6 @@ class AIOSKernel:
         if the voice doesn't match (handled in background)."""
         with self.state.lock:
             last_name = self.state.runtime.current_speaker_name or ""
-            last_id = self.state.runtime.current_speaker_id or ""
             last_conf = self.state.runtime.speaker_confidence or 0.0
 
         if last_name:
@@ -239,7 +238,6 @@ class AIOSKernel:
         # Get last known speaker
         with self.state.lock:
             last_name = self.state.runtime.current_speaker_name or ""
-            last_id = self.state.runtime.current_speaker_id or ""
 
         try:
             profile, confidence = self.speaker_manager.identify_raw(audio, sample_rate=16000)
@@ -447,14 +445,14 @@ class AIOSKernel:
             logger.info("[Kernel] Speaking response...")
             collected_chunks = []
 
-            def collecting_stream(s):
+            def collecting_stream(s, chunks=collected_chunks):
                 for chunk in s:
                     if not chunk:
                         continue
                     cleaned = str(chunk).strip()
                     if not cleaned:
                         continue
-                    collected_chunks.append(cleaned)
+                    chunks.append(cleaned)
                     yield cleaned
 
             try:

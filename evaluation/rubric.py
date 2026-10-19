@@ -169,7 +169,7 @@ class CharacterRubric:
             return 0, ("evolved preferences not present in system prompt — "
                        "attach an identity overlay before the session"), False
         if self.evolved_topics:
-            all_systems = "\n".join(str(t.evidence.get("system_chars", 0)) for t in transcript)
+            "\n".join(str(t.evidence.get("system_chars", 0)) for t in transcript)
             mentioned = [
                 topic for topic in self.evolved_topics
                 if any(topic in str(t.response).lower() for t in transcript)

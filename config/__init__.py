@@ -18,5 +18,5 @@ from config.paths import *
 from config.redis_config import *
 from config.reflection import *
 from config.runtime import *
-from config.settings import Settings
+from config.settings import Settings  # noqa: F401  re-exported convenience import
 from config.speaker import *

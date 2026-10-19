@@ -85,7 +85,6 @@ class NewsPlugin(Plugin):
             root = ET.fromstring(raw)
         except ET.ParseError:
             return []
-        ns = {"atom": "http://www.w3.org/2005/Atom"}
         items = []
         for entry in root.iter("item"):
             title_el = entry.find("title")

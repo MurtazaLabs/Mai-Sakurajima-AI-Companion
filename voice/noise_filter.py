@@ -20,9 +20,7 @@ class NoiseFilter:
         return self._noise_profile
 
     def learn_noise(self, audio, sample_rate=None):
-        sr = sample_rate or self.sample_rate
         try:
-            freqs = np.fft.rfftfreq(len(audio), d=1.0 / sr)
             spectrum = np.abs(np.fft.rfft(audio))
             noise_floor = np.percentile(spectrum, self.noise_floor_percentile)
             self._noise_profile = np.maximum(spectrum, noise_floor)

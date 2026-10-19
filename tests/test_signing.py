@@ -37,9 +37,8 @@ class TestPluginSigner:
         """Test signing and verifying data."""
         private_key, public_key = PluginSigner.generate_keypair()
         signer = PluginSigner(private_key)
-        verifier = PluginVerifier(public_key)
+        PluginVerifier(public_key)
         
-        data = b"test data"
         signature = signer.sign_data(b"test data")
         
         # Verify using the public key
@@ -213,7 +212,7 @@ class TestPluginVerifier:
                             zf.write(file_path, arcname)
                 
                 # Verify integrity (should pass even without signature)
-                verifier = PluginVerifier(None)
+                PluginVerifier(None)
                 # This test would need a proper verifier setup
                 
             finally:
@@ -228,7 +227,7 @@ class TestPluginSignatureManager:
         """Test adding and using trusted keys."""
         
         with tempfile.TemporaryDirectory() as tmpdir:
-            keys_dir = Path(tmpdir) / "keys"
+            Path(tmpdir) / "keys"
             
             private_key, public_key = PluginSigner.generate_keypair()
             signer = PluginSigner(private_key)
@@ -297,7 +296,7 @@ class TestPluginSignatureManager:
         """Test that untrusted keys are rejected."""
         
         with tempfile.TemporaryDirectory() as tmpdir:
-            keys_dir = Path(tmpdir) / "keys"
+            Path(tmpdir) / "keys"
             
             # Create manager with one trusted key
             private_key1, public_key1 = PluginSigner.generate_keypair()

@@ -17,5 +17,5 @@ for root, dirs, files in os.walk(r'E:\Mai_ai'):
                 for i, line in enumerate(content.split('\n'), 1):
                     if re.search(r'[CDE]:\\\\', line) and 'test' not in path.lower() and 'example' not in path.lower():
                         print(f'{rel}:{i}: {line.strip()[:120]}')
-            except:
+            except Exception:
                 pass

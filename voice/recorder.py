@@ -2,6 +2,7 @@ import logging
 import threading
 import time
 from collections.abc import Callable
+from typing import Any
 
 import numpy as np
 from numpy.typing import NDArray

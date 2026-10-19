@@ -172,7 +172,7 @@ class TestJealousyReassuranceDecay:
         jealousy = [t1["emotion"]["snapshot"]["jealousy"]] + [
             t["emotion"]["snapshot"]["jealousy"] for t in traces
         ]
-        for a, b in zip(jealousy, jealousy[1:]):
+        for a, b in zip(jealousy, jealousy[1:]):  # noqa: RUF007  pairwise import churn not worth it in a test
             assert b <= a + 1e-9, f"jealousy grew: {jealousy}"
         assert "emotion_decay" in t1["mechanisms"], (
             "no decay driver recorded — MECHANISM-GAP (queue to M8)"
