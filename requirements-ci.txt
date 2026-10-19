@@ -1,0 +1,14 @@
+# CI-only installation layer.
+#
+# CI runs the same test suite on Windows runners (ci.yml) and Linux runners
+# (ci-cd.yml lint-and-test). The full runtime stack in requirements.txt is
+# shared, with Windows-only packages behind sys_platform markers; this file
+# adds the PyTorch CPU index so torchaudio==2.0.1+cpu resolves on both, plus
+# the test-only tooling the runtime stack does not pin.
+#
+# Docker intentionally does NOT use this file: the Dockerfile installs
+# requirements-docker.txt (Linux, no torch, no Windows packages).
+--extra-index-url https://download.pytorch.org/whl/cpu
+-r requirements.txt
+pytest-cov>=6.0
+pytest-timeout>=2.4

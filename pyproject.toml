@@ -1,0 +1,46 @@
+# Mai AI — shared tool configuration
+# Project convention (see AGENTS.md): broad `except Exception` + logger.exception()
+# is the deliberate error-isolation pattern for voice callbacks, plugin hooks and
+# kernel loops. Ruff's BLE001 has no logging exemption, so it is configured here
+# with that rationale instead of editing 650 call sites.
+[tool.ruff]
+target-version = "py310"
+line-length = 100
+extend-exclude = [
+    ".opencode",
+    "Embedding_models",
+    "kyutai STT",
+    "mai_env",
+    "data",
+    "cache",
+    "docs",
+]
+
+[tool.ruff.lint]
+ignore = ["BLE001"]
+
+[tool.mypy]
+python_version = "3.10"
+ignore_missing_imports = true
+exclude = "(?i)(\\.opencode|Embedding_models|kyutai|mai_env|build|dist|data|cache)"
+check_untyped_defs = true
+warn_unused_ignores = true
+warn_redundant_casts = true
+no_implicit_optional = true
+
+# Gradual adoption: legacy / integration-heavy subsystems are checked for
+# syntax-level issues only until they get a dedicated typing pass.
+[[tool.mypy.overrides]]
+module = [
+    "native.*",
+    "scripts.*",
+    "monitoring.*",
+    "plugins.*",
+    "evaluation.*",
+    "voice.*",
+    "llm.*",
+    "app.*",
+    "observability.*",
+    "api.*",
+]
+ignore_errors = true
