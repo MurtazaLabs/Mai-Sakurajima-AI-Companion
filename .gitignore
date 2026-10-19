@@ -44,6 +44,10 @@ data/
 temp/
 models/
 
+# Local model weights — never publish
+Embedding_models/
+kyutai STT/
+
 # Node (if any)
 node_modules/
 package-lock.json
