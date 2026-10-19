@@ -89,7 +89,7 @@ class DependencyResolver:
             try:
                 if self.parse_version(v) in spec:
                     matching.append((self.parse_version(v), v))
-            except Exception:  # noqa: S112  invalid version strings are tolerated and skipped
+            except Exception:
                 continue
         
         if not matching:

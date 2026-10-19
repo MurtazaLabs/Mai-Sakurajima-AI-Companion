@@ -21,7 +21,7 @@ class ChatMixin:
     goal_manager: Any = None
     world_model: Any = None
     dream_engine: Any = None
-    _last_dream_report: dict = {}  # noqa: RUF012
+    _last_dream_report: dict = {}
 
     def chat(self, message, _stream=False, user_id=""):
         if not self._ready or not self.brain:
