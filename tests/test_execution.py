@@ -566,6 +566,60 @@ class TestSafeExecutorRun:
         assert "cancelled" in result
 
 
+class TestSafeExecutorConfirm:
+    """The hardcoded always-False _confirm() stub became an injectable gate
+    (default fail-closed); interactive surfaces supply their own confirm_fn."""
+
+    def _willing_executor(self):
+        executor = MagicMock()
+        executor.run.return_value = {"success": True, "output": "ok"}
+        return executor
+
+    def test_run_admin_command_confirmation_declined(self):
+        from execution.safe_executor import SafeExecutor
+        se = SafeExecutor(self._willing_executor(), mode="admin")
+        se.last_action_time = 0
+        result = se.run({"type": "run_command", "command": "echo safe"})
+        assert "cancelled" in result
+
+    def test_confirm_fn_allows_execution(self):
+        from execution.safe_executor import SafeExecutor
+        executor = self._willing_executor()
+        confirm_calls = []
+
+        def confirm(action):
+            confirm_calls.append(action)
+            return True
+
+        se = SafeExecutor(executor, mode="admin", confirm_fn=confirm)
+        se.last_action_time = 0
+        result = se.run({"type": "run_command", "command": "echo safe"})
+        assert result == {"success": True, "output": "ok"}
+        assert len(confirm_calls) == 1
+
+    def test_confirm_fn_decline_blocks(self):
+        from execution.safe_executor import SafeExecutor
+        executor = self._willing_executor()
+        se = SafeExecutor(executor, mode="admin", confirm_fn=lambda a: False)
+        se.last_action_time = 0
+        result = se.run({"type": "run_command", "command": "echo safe"})
+        assert "cancelled" in result
+        executor.run.assert_not_called()
+
+    def test_confirm_fn_exception_fails_closed(self):
+        from execution.safe_executor import SafeExecutor
+        executor = self._willing_executor()
+
+        def confirm(action):
+            raise RuntimeError("UI exploded")
+
+        se = SafeExecutor(executor, mode="admin", confirm_fn=confirm)
+        se.last_action_time = 0
+        result = se.run({"type": "run_command", "command": "echo safe"})
+        assert "cancelled" in result
+        executor.run.assert_not_called()
+
+
 class TestSafeExecutorValidate:
 
     def test_validate_valid_url(self):

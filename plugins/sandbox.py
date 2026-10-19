@@ -143,9 +143,16 @@ class PluginSandbox:
 
     # Filesystem operations
     def resolve_path(self, path: str) -> Path:
-        """Resolve path within sandbox root, prevent traversal."""
+        """Resolve path within sandbox root, prevent traversal.
+
+        Uses structural containment (relative_to) instead of a string prefix
+        check, so sibling directories like ``<root>_backup/`` cannot be reached,
+        and resolved symlinks that escape the root are rejected.
+        """
         requested = (self.fs_root / path).resolve()
-        if not str(requested).startswith(str(self.fs_root.resolve())):
+        try:
+            requested.relative_to(self.fs_root)
+        except ValueError:
             raise PermissionError(f"Path traversal attempt: {path}")
         return requested
 
@@ -231,7 +238,15 @@ class PluginSandbox:
         
         try:
             with urllib.request.urlopen(req, data=data, timeout=timeout) as resp:
-                return resp.read()
+                # Cap the response so a remote host cannot exhaust memory via
+                # an unbounded body (e.g. multi-GB stream).
+                max_bytes = self.resource_limits.max_file_size
+                payload = resp.read(max_bytes + 1)
+            if len(payload) > max_bytes:
+                raise RuntimeError(
+                    f"Response body exceeds sandbox limit ({max_bytes} bytes)"
+                )
+            return payload
         except urllib.error.HTTPError as e:
             raise RuntimeError(f"HTTP {e.code}: {e.reason}")
         except urllib.error.URLError as e:
@@ -271,11 +286,34 @@ class PluginSandbox:
             raise RuntimeError(f"Subprocess failed: {e}")
 
     # Eval execution
+    @staticmethod
+    def _eval_allowed() -> bool:
+        """Eval is a trusted-first-party opt-in (MAI_PLUGIN_ALLOW_EVAL=1).
+
+        exec() can never be a real security boundary — a sufficiently clever
+        payload escapes any restricted-globals setup. Third-party plugins must
+        use run_subprocess() instead.
+        """
+        return os.environ.get("MAI_PLUGIN_ALLOW_EVAL", "").strip().lower() in (
+            "1", "true", "yes"
+        )
+
     def eval_code(self, code: str, globals_dict: Optional[Dict] = None) -> Any:
-        """Evaluate Python code within sandbox."""
+        """Evaluate trusted first-party Python code within sandbox.
+
+        NOT a security boundary. Requires both the EXEC_EVAL permission and the
+        MAI_PLUGIN_ALLOW_EVAL opt-in; untrusted code must go through
+        run_subprocess() instead.
+        """
         self.require_permission(Permission.EXEC_EVAL)
-        
-        # Create restricted globals
+        if not self._eval_allowed():
+            raise PermissionError(
+                "Sandbox eval is disabled by default; set MAI_PLUGIN_ALLOW_EVAL=1 "
+                "to opt in (trusted first-party plugins only)"
+            )
+
+        # Create restricted globals — os/pathlib are deliberately omitted and
+        # reflective escape hatches (getattr/setattr/type) are excluded.
         safe_globals = {
             "__builtins__": {
                 "print": print,
@@ -303,9 +341,6 @@ class PluginSandbox:
                 "all": all,
                 "isinstance": isinstance,
                 "hasattr": hasattr,
-                "getattr": getattr,
-                "setattr": setattr,
-                "type": type,
                 "Exception": Exception,
                 "ValueError": ValueError,
                 "TypeError": TypeError,
@@ -318,8 +353,6 @@ class PluginSandbox:
             "math": math,
             "random": random,
             "re": re,
-            "os": os,
-            "pathlib": pathlib,
         }
         
         if globals_dict:
@@ -334,7 +367,13 @@ class PluginSandbox:
 
     # Resource management
     def apply_resource_limits(self) -> None:
-        """Apply resource limits to current process."""
+        """Apply resource limits to the CURRENT process.
+
+        Trusted-first-party only: these are process-wide, not per-plugin, and
+        are only enforced on POSIX (the `resource` module is absent on
+        Windows). For any third-party or untrusted code, run it in a separate
+        process via run_subprocess() instead.
+        """
         if not HAS_RESOURCE:
             return
         try:
@@ -392,7 +431,12 @@ class PluginSandbox:
 
     # Context manager for plugin execution
     def execute_plugin(self, func, *args, **kwargs):
-        """Execute a plugin function within sandbox context."""
+        """Execute a trusted first-party plugin function within sandbox context.
+
+        Swaps os.environ and applies process-wide resource limits — affect the
+        WHOLE process while running. Never use for third-party/untrusted
+        plugins; run them via run_subprocess() in their own process.
+        """
         self.enter()
         self.apply_resource_limits()
         try:

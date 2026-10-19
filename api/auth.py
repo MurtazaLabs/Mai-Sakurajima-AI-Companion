@@ -8,7 +8,9 @@ for enterprise single sign-on.
 
 import logging
 import os
+import base64
 import hashlib
+import re
 import secrets
 import time
 from datetime import datetime, timedelta, timezone
@@ -462,6 +464,33 @@ def get_current_user(
         raise HTTPException(status_code=401, detail=f"Authentication failed: {e}")
 
 
+# ── OIDC/SAML helpers ─────────────────────────────────────────────────────
+def _safe_redirect_target(target: str) -> str:
+    """Restrict post-login redirects to local paths (open-redirect guard).
+
+    Absolute URLs (``https://evil.com``), protocol-relative URLs
+    (``//evil.com``), scheme-ish strings (``javascript:``) and header/control
+    characters are rejected; only in-app paths survive.
+    """
+    if not isinstance(target, str) or not target:
+        return "/"
+    if target.startswith("//") or "\r" in target or "\n" in target:
+        return "/"
+    if re.match(r"^[a-zA-Z][a-zA-Z0-9+.-]*:", target):
+        return "/"
+    return target if target.startswith("/") else "/"
+
+
+def _set_session_cookie(response: Response, request: Request, name: str,
+                        value: str, max_age: int) -> None:
+    """Set a hardened auth cookie: HttpOnly + SameSite=Lax, Secure on HTTPS."""
+    secure = request.url.scheme == "https"
+    response.set_cookie(
+        name, value, httponly=True, max_age=max_age,
+        samesite="lax", secure=secure,
+    )
+
+
 # ── OIDC/SAML Authentication Endpoints ──────────────────────────────────
 oidc_router = APIRouter(prefix="/api/auth/oidc", tags=["OIDC"])
 saml_router = APIRouter(prefix="/api/auth/saml", tags=["SAML"])
@@ -473,6 +502,7 @@ async def oidc_login(provider_name: str, request: Request, redirect_after: str =
     provider = get_oidc_provider(provider_name)
     if not provider:
         raise HTTPException(status_code=404, detail=f"OIDC provider '{provider_name}' not configured")
+    redirect_target = _safe_redirect_target(redirect_after)
     
     # Generate state and nonce for security
     state = secrets.token_urlsafe(32)
@@ -492,9 +522,9 @@ async def oidc_login(provider_name: str, request: Request, redirect_after: str =
     
     auth_url = f"{provider.authorization_endpoint}?{urlencode(params)}"
     response = RedirectResponse(url=auth_url)
-    response.set_cookie("oidc_state", state, httponly=True, max_age=600)
-    response.set_cookie("oidc_nonce", nonce, httponly=True, max_age=600)
-    response.set_cookie("redirect_after", redirect_after, httponly=True, max_age=600)
+    _set_session_cookie(response, request, "oidc_state", state, 600)
+    _set_session_cookie(response, request, "oidc_nonce", nonce, 600)
+    _set_session_cookie(response, request, "redirect_after", redirect_target, 600)
     return response
 
 
@@ -549,10 +579,10 @@ async def oidc_callback(provider_name: str, request: Request, code: str = "", st
     access_token = create_access_token(user_id, extra={"auth_method": "oidc", "provider": provider_name})
     refresh_token = create_refresh_token(user_id)
     
-    redirect_after = request.cookies.get("redirect_after", "/")
+    redirect_after = _safe_redirect_target(request.cookies.get("redirect_after", "/"))
     response = RedirectResponse(url=redirect_after)
-    response.set_cookie("access_token", access_token, httponly=True, max_age=900)
-    response.set_cookie("refresh_token", refresh_token, httponly=True, max_age=604800)
+    _set_session_cookie(response, request, "access_token", access_token, 900)
+    _set_session_cookie(response, request, "refresh_token", refresh_token, 604800)
     response.delete_cookie("oidc_state")
     response.delete_cookie("oidc_nonce")
     response.delete_cookie("redirect_after")
@@ -586,6 +616,7 @@ async def saml_login(provider_name: str, request: Request, relay_state: str = "/
     provider = get_saml_provider(provider_name)
     if not provider:
         raise HTTPException(status_code=404, detail=f"SAML provider '{provider_name}' not configured")
+    relay_target = _safe_redirect_target(relay_state)
     
     # Generate SAML AuthnRequest
     from saml2 import Saml2Config
@@ -610,8 +641,8 @@ async def saml_login(provider_name: str, request: Request, relay_state: str = "/
     
     # Store request ID in session
     response = RedirectResponse(url=authn_request["headers"][0][1])
-    response.set_cookie("saml_request_id", req_id, httponly=True, max_age=600)
-    response.set_cookie("saml_relay_state", relay_state, httponly=True, max_age=600)
+    _set_session_cookie(response, request, "saml_request_id", req_id, 600)
+    _set_session_cookie(response, request, "saml_relay_state", relay_target, 600)
     return response
 
 
@@ -643,11 +674,11 @@ async def saml_acs(provider_name: str, request: Request, SAMLResponse: str = For
     access_token = create_access_token(user_id, extra={"auth_method": "saml", "provider": provider_name})
     refresh_token = create_refresh_token(user_id)
     
-    redirect_after = RelayState or "/"
+    redirect_after = _safe_redirect_target(RelayState or "/")
     response = RedirectResponse(url=redirect_after)
-    response.set_cookie("access_token", access_token, httponly=True, max_age=900)
-    response.set_cookie("refresh_token", refresh_token, httponly=True, max_age=604800)
-    
+    _set_session_cookie(response, request, "access_token", access_token, 900)
+    _set_session_cookie(response, request, "refresh_token", refresh_token, 604800)
+
     return response
 
 

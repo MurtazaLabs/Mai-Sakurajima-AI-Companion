@@ -233,12 +233,6 @@ class SessionRunner:
             turn = str(turn).strip()
             if not turn:
                 continue
-            cache = getattr(brain, "_response_cache", None)
-            if cache is not None:
-                try:
-                    cache.clear()
-                except Exception as e:
-                    logger.debug("[SessionRunner] cache clear failed: %s", e)
             response = brain.think(turn)
             evidence = self._snapshot(brain)
             self.transcript.add(turn, response, evidence)

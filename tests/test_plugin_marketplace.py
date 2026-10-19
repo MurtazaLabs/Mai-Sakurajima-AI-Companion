@@ -176,7 +176,10 @@ def test_marketplace_detail_unknown_404(manager):
     assert resp.status_code == 404
 
 
-def test_install_via_api_end_to_end(manager):
+def test_install_via_api_end_to_end(manager, monkeypatch):
+    # The local example_plugin is unsigned; the API-side policy gate requires
+    # an explicit developer opt-in for unsigned packages.
+    monkeypatch.setenv("MAI_ALLOW_UNSIGNED_PLUGINS", "1")
     resp = client.post(
         "/api/plugins/marketplace/install",
         json={"name": "example_plugin", "version": "latest", "force": False},
@@ -188,6 +191,45 @@ def test_install_via_api_end_to_end(manager):
     entry = next(p for p in listed if p["name"] == "example_plugin")
     assert entry["state"] == PluginState.DISCOVERED.value
     assert entry["enabled"] is False
+
+
+def test_unsigned_install_blocked_by_default(manager):
+    resp = client.post(
+        "/api/plugins/marketplace/install",
+        json={"name": "example_plugin", "version": "latest", "force": False},
+    )
+    assert resp.status_code == 400
+    assert "unsigned" in resp.json()["detail"].lower()
+
+
+def test_unsigned_install_opt_in_allows(manager, monkeypatch):
+    monkeypatch.setenv("MAI_ALLOW_UNSIGNED_PLUGINS", "1")
+    resp = client.post(
+        "/api/plugins/marketplace/install",
+        json={"name": "example_plugin", "version": "latest", "force": False},
+    )
+    assert resp.status_code == 200
+    assert resp.json()["success"] is True
+
+
+def test_bogus_trusted_key_blocks_install(manager, monkeypatch, tmp_path):
+    # The +trusted_keys surface is client-level only (the API never trusts
+    # caller-supplied keys). A failed signature check must abort the install.
+    monkeypatch.setenv("MAI_ALLOW_UNSIGNED_PLUGINS", "0")
+    monkeypatch.setattr(
+        "plugins.marketplace_client.verify_plugin_package",
+        lambda *a, **k: (False, "signature did not match", None),
+    )
+    client_obj = create_marketplace_client(REGISTRY_URL)
+    success, message, _path = client_obj.install_plugin(
+        name="example_plugin",
+        version="latest",
+        force=False,
+        trusted_keys=["kid-server-config"],
+        lifecycle_manager=manager,
+    )
+    assert success is False
+    assert "signature" in message.lower()
 
 
 def test_enable_unknown_plugin_400(manager):

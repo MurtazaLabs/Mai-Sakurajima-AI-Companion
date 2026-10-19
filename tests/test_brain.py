@@ -818,3 +818,81 @@ class TestBrainHelpers:
         brain.memory.reader.get_all.return_value = {"preferences": {"topic": "tech"}}
         result = brain._safe_structured()
         assert result == {"preferences": {"topic": "tech"}}
+
+
+class TestBrainNoResponseCache:
+    """The M9-era response cache was removed (bug-audit Oct 19, 2026): a
+    text-only cache key raced multi-user sessions and, on hit, skipped memory
+    after-think, event publication and post-think hooks entirely."""
+
+    def _brain(self):
+        cls = TestBrain()
+        return cls._make_brain(use_mock_memory=True)
+
+    def test_no_response_cache_attribute(self):
+        brain = self._brain()
+        assert not hasattr(brain, "_response_cache")
+
+    def test_think_uses_request_local_user_id(self):
+        brain = self._brain()
+        # Simulate a stale shared attribute from a previous request.
+        brain._current_user_id = "user-stale"
+        coordinator = MagicMock()
+        coordinator.before_think.return_value = {}
+        brain.memory_coordinator = coordinator
+        brain.think("hello", user_id="user-real")
+        assert coordinator.before_think.call_args.kwargs["user_id"] == "user-real"
+
+    def test_switch_user_does_not_touch_cache(self):
+        brain = self._brain()
+        assert brain.switch_user("user-b") is True
+        assert brain.get_current_user() == "user-b"
+
+    def test_pre_chat_hook_appends_not_replaces(self):
+        """Fix 3 (bug-audit Oct 19): hook output must be appended as context —
+        replacing the input erased the user's actual question."""
+        brain = self._brain()
+        hooks = MagicMock()
+        hooks.run.return_value = ["PAGE CONTENT: Mai runs locally, offline."]
+        brain.hook_registry = hooks
+        real_build = brain.prompt_orchestrator.build
+        brain.prompt_orchestrator.build = MagicMock(side_effect=real_build)
+        brain.think("what is mai offline?", user_id="u1")
+        seen = brain.prompt_orchestrator.build.call_args.args[0]
+        assert seen.startswith("what is mai offline?")
+        assert "PAGE CONTENT: Mai runs locally, offline." in seen
+
+    def test_think_stream_uses_request_local_user_id(self):
+        brain = self._brain()
+        brain.llm.stream.return_value = iter(["Hello there!"])
+        coordinator = MagicMock()
+        coordinator.before_think.return_value = {}
+        brain.memory_coordinator = coordinator
+        brain._current_user_id = "user-stale"
+        with patch.object(brain.emotion, "update"):
+            list(brain.think_stream("hi", user_id="user-real"))
+        assert coordinator.before_think.call_args.kwargs["user_id"] == "user-real"
+
+    def test_concurrent_requests_isolated_user_ids(self):
+        """Fix 2: interleaved requests with different user ids must each see
+        their own identity at memory coordination (request-local variable)."""
+        import concurrent.futures
+        brain = self._brain()
+        coordinator = MagicMock()
+        coordinator.before_think.return_value = {}
+        brain.memory_coordinator = coordinator
+        n = 8
+        user_ids = [f"user-{i}" for i in range(n)]
+        messages = [f"message {i}" for i in range(n)]
+        with concurrent.futures.ThreadPoolExecutor(max_workers=n) as pool:
+            replies = list(pool.map(
+                lambda u, m: brain.think(m, user_id=u), user_ids, messages
+            ))
+        assert all(isinstance(r, str) and r for r in replies)
+        by_user = {
+            call.kwargs["user_id"]: call.args[0]
+            for call in coordinator.before_think.call_args_list
+        }
+        assert len(by_user) == n
+        for i in range(n):
+            assert by_user[f"user-{i}"] == f"message {i}"

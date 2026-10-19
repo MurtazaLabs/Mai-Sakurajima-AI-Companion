@@ -14,7 +14,7 @@ logger = logging.getLogger(__name__)
 
 class SafeExecutor:
 
-    def __init__(self, executor, mode=None):
+    def __init__(self, executor, mode=None, confirm_fn=None):
         self.executor = executor
         self.mode = mode or EXECUTOR_MODE
         self.last_action_time = 0
@@ -27,6 +27,11 @@ class SafeExecutor:
             "admin": {"open_app", "open_url", "search", "type_text", "run_command"},
         }
         self.blocked_commands = EXECUTOR_BLOCKED_COMMANDS
+        # Optional confirmation gate. Default None = fail-closed: interactive
+        # confirmations are auto-declined, which keeps headless/CI runs safe.
+        # A UI (desktop app, web panel) can inject a callable that asks the
+        # user and returns True/False.
+        self.confirm_fn = confirm_fn
         self._lock = threading.RLock()
 
     def run(self, action: dict):
@@ -92,8 +97,18 @@ class SafeExecutor:
         return True, "ok"
 
     def _confirm(self, action):
-        logger.warning("Action confirmation requested for: %s", action)
-        return False
+        if self.confirm_fn is None:
+            logger.warning(
+                "Action confirmation requested but no confirm_fn is configured — auto-declined: %s",
+                action,
+            )
+            return False
+        try:
+            allowed = self.confirm_fn(action)
+        except Exception as e:
+            logger.error("confirm_fn raised, declining action: %s", e)
+            return False
+        return bool(allowed)
 
     def _cooldown_ready(self):
         return time.time() - self.last_action_time >= self.cooldown

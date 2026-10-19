@@ -247,7 +247,7 @@ class LLMManager:
 
         if not priority:
             try:
-                response = self.generate(system=system, user=user)
+                response = self.generate(system=system, user=user, history=history)
             except ConnectionError:
                 response = self._fallback_text(system, user)
             return iter([response])
@@ -293,7 +293,7 @@ class LLMManager:
                     )
                     break
         try:
-            response = self.generate(system=system, user=user)
+            response = self.generate(system=system, user=user, history=history)
         except ConnectionError:
             response = self._fallback_text(system, user)
         if response:

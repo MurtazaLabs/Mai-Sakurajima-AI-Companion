@@ -5,6 +5,7 @@ with dependency resolution and version compatibility checks.
 """
 import json
 import hashlib
+import os
 import tempfile
 import shutil
 import urllib.request
@@ -16,6 +17,18 @@ from dataclasses import dataclass
 from plugins.plugin_manifest import PluginManifest, PluginManifestValidator
 from plugins.dependency_resolver import DependencyResolver, VersionConflictError, CircularDependencyError
 from plugins.signing import verify_plugin_package
+
+
+def _unsigned_installs_allowed() -> bool:
+    """Unsigned marketplace installs are a developer opt-in only.
+
+    Packages are verified against trusted keys by default; physically absorbing
+    an unsigned install means running arbitrary untrusted code, so it requires
+    MAI_ALLOW_UNSIGNED_PLUGINS=1 to accept.
+    """
+    return os.environ.get("MAI_ALLOW_UNSIGNED_PLUGINS", "").strip().lower() in (
+        "1", "true", "yes"
+    )
 
 
 @dataclass
@@ -374,12 +387,17 @@ class MarketplaceClient:
         package_path = self.download_package(plugin)
         
         try:
-            # Verify signature if trusted keys provided
             if trusted_keys:
                 is_valid, error, _ = verify_plugin_package(package_path, trusted_keys)
                 if not is_valid:
                     return False, f"Signature verification failed: {error}", package_path
-            
+            elif not _unsigned_installs_allowed():
+                return False, (
+                    "Package is not signed with a trusted key and unsigned installs "
+                    "are disabled; provide trusted_keys or set "
+                    "MAI_ALLOW_UNSIGNED_PLUGINS=1 (developer opt-in)"
+                ), package_path
+
             # Install via lifecycle manager
             record = lifecycle_manager.install(
                 package_path,
@@ -387,7 +405,7 @@ class MarketplaceClient:
                 force=force,
                 trusted_keys=trusted_keys
             )
-            
+
             return True, f"Plugin {name} v{version} installed successfully", package_path
             
         except Exception as e:

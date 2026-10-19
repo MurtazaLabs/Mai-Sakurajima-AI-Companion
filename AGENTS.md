@@ -1618,3 +1618,36 @@ User request: launch Mai as a desktop app â€” no VS Code, no bat file. Assessmen
 - History scrub: workbatch (18 modified + 7 untracked files) held via \git stash -u\ + local backup branch; \git filter-branch --index-filter 'git rm -r --cached --ignore-unmatch Embedding_models' -- --all\ rewrote all refs (8 commits incl. stash lineage); \efs/original/*\ deleted, reflog expired, \gc --prune=now\; force-push \2ed2178..ec70455\. Verified 0 Embedding_models objects repo-wide, workbatch restored intact, weights still on disk (runtime unaffected).
 - Notes: local branch \cognitive-desktop-v3\ never contained the weights (unchanged by filter); stale \efs/remotes/origin/master\ left as harmless local tracking ref; GitHub server-side object cache may retain old blobs temporarily; 1 existing fork still holds pre-rewrite history.
 - Researched (README-only, no code): \codeninjavik/myra-ultra\ — cloud-Gemini voice/desktop assistant; UI patterns (floating orb, edge-glow, system-stats panel, unified input) flagged as candidates for the M14 Java client; Mai's differentiators remain memory/character/local-first.
+
+---
+
+## Bug Audit Remediation - Oct 19 2026
+
+User brought a 10-finding ChatGPT security/quality review; every finding was independently verified against the code (ALL 10 confirmed, including line-exact eval-globals, path-containment, cache, and cookie sites) before any fix. Full report: docs/Mai_documentation/01-Architecture/Bug_Audit_Report_2026-10-19.md.
+
+1. **Brain response cache REMOVED (P0)** - core/brain.py TTLCache was keyed only on message text (user A could receive user B's cached reply) and a cache hit skipped memory after_think, cognitive.push_turn, thought journaling, CONVERSATION_FINISHED/STATE_REASONING_COMPLETE/STATE_MONOLOGUE_GENERATED, and post-think hooks (one repeat message desynced the whole state chain; STATE_REASONING_BUSY fired with no completion event). Deleted: TTLCache import, _response_cache init/get/set/switch_user clear; evaluation/runner.py dead per-turn clear block removed.
+2. **Request-local user_id (P0)** - think()/think_stream() mutated shared self._current_user_id mid-request (multi-user race: memory stored under wrong user). Both now use request-local request_user_id for before_think/after_think; the attr remains only for the agent path + get_current_user().
+3. **Hook merge append-not-replace (P0)** - pre_chat hook result REPLACED the user's message (brain.py 548-555), erasing the question; now appended as [Web content retrieved from a URL in the message] context.
+4. **Web scraper hardening (P0)** - was: any message containing a URL auto-scraped, unbounded resp.read(), blind redirects. Now: explicit-intent regex (scrape/fetch/read/summarize/browse + URL-shaped target), http(s)-only scheme validation (ftp/file/data rejected), 2 MB read cap, _SafeRedirectHandler blocks non-HTTP redirect schemes.
+5. **Sandbox path containment (P1)** - resolve_path() startswith-prefix check (sibling <root>_backup/ bypass) replaced with structural relative_to() containment (also catches resolved symlink escapes).
+6. **Sandbox eval lockdown (P0)** - eval globals exposed raw os+pathlib; builtins kept getattr/setattr/type escape hatches; resource limits applied process-wide. Purged all five; eval_code now needs EXEC_EVAL permission AND MAI_PLUGIN_ALLOW_EVAL=1 (default off); eval + execute_plugin documented trusted-first-party-only; third-party code must use run_subprocess().
+7. **Marketplace signatures required (P1)** - install_plugin verified ONLY when trusted_keys given; now signature required by default, unsigned installs need MAI_ALLOW_UNSIGNED_PLUGINS=1 (dev opt-in). API deliberately never accepts caller-supplied keys (self-verifying anti-pattern).
+8. **SafeExecutor confirm gate (P1)** - hardcoded return-False stub became injectable confirm_fn ctor param (default None = fail-closed headless auto-decline preserved); raising confirm_fn also declines.
+9. **LLM stream fallback history (P1)** - both fallbacks dropped history: no-priority path (manager.py ~250) and final generate after all streams fail (~296). Both now pass history=history (generate() already accepted it).
+10. **Auth cookies + redirect + NameError (P0)** - api/auth.py:198 used base64 without the import (NameError on every JWKS request); all 9 set_cookie sites lacked samesite/secure. Added import base64 + import re; new _set_session_cookie() = HttpOnly + SameSite=Lax + Secure-on-HTTPS, all 9 sites routed through it; _safe_redirect_target() allowlist (local / paths only; https://evil.com, //evil.com, javascript:, CR/LF rejected) applied to OIDC redirect_after + SAML relay_state.
+
+Tests: +47 (test_sandbox 9, test_web_scraper 12, test_auth_oidc 14, TestBrainNoResponseCache 3, TestSafeExecutorConfirm 4, TestStreamFallbackHistory 2, test_plugin_marketplace +3 + e2e opt-in update). Found during testing: mock-provider stream() never raises StopIteration through next() - failover loop spins forever with un-iterator streams (test-only artifact; real providers return generators). Full suite gate under mai_env: 1,977 passed, 2 skipped, 0 failures (baseline 1,930 + 47, 2m51s).
+
+---
+
+## Verification Pass - Sprint Closure - Oct 19 2026
+
+External review demanded independent verification beyond the fix report. All five channels closed; doc: docs/Mai_documentation/01-Architecture/Bug_Audit_Report_2026-10-19.md (Independent Verification section).
+
+1. NEW FIX - Redirect SSRF guard in plugins/web_scraper/web_scraper.py: module guard require_public_target() + _resolves_to_public_ip() (getaddrinfo + ipaddress categories: loopback/private/link-local/reserved/multicast/unspecified); guards the initial fetch AND every redirect (_SafeRedirectHandler now calls it); unresolvable DNS hosts refuse to fetch; env opt-in MAI_SCRAPER_ALLOW_PRIVATE=1. +5 tests (TestSSRFGuard): loopback initial blocked, DNS-failure blocked, redirect-to-loopback URLError, private/public classification table, dev opt-in path.
+2. Symlink escape regression: tests/test_sandbox.py test_symlink_escape_rejected (in-root symlink to outside -> PermissionError via resolve-then-relative_to). Residual risk documented: point-in-time TOCTOU between resolve_path() and the caller's open is inherent to in-process resolvers; untrusted code stays on run_subprocess().
+3. Concurrency proof: tests/test_brain.py TestBrainNoResponseCache.test_concurrent_requests_isolated_user_ids - 8-thread pool interleaving think() with distinct user ids; every request's before_think observed its own message/user pair. think_stream request-local identity proven separately (test_think_stream_uses_request_local_user_id); concurrent stream variant deferred (identical fix shape).
+4. Hook merge proof: test_pre_chat_hook_appends_not_replaces - question preserved at prompt build, page content appended (needed a MagicMock(side_effect=real_build) wrap; prompt_orchestrator.build orchestrates a plain function, no call_args).
+5. Full-suite gate re-run: 1,986 passed / 2 skipped / 0 failures in 1m46s under mai_env (baseline 1,977 + 9).
+
+Tooling notes: PS 5.1 Add-Content double-quote strings interpret backtick-t as tab (PowerShell escape) - test names in docs written without inline backticks or via single-quoted strings; one mangled line in the report doc repaired.

@@ -20,7 +20,7 @@ from core.response_pipeline import ResponsePipeline, PipelineResult
 from core.tool_manager import ToolManager
 from core.brain_memory import BrainMemory
 from core.brain_routing import BrainRouter
-from core.utils import safe_call, safe_attr, TimeOfDay, UserMood, TTLCache
+from core.utils import safe_call, safe_attr, TimeOfDay, UserMood
 from app.config_loader import CACHE_DIR, LLM_MAX_CONTEXT, MEMORY_PRUNE_INTERVAL
 
 logger = logging.getLogger(__name__)
@@ -209,7 +209,6 @@ class Brain:
             event_bus=self.event_bus,
         )
 
-        self._response_cache = TTLCache(maxsize=64, ttl=30.0)
         self.last_thought_packet = None
         self.needs_engine = getattr(deps, "needs_engine", None)
         self._current_user_id = ""
@@ -531,15 +530,11 @@ class Brain:
             logger.debug("[Brain] Turn correlation: %s", correlation_id)
 
             self._current_user_id = str(user_id)
+            request_user_id = str(user_id)
 
             from core.event_specs import STATE_REASONING_BUSY
             from core.mai_message import publish_event
             publish_event(self.event_bus, STATE_REASONING_BUSY, {}, source="cognition")
-
-            cached = self._response_cache.get(user_input)
-            if cached is not None:
-                logger.debug("[Brain] Response cache hit for: %.40s", user_input)
-                return cached
 
             # ==================================================
             # 🔌 PLUGIN HOOKS — pre_chat
@@ -551,7 +546,10 @@ class Brain:
                     for r in results:
                         if r is not None and isinstance(r, str) and r.strip():
                             sanitized = r.strip()[:4000]
-                            user_input = sanitized
+                            user_input = (
+                                f"{user_input}\n\n"
+                                f"[Web content retrieved from a URL in the message]\n{sanitized}"
+                            )
                             break
                 except Exception as e:
                     logger.warning("[Brain] pre_chat hook error: %s", e)
@@ -569,7 +567,7 @@ class Brain:
             # ==================================================
 
             self._sync_emotion(user_input)
-            mem_data = self.memory_coordinator.before_think(user_input, user_id=self._current_user_id)
+            mem_data = self.memory_coordinator.before_think(user_input, user_id=request_user_id)
             system = self.prompt_orchestrator.build(
                 user_input, memory_data=mem_data, monologue=True,
                 identity_data=self._identity_data(),
@@ -655,7 +653,7 @@ class Brain:
                 except Exception as e:
                     logger.debug("[Brain] Monologue journal failed: %s", e)
 
-            self.memory_coordinator.after_think(user_input, response, user_id=self._current_user_id)
+            self.memory_coordinator.after_think(user_input, response, user_id=request_user_id)
             self.cognitive.push_turn(user_input, response)
 
             from core.event_specs import CONVERSATION_FINISHED, STATE_REASONING_COMPLETE
@@ -673,7 +671,6 @@ class Brain:
             }, source="cognition")
 
             self._post_think_hooks(user_input, response, self.memory_coordinator.get_structured())
-            self._response_cache.set(user_input, response)
             return response
 
         except Exception as e:
@@ -884,12 +881,13 @@ class Brain:
                 self.state.runtime.current_session_turns += 1
 
             self._current_user_id = str(user_id)
+            request_user_id = str(user_id)
 
             self._stream_user_input = user_input
 
             # Sync emotion state (same as think())
             self._sync_emotion(user_input)
-            mem_data = self.memory_coordinator.before_think(user_input, user_id=self._current_user_id)
+            mem_data = self.memory_coordinator.before_think(user_input, user_id=request_user_id)
             system = self.prompt_orchestrator.build(
                 self._delimit_user_input(user_input),
                 memory_data=mem_data,
@@ -990,10 +988,7 @@ class Brain:
         
         old_user = getattr(self, "_current_user_id", "unknown")
         self._current_user_id = str(user_id)
-        
-        # Reset per-user caches
-        self._response_cache.clear()
-        
+
         # Notify event bus
         if self.event_bus:
             try:

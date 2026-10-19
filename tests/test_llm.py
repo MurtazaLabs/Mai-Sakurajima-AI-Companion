@@ -904,3 +904,38 @@ class TestLLMProviderPreference:
         manager.openrouter.stream.return_value = iter(["cloud chunk"])
         chunks = list(manager.stream("sys", "usr"))
         assert chunks == ["cloud chunk"]
+
+
+class TestStreamFallbackHistory:
+    """Streaming fallbacks must carry conversation history through to the
+    non-streamed generate() they degrade to (bug-audit Oct 19, 2026)."""
+
+    def _manager(self):
+        from llm.manager import LLMManager
+        manager = LLMManager()
+        manager.openrouter = MagicMock()
+        manager.ollama = MagicMock()
+        # Keep the probe from re-deriving availability from the mocks.
+        manager._probe = MagicMock()
+        return manager
+
+    HISTORY = [{"role": "user", "content": "previous turn"}]
+
+    def test_no_priority_generate_passes_history(self):
+        manager = self._manager()
+        manager._openrouter_available = False
+        del manager.ollama.stream  # no candidate providers -> no-priority path
+        manager.generate = MagicMock(return_value="no-prio")
+        chunks = list(manager.stream("sys", "u", history=self.HISTORY))
+        assert chunks == ["no-prio"]
+        assert manager.generate.call_args.kwargs["history"] == self.HISTORY
+
+    def test_all_streams_fail_generate_passes_history(self):
+        manager = self._manager()
+        manager._openrouter_available = True
+        manager.openrouter.stream.side_effect = RuntimeError("dead")
+        manager.ollama.stream.side_effect = RuntimeError("dead")
+        manager.generate = MagicMock(return_value="final-fallback")
+        chunks = list(manager.stream("sys", "u", history=self.HISTORY))
+        assert chunks == ["final-fallback"]
+        assert manager.generate.call_args.kwargs["history"] == self.HISTORY
