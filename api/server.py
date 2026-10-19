@@ -111,6 +111,8 @@ class MaiAPI(
         self._voice_worker: Optional[threading.Thread] = None
         self._voice_worker_stop = threading.Event()
         self.model_lifecycle: Any = None
+        self.app: Any = None
+        self.kernel: Any = None
 
     def cleanup(self):
         self._stop_voice_conversation()
@@ -175,6 +177,8 @@ class MaiAPI(
             self.dream_engine = components.get("dream_engine")
             self.session_manager = components.get("session_manager")
             self.model_lifecycle = components.get("model_lifecycle")
+            self.app = components.get("app")
+            self.kernel = getattr(self.app, "kernel", None)
             if self.session_manager:
                 routes_profile.set_session_manager(self.session_manager)
             self._last_dream_report: dict = {}

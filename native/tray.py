@@ -21,12 +21,13 @@ class TrayDaemon:
     """
 
     def __init__(self, host="localhost", port=8000, voice_manager=None,
-                 brain=None, on_quit=None):
+                 brain=None, on_quit=None, on_open=None):
         self.host = host
         self.port = port
         self.voice_manager = voice_manager
         self.brain = brain
         self.on_quit = on_quit
+        self.on_open = on_open
         self._icon: Optional[Any] = None
         self._thread: Optional[threading.Thread] = None
         self._running = False
@@ -70,6 +71,12 @@ class TrayDaemon:
         return items
 
     def _action_open(self):
+        if self.on_open:
+            try:
+                self.on_open()
+                return
+            except Exception as e:
+                logger.warning("[Tray] Open callback failed: %s", e)
         webbrowser.open(f"http://{self.host}:{self.port}/desktop")
 
     def _action_toggle_voice(self):

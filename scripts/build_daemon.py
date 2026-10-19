@@ -48,6 +48,14 @@ HIDDEN_IMPORTS = [
     "pyperclip",
     "yaml",
     "watchdog",
+    "webview",
+    "native",
+    "native.tray",
+    "native.app_window",
+    "native.hotkeys",
+    "native.notifier",
+    "native.startup",
+    "native.watchdog",
 ]
 
 DATA_DIRS = [
@@ -61,6 +69,7 @@ COLLECT_ALL = [
     "starlette",
     "pydantic",
     "yaml",
+    "webview",
 ]
 
 
@@ -72,7 +81,7 @@ def main():
 
     args = [
         "--name=mai-daemon",
-        "--console",
+        "--noconsole",
         "--clean",
         "--noconfirm",
     ]
@@ -83,6 +92,10 @@ def main():
         args.append(f"--hidden-import={imp}")
     for coll in COLLECT_ALL:
         args.append(f"--collect-all={coll}")
+    for data_dir in DATA_DIRS:
+        src = PROJECT_ROOT / data_dir
+        if src.exists():
+            args.append(f"--add-data={src}{os.pathsep}{data_dir}")
 
     args.append(str(PROJECT_ROOT / "run_daemon.py"))
 

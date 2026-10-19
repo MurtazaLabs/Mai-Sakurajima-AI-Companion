@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "01-Architecture/Bug_Summary_and_Fix_Plan_2026-09-21.md",
+                "file": "03-Features/future-vision-roadmap.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "Bug_Summary_and_Fix_Plan_2026-09-21"
+              "title": "future-vision-roadmap"
             }
           }
         ]
@@ -187,8 +187,10 @@
   },
   "active": "e5b4f3596beb254f",
   "lastOpenFiles": [
-    "01-Architecture/ADR Presentation Layer Restructure.md",
+    "03-Features/stt-kyutai-replacement-plan.md",
     "01-Architecture/Bug_Summary_and_Fix_Plan_2026-09-21.md",
+    "03-Features/future-vision-roadmap.md",
+    "01-Architecture/ADR Presentation Layer Restructure.md",
     "00-Overview/Project Charter.md",
     "00-Overview/README.md",
     "03-Features/Complete Redesign Implementation Plan.md",
@@ -211,8 +213,6 @@
     "05-Reference/Complete Folder Structure.md",
     "SUBSYSTEM_DOCUMENTATION/voice.md",
     "SUBSYSTEM_DOCUMENTATION",
-    "05-Reference/MERGED_COMPLETE Reference.md",
-    "04-Development/Deployment Guide.md",
-    "04-Development/Testing Strategy.md"
+    "05-Reference/MERGED_COMPLETE Reference.md"
   ]
 }

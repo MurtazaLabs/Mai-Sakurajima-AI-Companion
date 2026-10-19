@@ -133,6 +133,9 @@ class OllamaProvider:
             "model": self.model,
             "messages": messages,
             "stream": stream,
+            # Top-level /api/chat field (boolean|string): false suppresses
+            # thinking output so voice replies don't wait on reasoning.
+            "think": False,
             "options": self._options(),
         }
 

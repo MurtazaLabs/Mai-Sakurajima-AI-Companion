@@ -30,10 +30,18 @@ class OpenRouterProvider:
 
         self.api_key = api_key
 
-        self.models = models or [
-            OPENROUTER_DEFAULT_MODEL,
-            "openrouter/auto"
-        ]
+        # Sanitize the failover list: drop non-string/empty entries and
+        # duplicates. An env-less OPENROUTER_DEFAULT_MODEL used to inject
+        # None, so every request shipped model:"None" (400 x3 -> ~8s tax).
+        candidates = models if models else [OPENROUTER_DEFAULT_MODEL, "openrouter/auto"]
+        seen = set()
+        self.models = []
+        for m in candidates:
+            if isinstance(m, str) and m.strip() and m not in seen:
+                seen.add(m)
+                self.models.append(m)
+        if not self.models:
+            self.models = ["openrouter/auto"]
 
         self.base_url = "https://openrouter.ai/api/v1"
 
@@ -125,6 +133,20 @@ class OpenRouterProvider:
             return float(raw)
         except (TypeError, ValueError):
             return None
+
+    # HTTP statuses that retrying the same model+payload can never fix.
+    # These fail over immediately instead of burning LLM_RETRY_COUNT
+    # attempts with exponential backoff (which added ~8s to every call).
+    _PERMANENT_STATUS = (400, 401, 403, 404, 422)
+
+    @staticmethod
+    def _status_code(e: Exception) -> Optional[int]:
+        """HTTP status of a raise_for_status error, or None if not an HTTP error."""
+        resp = getattr(e, "response", None)
+        if resp is None:
+            return None
+        status = getattr(resp, "status_code", None)
+        return status if isinstance(status, int) else None
 
     def _headers(self) -> dict:
         return {
@@ -250,6 +272,14 @@ class OpenRouterProvider:
                         "%s attempt %d/%d failed: %s",
                         model, attempt + 1, max_attempts, e
                     )
+
+                    status = self._status_code(e)
+                    if status in self._PERMANENT_STATUS:
+                        logger.info(
+                            "[OpenRouter] HTTP %d for %s — permanent for this model, failing over",
+                            status, model,
+                        )
+                        break
 
                     if attempt < max_attempts - 1:
                         remaining = 0.0
@@ -410,6 +440,14 @@ class OpenRouterProvider:
                         "%s attempt %d/%d failed: %s",
                         model, attempt + 1, max_attempts, e
                     )
+
+                    status = self._status_code(e)
+                    if status in self._PERMANENT_STATUS:
+                        logger.info(
+                            "[OpenRouter] HTTP %d for %s — permanent for this model, failing over",
+                            status, model,
+                        )
+                        break
 
                     if attempt < max_attempts - 1:
                         remaining = 0.0

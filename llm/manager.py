@@ -8,7 +8,7 @@ from typing import Iterator, Optional
 
 from llm.providers.ollama import OllamaProvider
 from llm.providers.openrouter import OpenRouterProvider
-from app.config_loader import OPENROUTER_API_KEY
+from app.config_loader import OPENROUTER_API_KEY, LLM_PROVIDER
 
 logger = logging.getLogger("Mai.LLMManager")
 
@@ -42,6 +42,18 @@ class LLMManager:
         self._probe_at = 0.0
         self._openrouter_cooldown_until = 0.0
         self._ollama_cooldown_until = 0.0
+
+        # Provider preference: "ollama" = local first (OpenRouter fallback),
+        # anything else = OpenRouter first (default). Normalized here so
+        # tests can patch llm.manager.LLM_PROVIDER with any casing.
+        provider = (LLM_PROVIDER or "openrouter").strip().lower()
+        if provider not in ("openrouter", "ollama"):
+            logger.warning(
+                "[LLMManager] Unknown LLM_PROVIDER %r — defaulting to openrouter",
+                LLM_PROVIDER,
+            )
+            provider = "openrouter"
+        self._prefer_ollama = provider == "ollama"
 
         self.ollama = OllamaProvider()
 
@@ -80,7 +92,7 @@ class LLMManager:
             openrouter_ok = False
 
         ollama_ok = current_ollama
-        if probe_ollama and not openrouter_ok:
+        if probe_ollama and (not openrouter_ok or self._prefer_ollama):
             try:
                 ollama_ok = self.ollama.is_alive()
             except Exception as e:
@@ -123,45 +135,71 @@ class LLMManager:
 
         with self._lock:
             openrouter_ok = self._openrouter_available
+            prefer_ollama = self._prefer_ollama
 
-        if openrouter_ok:
+        # Attempt order: preferred provider first, the other second.
+        order = ("ollama", "openrouter") if prefer_ollama else ("openrouter", "ollama")
 
-            simple = self._is_simple_query(user)
+        for name in order:
+            if name == "openrouter":
 
-            try:
+                if not openrouter_ok:
+                    if not prefer_ollama:
+                        logger.info(
+                            "OpenRouter unreachable. "
+                            "Switching to offline failover (Ollama)."
+                        )
+                    continue
 
-                response = self.openrouter.generate(
-                    system, user, history, simple=simple,
-                )
-                return response
+                simple = self._is_simple_query(user)
+                try:
+                    response = self.openrouter.generate(
+                        system, user, history, simple=simple,
+                    )
+                    return response
+                except Exception as e:
+                    self._mark_openrouter_dead()
+                    if prefer_ollama:
+                        logger.warning(
+                            "OpenRouter failed: %s.", _sanitize_log_message(str(e))
+                        )
+                    else:
+                        logger.warning(
+                            "OpenRouter failed: %s. Switching to offline failover (Ollama).",
+                            _sanitize_log_message(str(e)),
+                        )
 
-            except Exception as e:
+            else:
 
-                self._mark_openrouter_dead()
-                logger.warning(
-                    "OpenRouter failed: %s. Switching to offline failover (Ollama).", _sanitize_log_message(str(e))
-                )
-
-        else:
-
-            logger.info(
-                "OpenRouter unreachable. "
-                "Switching to offline failover (Ollama)."
-            )
-
-        try:
-
-            if self.ollama.is_alive():
-
-                return self.ollama.generate(
-                    system, user, history
-                )
-
-        except Exception as e:
-
-            self._mark_ollama_dead()
-            if openrouter_ok:
-                logger.warning("Ollama failover failed: %s", _sanitize_log_message(str(e)))
+                if prefer_ollama:
+                    # Use the cached probe (kept fresh while Ollama is the
+                    # preferred provider) — a stale-false cache must not cost
+                    # a 2s dead-host timeout on every voice turn.
+                    with self._lock:
+                        ollama_ok = self._ollama_available
+                    if not ollama_ok:
+                        logger.info(
+                            "Ollama unavailable (cached). Falling back to OpenRouter."
+                        )
+                        continue
+                    try:
+                        return self.ollama.generate(system, user, history)
+                    except Exception as e:
+                        self._mark_ollama_dead()
+                        logger.warning(
+                            "Ollama failed: %s. Falling back to OpenRouter.",
+                            _sanitize_log_message(str(e)),
+                        )
+                else:
+                    try:
+                        if self.ollama.is_alive():
+                            return self.ollama.generate(
+                                system, user, history
+                            )
+                    except Exception as e:
+                        self._mark_ollama_dead()
+                        if openrouter_ok:
+                            logger.warning("Ollama failover failed: %s", _sanitize_log_message(str(e)))
 
         logger.error(
             "Both OpenRouter and Ollama are unreachable — using fallback text"
@@ -196,10 +234,16 @@ class LLMManager:
             openrouter_ok = self._openrouter_available
 
         priority = []
-        if openrouter_ok and hasattr(self.openrouter, "stream"):
-            priority.append(("openrouter", self.openrouter))
-        if hasattr(self.ollama, "stream"):
-            priority.append(("ollama", self.ollama))
+        if self._prefer_ollama:
+            if hasattr(self.ollama, "stream"):
+                priority.append(("ollama", self.ollama))
+            if openrouter_ok and hasattr(self.openrouter, "stream"):
+                priority.append(("openrouter", self.openrouter))
+        else:
+            if openrouter_ok and hasattr(self.openrouter, "stream"):
+                priority.append(("openrouter", self.openrouter))
+            if hasattr(self.ollama, "stream"):
+                priority.append(("ollama", self.ollama))
 
         if not priority:
             try:

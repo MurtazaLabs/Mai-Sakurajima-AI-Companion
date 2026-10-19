@@ -17,6 +17,19 @@ VAD_MAX_RECORDING = 30.0
 VAD_PRE_ROLL = 0.5
 VAD_FRAME_SIZE = 512
 
+# Whole-utterance VAD gate — rejects noise-only recordings (fan/hiss) before
+# they reach STT. mean = average speech probability across the utterance,
+# ratio = fraction of frames above VAD_THRESHOLD. Reject when mean < MIN_MEAN
+# or ratio < MIN_RATIO. Both are tuned via the fan-noise rejection test.
+# Whole-utterance VAD gate thresholds — calibrated from live log 2026-10-09:
+# fan/noise bursts scored mean<=0.10, ratio<=0.04; real speech attempts scored
+# mean 0.23-0.26, ratio 0.19-0.22 (conversation noise always had ratio 0.00).
+# Bias toward accepting: a false accept costs one whisper call (no wake-word
+# match = harmless), a false reject makes Mai look dead to the user.
+UTTERANCE_VAD_MIN_MEAN = 0.15
+UTTERANCE_VAD_MIN_RATIO = 0.10
+UTTERANCE_VAD_MAX_FRAMES = 256
+
 # Noise filter settings
 NOISE_LOW_CUT = 80.0
 NOISE_HIGH_CUT = 7600.0

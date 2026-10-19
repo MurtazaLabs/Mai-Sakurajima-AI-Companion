@@ -1478,3 +1478,143 @@ Voice turn "open chrome" answered *"I'm not able to open applications or control
 3. **`os.startfile("chrome")` fails on Windows (P1)** — bare app name isn't a path. `execution/handlers.py`: `_APP_PATH_TEMPLATES` map (chrome, firefox, edge, code, spotify, vlc, discord, slack, zoom, teams, outlook, word, excel, powerpoint) + `_resolve_app_path()` (env `LOCALAPPDATA`/`PROGRAMFILES`/`PROGRAMFILES(X86)` + `shutil.which`); `open_app()` Windows branch: try `os.startfile(app_name)`, on `OSError` retry with the resolved path; unresolved name → `{"app_not_found": name}`.
 4. **Envelope normalization (P1)** — `core/response_pipeline.py` `_normalize_action()` accepts the agent-style `{"action": "call_tool", "tool": ..., "params": {...}}`, flattens to `{"type": ..., "content": ...}` before validation/execution. Called at top of `process()`.
 - Gate: +12 tests total. `tests/test_brain.py` TestBrainThink +5 (flat action, envelope action, partial waits, invalid ignored, failure returns empty), `tests/test_core.py` `TestResponsePipelineNormalize` +3, `tests/test_execution.py` +4 (resolve-from-path fallback for "chrome", unresolved chrome → `app_not_found`, bare "notepad" single call). `tests/test_prompt.py` `test_base_instructions_contain_speak_and_json_options` updated (new wording: JSON object + speak line + example, was "Speak normally"/"respond ONLY with JSON"). **1,832 tests pass, 0 failures** (baseline 1,821 + 11).
+
+---
+
+## Phase 0 — Noise Gating: whole-utterance VAD gate before STT (Oct 9 2026)
+
+Ceiling-fan/hiss-only recordings reached Whisper and were normalized to full scale, producing hallucinated transcriptions (`[WakeThread] Heard: "it's awesome."` and random conversation turns). Root cause: no utterance-level speech check existed between the Recorder and any `stt.transcribe()` — recorder onset was only 3 VAD frames (~96ms) plus peak-energy ≥0.02, and `voice_manager.py` then divided by peak (boosting noise to 1.0).
+
+- `voice/vad.py` — `VAD.utterance_score(audio, max_frames)` → `(mean_prob, speech_ratio)` over the utterance (512-sample frames, uniform-stride cap bounds CPU); returns `None` when the model is unavailable so callers fail open instead of rejecting everything.
+- `config/voice.py` — `UTTERANCE_VAD_MIN_MEAN = 0.30`, `UTTERANCE_VAD_MIN_RATIO = 0.35`, `UTTERANCE_VAD_MAX_FRAMES = 256` (starting values, calibrate via live fan test).
+- `voice/voice_manager.py` — `_gate_utterance()` (fail-open on missing/broken VAD with warning); gate in `_handle_wake_audio()` (extracted from `_wake_loop` for testability — rejects log `Rejected non-speech (mean= ratio= samples=)` instead of `Heard:`) and in `_transcribe()` (returns empty-text `VoiceEvent` preserving emotion/speaker).
+- `core/os_kernel.py` — gate on the `return_audio=True` conversation path before its direct `stt.transcribe()` (line 298); reject → `("", None)` = the established "No speech detected" flow.
+- Deliberately NOT changed: `_finalize_listen` empty→`None` (would make `api/server.py:271` VoiceWorker `break` its conversation loop instead of `continue`); recorder onset frames (would clip the first syllable of "hey mai"; pre-roll buffer is backlog); `wake_detector.is_wake()` (zero callers, dead path).
+- Env: installed `alembic==1.14.0` (declared in requirements but missing — its collection error interrupted the entire suite under pytest's default interrupt-on-collection-error behavior).
+- Gate: `tests/test_voice_gating.py` — 19 tests (score semantics, fail-open paths, transcribe/wake/kernel call sites, STT-never-called assertions). Full suite **1,897 pass, 2 skipped, 0 failures**; true baseline verified by stashing only the 4 touched files → 1,878 (the previously recorded "1,836" figure was stale).
+- Pending (needs live system): fan-noise rejection test — boot with fan on, expect `Rejected non-speech` lines and zero `Heard:`/`Whisper result` noise lines, then "hey mai" must still wake; tune the two threshold constants from the logged `mean/ratio` values if needed.
+
+---
+
+## Phase 0 Live Calibration + Two Response-Path Bugs (Oct 9 2026)
+
+Live fan test + conversation test against the running daemon. Gate recalibrated; two P0 bugs behind "Mai stops responding after 1–2 minutes" found and fixed.
+
+### Gate calibration (from live log)
+- First run: thresholds 0.30/0.35 rejected real speech (user attempts scored mean 0.23–0.26, ratio 0.19–0.22). Fan/noise-only clips scored mean ≤0.10, ratio ≤0.04 — clean separation. Cost is asymmetric (false reject = Mai looks dead; false accept = one whisper call), so thresholds biased toward accepting: `UTTERANCE_VAD_MIN_MEAN` 0.30 → **0.15**, `UTTERANCE_VAD_MIN_RATIO` 0.35 → **0.10** (`config/voice.py`, empirical comment added).
+- Added accept-side logging `[Gate] Accepted speech (mean= ratio= samples=)` in `_gate_utterance` — makes live calibration possible.
+- After recalibration: wake works ("Wake up" → transcribed → conversation), gate accepts/rejects correctly both paths.
+
+### Bug 1 — OpenRouter shipped `model:"None"` → 400×3 backoff on every call (P0)
+- `config/llm.py:6` — `os.environ.get("OPENROUTER_DEFAULT_MODEL")` had **no default** → `None` when the env var was unset (it was) → `models = [None, "openrouter/auto"]` → every generate sent `model:"None"` → 400 ×3 retries with backoff (~8–14s) → *then* failed over to `openrouter/auto`. This was the multi-second reply latency on every turn.
+- The intended default `stealth/space-bunny-alpha` **no longer exists** on OpenRouter (verified against `/api/v1/models` — zero stealth/space-bunny matches).
+- Fixes: (a) default → `or "openrouter/free"` (free-model router, honors the original "free by default / no 402" intent — **live-validated**: POST returned `model: poolside/laguna-s-2.1:free`, content "OK"); (b) `OpenRouterProvider.__init__` sanitizes the failover list (drops non-string/empty/dup entries, falls back to `openrouter/auto` if nothing survives); (c) new `_PERMANENT_STATUS = (400, 401, 403, 404, 422)` + `_status_code()` — HTTP client errors that retrying the same model+payload can never fix now **break the attempt loop immediately** (one attempt per model, then fail over) instead of burning the full `LLM_RETRY_COUNT` ladder. Sync `generate()` and async `agenerate()` both patched; non-HTTP errors (no `.response`) keep the existing retry behavior. Stream paths keep `models[0]` — now always a valid string (httpx `HTTPStatusError.response.status_code` carries the status, so the check works live).
+
+### Bug 2 — Diarization region-slicing clipped utterances before STT (P0)
+- Live log: `Utterance received: samples=21504` → `[Gate] ... samples=3584` → Whisper got 0.224s → `(empty)`. `_process_audio()`'s diarization branch transcribed `audio[seg.start_sample:seg.end_sample]` per region — **regions the detector missed were silently dropped**, and `diar=ok` is live (component checklist). 3584 = 224ms ≥ `DIARIZATION_MIN_SEGMENT_MS` (200) — exactly a diarization minimum region; the segmenter could never emit <4800 samples (min_utterance_duration 0.3s), which is how the branch was identified. Every short utterance was reaching Whisper as a fragment → empty transcripts → no replies → "stops responding".
+- Fix (`voice/voice_manager.py:_process_audio`): diarization branch now transcribes the **full clip** and uses diarization only to label the dominant speaker (largest `duration × confidence` region). One log line (`Diarization: N region(s), full-clip transcription (speaker=...)`) makes the branch visible. Segmenter branch (diarization inactive) unchanged.
+- Gate consequence: gate now scores the whole utterance (previously a fragment) — for the observed cases the full-clip mean stays above the 0.15 threshold; worst case rejects to an empty-text event, which is what already happened.
+
+### Environment facts established this session
+- **No local LLM server exists**: Ollama not installed, nothing on 11434/1234/8080/8888 — Mai has been running on OpenRouter cloud the whole time; the Ollama failover in `llm/manager.py` is dead. `LLM_MODEL=qwen2.5:3b-instruct-q4_k_m` / `LLM_MAX_CONTEXT=4096` are config placeholders. Recommended (pending user go/no-go): `ollama pull qwen3:4b` (~3.2GB fits the T1000's 4GB VRAM), then `LLM_MODEL="qwen3:4b"`, `LLM_MAX_CONTEXT=8192`.
+- 19 free models currently on OpenRouter incl. `openrouter/free` router (checked via `/api/v1/models`, `pricing.prompt == 0`).
+- Open question still live: "stops responding" may have residual causes beyond the two fixes (e.g. accepted-but-empty Whisper results on ~0.6s borderline clips at mean 0.30/ratio 0.16) — needs a retest with the fixed build.
+
+- Gate: +8 tests — `tests/test_llm.py` `TestOpenRouterModelSanitization` (5: default list sane, None/empty/dup dropped, all-bad → auto, 400 → one attempt per model then failover, ConnectionError keeps 6-call ladder), `tests/test_voice_gating.py` `TestDiarizationFullClip` (3: full-clip not region slice, dominant region wins, empty regions → segmenter fallback). Full suite **1,905 pass, 2 skipped, 0 failures** (baseline 1,897 + 8).
+
+---
+
+## LLM_PROVIDER Preference + Ollama think:false (Oct 9 2026)
+
+Two user-approved changes preparing the local-LLM path (Ollama install itself still pending go/no-go). No behavior change for the current cloud-only setup.
+
+### 1. `think: false` in every Ollama payload
+- `llm/providers/ollama.py` `_chat_payload()` now sends top-level `"think": False`. Verified against docs.ollama.com/api/chat: `think` is `boolean|string` — `false` requests no thinking output, `null` uses the model default.
+- All four paths (generate/stream/agenerate/astream) build their payload through this single choke point, so Qwen3-style thinking can never add seconds to a voice reply. Harmless for non-thinking models (no thinking to suppress).
+
+### 2. `LLM_PROVIDER` preference
+- `config/llm.py` — new env var `LLM_PROVIDER` (raw, default `"openrouter"`); re-exported through `config/settings.py` (top-level import + `Settings` class mirror). `app/config_loader` picks it up automatically via its `from config.settings import *` (settings has no `__all__`).
+- `llm/manager.py`:
+  - `__init__` normalizes (`.strip().lower()`, unknown value → warning + `openrouter`) → `self._prefer_ollama`.
+  - `_probe()` gate: `probe_ollama and (not openrouter_ok or self._prefer_ollama)` — Ollama availability now refreshes every 15s when preferred (previously only probed when OpenRouter was down, leaving a stale-false cache).
+  - `generate()` — ordered attempt loop: default `("openrouter", "ollama")` keeps legacy semantics byte-identical (inline `ollama.is_alive()` fallback, `simple=` short-query optimization, same log messages); preferred `("ollama", "openrouter")` uses the **cached probe flag** for the Ollama step — a dead localhost must not cost a 2s timeout per voice turn — and any generate exception marks Ollama dead (30s cooldown) before falling back to OpenRouter.
+  - `stream()` — priority list reordered by preference; `_stream_with_failover` mid-stream failover unchanged.
+- Setup when Ollama lands: `.env` → `LLM_PROVIDER=ollama`, `LLM_MODEL=qwen3:4b` (recommended; q4_K_M ≈2.6GB + KV ≈0.6GB fits the T1000's 4GB, expected 8–15 tok/s).
+- Gate: +12 tests (`tests/test_llm.py` — `TestOllamaThinkParam` 2, `TestLLMProviderPreference` 10: default, unknown-value, case-normalization, ollama-first, ollama-down fallback, ollama-generate-fail fallback, probe refresh when preferred, default probe skip, stream preference, stream failover). Full suite **1,917 pass, 2 skipped, 0 failures** (baseline 1,905 + 12).
+
+---
+
+## STT Replacement Plan Documented (Oct 9 2026)
+
+Whisper → Kyutai 1B STT replacement plan written to `docs/stt-kyutai-replacement-plan.md`. Key facts (all verified):
+- Model `kyutai/stt-1b-en_fr` **fully downloaded** at `E:\Mai_ai\kyutai STT\delayed-streams-modeling\stt-1b-en_fr\` (1.89GB weights + 367MB Mimi codec, dsm format, no LFS incompletes).
+- transformers 5.17.0 installed (≥4.53 ✓); torch 2.14.0+cpu — CUDA install is the only environment blocker.
+- Integration surface: `voice/stt.py` `FasterWhisperSTT` interface (transcribe/stats/TranscriptionUnavailable), construction at `app/builders/voice.py:53`, switch planned via `STT_BACKEND` config with faster-whisper as permanent fallback.
+- Phase 1 gate: **RTF ≤ 0.7** (CPU benchmark first, CUDA only if it fails). Phase 1+ still needs user go/no-go.
+
+---
+
+## Future Vision Roadmap Documented (Oct 10 2026)
+
+User's long-term vision for Mai written to the roadmap (plan mode — no implementation yet; relocated to `docs/Mai_documentation/03-Features/future-vision-roadmap.md`). Locked decisions: local-first brain, ambient+rituals presence, autonomous-agent level, **custom original voice** (calm/mature/teasing, not anime clone), **3D VRM avatar** (VRoid-built), **on-demand screen+camera share** (explicit toggles only), **Discord instead of a custom phone app** (text V1 → voice channels V2, outbound-only security win), **file create/read** with policy tiers, and **self-code-awareness** (T7 — code index + health feeds + proactive self-diagnosis, propose-only self-modification boundary). Seven workstreams T0–T7 (T0 = Model Scheduler keystone for the 4GB-VRAM constraint), milestones **M14–M23** (M14 = scheduler + TTS bake-off first; M19 = GPU upgrade window). Next: user go for M14.
+
+---
+
+## Feature Review Fold-In (Oct 13 2026)
+
+User brought 7 feature recommendations (from a ChatGPT consult on the Mai relationship): continuous memory, context-aware presence, goal/project management, unified internal state, verified actions + recovery, voice turn-taking, Continuity Engine. Each **verified against the codebase** before disposition:
+
+- **~80% already exists**: continuous memory (ExperienceStore M6, KnowledgeGraph/BeliefEngine, RelationshipEngineV2 M10, M8/M12 recall), unified internal state (CognitiveState 10 fields + SharedState + dashboard, M2B), voice turn-taking (InterruptManager barge-in live-verified, Phase 3A).
+- **Verified gaps (grep)**: no ProjectStore/checkpoint/dependency/deadline anywhere; GoalManager has no checkpoints.
+- **All 7 adopted**: six consolidate existing tracks; project memory + commitments ledger + checkpoints/resume + cross-interface reconciliation become **new T8 Continuity Engine** (M21, deliberately before Partner M22 and Discord M23/M24 — second interface is what breaks continuity; design constraint: thin reconciler over existing stores, BrainGraph facade pattern, never a god-object). T5 gains presence policy (quiet mode, activity-aware initiation) + verified actions/recovery (post-action verification, audit trail); T6 gains turn-taking polish; T7 gains state exposure. Guiding principles 6 (operational vs simulated states) + 7 (verified actions, honest failures) added.
+- Milestones renumbered **M14–M24**; roadmap now has 9 sections (Related wiki-links added). Doc lives at `docs/Mai_documentation/03-Features/future-vision-roadmap.md` (moved from `docs/` root, per Obsidian workspace — also holds `stt-kyutai-replacement-plan.md`). Suite documentation workflow followed (feature review → 03-Features, wiki-links).
+- Next: user go for M14 (scheduler + TTS bake-off); Ollama install + Kyutai Phase 1 RTF benchmark still pending.
+
+---
+
+## Desktop Application — M14 (Oct 13 2026)
+
+User request: launch Mai as a desktop app — no VS Code, no bat file. Assessment found the Native OS Bridge packaging path had **rotted**: `run_daemon.py` deleted (still referenced by `native/startup.py`, `native/watchdog.py`, `scripts/build_daemon.py`), `dist/` stale, installer never built, and `run.py --mode daemon` itself was **broken in two ways**:
+
+1. **Double bootstrap (P1)** — `run_daemon_mode()` called `bootstrap_system()` AND `MaiAPI.bootstrap()` (which calls `bootstrap_system()` again): two full Applications, two brains, two voice managers fighting over the mic.
+2. **Kernel never started (P1)** — `components.get("kernel")` was always None because `bootstrap_system()` doesn't return a `kernel` key (the kernel lives on `app.kernel`, built by `app/builders/runtime.py`).
+3. `scripts/build_daemon.py` defined `DATA_DIRS` but never emitted `--add-data` (dead variable).
+
+### Built (M14 Desktop App)
+- `run_daemon.py` (restored, rewritten) — desktop entry: `--install-startup`/`--uninstall-startup` (StartupManager), single-instance port probe (second launch focuses running instance in browser), delegates to `run_daemon_mode(window=...)`.
+- `native/app_window.py` (new) — `AppWindow` via **pywebview 6.2.1** (Edge WebView2): native window at `http://127.0.0.1:<port>/desktop`, close intercept → hide-to-tray (returns False to cancel destroy), `show()` for tray re-focus, graceful `_HAS_WEBVIEW=False` fallback → caller falls back to browser.
+- `run.py run_daemon_mode()` rewritten — single bootstrap via `MaiAPI()`; kernel from `mai.kernel` (new MaiAPI attrs `app`/`kernel` set in bootstrap); uvicorn in daemon thread; AppWindow opens on main thread after up-to-120s health poll (boot is slow); tray `on_open` focuses window; HealthMonitor wired; hotkeys use `mai.voice_manager`. No-window fallback keeps process alive with sleep loop.
+- `native/tray.py` — `on_open` callback override on "Open Mai" (falls back to `webbrowser.open` on missing callback or exception).
+- `native/startup.py` `_default_exe()` — prefers `pythonw.exe` sibling of `sys.executable`, quoted paths.
+- `scripts/install_app.py` (new) — Desktop "Mai AI.lnk" via win32com (target `pythonw run_daemon.py`, workdir root); `--startup`, `--remove`, `--uninstall-startup` flags.
+- `scripts/build_daemon.py` — `--noconsole`, `--add-data` for `api/static`+`plugins` (dead DATA_DIRS fixed), hidden imports for native.* + webview, `--collect-all=webview`. NOTE: frozen exe still needs the repo runtime (venv, models, .env) — PyInstaller bundle is secondary; shortcut/pythonw path is the primary launch method.
+- `requirements.txt` += `pywebview>=5.0`.
+- Roadmap: **M14 = Desktop App**; scheduler+TTS → M15, everything +1 to M25; "Desktop app shell" cross-cutting section; decisions log entry.
+
+### Gate
+`tests/test_desktop_app.py` — 13 tests (port probe ×2, AppWindow ×4 incl. hide-on-close cancel, tray on_open ×3 incl. failure fallback, startup pythonw ×2, MaiAPI app/kernel wiring ×2 incl. monkeypatched bootstrap storing kernel). Full suite **1,930 passed, 2 skipped, 0 failures** (baseline 1,917 + 13).
+
+### Usage
+- `python run_daemon.py` — daemon + window (close hides to tray; quit via tray).
+- `python scripts/install_app.py --startup` — Desktop shortcut + launch-at-login.
+- `python run.py --mode daemon` — same fixed daemon path (window on by default).
+
+### Environment finding + installer guard (Oct 13, post-install fix)
+- **`mai_env` (`E:\Mai_ai\mai_env`) is the real runtime**: kokoro, faster_whisper, speechbrain, sounddevice, pystray, chromadb, webview all present. **Base Python310 (PATH `python`) lacks the entire voice stack** (kokoro/faster_whisper/speechbrain/pystray/sounddevice all missing) — it only has the test-runner deps, so suites "pass" there with voice tests skipped/guarded.
+- Original installer run captured base Python310 (shell PATH, not activated mai_env) → shortcut + HKCU Run pointed at a voiceless interpreter.
+- Fix 1: `scripts/install_app.py` adds project root to `sys.path` (was `ModuleNotFoundError: native` when run as `python scripts/...`).
+- Fix 2: `_has_mai_deps()` probe (subprocess `find_spec` for fastapi/pystray/kokoro/webview) — installer **refuses** an interpreter missing the stack (exit 2) with the mai_env command hint; `--force` overrides. `pywin32` was also declared-but-missing in base (installed).
+- Correct install verified: shortcut + Run key → `"E:\Mai_ai\mai_env\Scripts\pythonw.exe" "E:\Mai_ai\run_daemon.py"`, workdir root; `run_daemon.py --help` OK under mai_env.
+- **Full suite re-gated under mai_env: 1,930 passed, 2 skipped, 0 failures** (3m12s — with real voice stack present).
+
+- Next: live smoke test (double-click shortcut → window opens → close-to-tray → quit via tray); M15 go (scheduler + TTS bake-off).
+
+---
+
+## GitHub History Scrub � Oct 19 2026
+
+- \Embedding_models/\ (all-MiniLM-L6-v2, ~61.5k tracked lines) was committed in the initial release and already on GitHub (\MurtazaLabs/Mai-Sakurajima-AI-Companion\). User requested full removal.
+- Untracked \kyutai STT/\ (1.9GB + 367MB weights, never committed) was also unignored � added both to \.gitignore\ under a \"Local model weights � never publish\" section (commit was untrack + ignore first, then user approved history scrub).
+- History scrub: workbatch (18 modified + 7 untracked files) held via \git stash -u\ + local backup branch; \git filter-branch --index-filter 'git rm -r --cached --ignore-unmatch Embedding_models' -- --all\ rewrote all refs (8 commits incl. stash lineage); \efs/original/*\ deleted, reflog expired, \gc --prune=now\; force-push \2ed2178..ec70455\. Verified 0 Embedding_models objects repo-wide, workbatch restored intact, weights still on disk (runtime unaffected).
+- Notes: local branch \cognitive-desktop-v3\ never contained the weights (unchanged by filter); stale \efs/remotes/origin/master\ left as harmless local tracking ref; GitHub server-side object cache may retain old blobs temporarily; 1 existing fork still holds pre-rewrite history.
+- Researched (README-only, no code): \codeninjavik/myra-ultra\ � cloud-Gemini voice/desktop assistant; UI patterns (floating orb, edge-glow, system-stats panel, unified input) flagged as candidates for the M14 Java client; Mai's differentiators remain memory/character/local-first.

@@ -381,6 +381,63 @@ class TestOpenRouterProviderGenerate:
         assert messages[-1]["content"] == "just this text"
 
 
+class TestOpenRouterModelSanitization:
+    """The failover list must never contain None/empty/duplicate entries —
+    an env-less OPENROUTER_DEFAULT_MODEL used to ship model:"None" (400 x3
+    with backoff, ~8s per call; live log 2026-10-09)."""
+
+    def test_default_models_are_nonempty_strings(self):
+        from llm.providers.openrouter import OpenRouterProvider
+        provider = OpenRouterProvider(api_key="sk-test")
+        assert provider.models
+        assert all(isinstance(m, str) and m for m in provider.models)
+
+    def test_none_empty_and_duplicate_entries_dropped(self):
+        from llm.providers.openrouter import OpenRouterProvider
+        provider = OpenRouterProvider(api_key="sk-test", models=[None, "", "  ", "m1", "m1"])
+        assert provider.models == ["m1"]
+
+    def test_all_bad_entries_falls_back_to_auto(self):
+        from llm.providers.openrouter import OpenRouterProvider
+        provider = OpenRouterProvider(api_key="sk-test", models=[None, ""])
+        assert provider.models == ["openrouter/auto"]
+
+    def test_permanent_400_fails_over_after_one_attempt(self):
+        """A 400 for one model is permanent — one attempt, then fail over,
+        never the full LLM_RETRY_COUNT backoff ladder."""
+        from llm.providers.openrouter import OpenRouterProvider
+        provider = OpenRouterProvider(api_key="sk-test", models=["bad-model", "good-model"])
+        calls = []
+
+        def fake_post(url, **kwargs):
+            calls.append(kwargs["json"]["model"])
+            if kwargs["json"]["model"] == "bad-model":
+                e = RuntimeError("Client error '400 Bad Request'")
+                resp = MagicMock()
+                resp.status_code = 400
+                e.response = resp
+                raise e
+            ok = MagicMock()
+            ok.status_code = 200
+            ok.json.return_value = {"choices": [{"message": {"content": "ok"}}]}
+            return ok
+
+        with patch.object(provider._session, "post", side_effect=fake_post):
+            result = provider.generate("sys", "usr")
+        assert result == "ok"
+        assert calls == ["bad-model", "good-model"]
+
+    def test_connection_error_still_retries_full_ladder(self):
+        """Non-HTTP errors (no .response) keep the existing retry behavior."""
+        from llm.providers.openrouter import OpenRouterProvider
+        provider = OpenRouterProvider(api_key="sk-test", models=["m1", "m2"])
+        with patch.object(provider._session, "post") as mock_post:
+            mock_post.side_effect = ConnectionError("fail")
+            with pytest.raises(ConnectionError):
+                provider.generate("sys", "usr")
+        assert mock_post.call_count == 6  # 2 models * 3 retries
+
+
 class TestOpenRouterProviderStream:
 
     def test_stream_returns_tokens_from_sse(self):
@@ -746,3 +803,104 @@ class TestLLMManagerCircuitBreaker:
         assert manager.generate("sys", "usr") == "ollama ok"
         # OpenRouter is tried exactly once, then held in cooldown
         manager.openrouter.generate.assert_called_once()
+
+
+class TestOllamaThinkParam:
+
+    def test_chat_payload_disables_thinking(self):
+        from llm.providers.ollama import OllamaProvider
+        provider = OllamaProvider(model="qwen3:4b")
+        payload = provider._chat_payload([{"role": "user", "content": "hi"}])
+        assert payload["think"] is False
+
+    def test_stream_payload_disables_thinking(self):
+        from llm.providers.ollama import OllamaProvider
+        provider = OllamaProvider(model="qwen3:4b")
+        payload = provider._chat_payload(
+            [{"role": "user", "content": "hi"}], stream=True
+        )
+        assert payload["think"] is False
+        assert payload["stream"] is True
+
+
+class TestLLMProviderPreference:
+
+    def _make(self, provider):
+        from llm.manager import LLMManager
+        with patch("llm.manager.LLM_PROVIDER", provider):
+            manager = LLMManager()
+        manager.openrouter = MagicMock()
+        manager.ollama = MagicMock()
+        return manager
+
+    def test_default_is_openrouter(self):
+        from llm.manager import LLMManager
+        manager = LLMManager()
+        assert manager._prefer_ollama is False
+
+    def test_unknown_value_defaults_to_openrouter(self):
+        manager = self._make("banana")
+        assert manager._prefer_ollama is False
+
+    def test_value_is_normalized_case_insensitive(self):
+        manager = self._make("  OLLAMA  ")
+        assert manager._prefer_ollama is True
+
+    def test_ollama_preferred_generate_uses_ollama_first(self):
+        manager = self._make("ollama")
+        manager.openrouter.is_alive.return_value = True
+        manager.ollama.is_alive.return_value = True
+        manager.ollama.generate.return_value = "local response"
+        result = manager.generate("sys", "usr")
+        assert result == "local response"
+        manager.openrouter.generate.assert_not_called()
+
+    def test_ollama_preferred_falls_back_when_ollama_down(self):
+        manager = self._make("ollama")
+        manager.openrouter.is_alive.return_value = True
+        manager.ollama.is_alive.return_value = False
+        manager.openrouter.generate.return_value = "cloud response"
+        result = manager.generate("sys", "usr")
+        assert result == "cloud response"
+        manager.ollama.generate.assert_not_called()
+
+    def test_ollama_preferred_falls_back_when_ollama_generate_fails(self):
+        manager = self._make("ollama")
+        manager.openrouter.is_alive.return_value = True
+        manager.ollama.is_alive.return_value = True
+        manager.ollama.generate.side_effect = RuntimeError("ollama fail")
+        manager.openrouter.generate.return_value = "cloud response"
+        result = manager.generate("sys", "usr")
+        assert result == "cloud response"
+
+    def test_probe_refreshes_ollama_when_preferred_even_if_openrouter_ok(self):
+        manager = self._make("ollama")
+        manager.openrouter.is_alive.return_value = True
+        manager.ollama.is_alive.return_value = True
+        manager._probe(force=True)
+        assert manager._ollama_available is True
+
+    def test_default_probe_skips_ollama_when_openrouter_ok(self):
+        manager = self._make("openrouter")
+        manager.openrouter.is_alive.return_value = True
+        manager.ollama.is_alive.return_value = True
+        manager._probe(force=True)
+        assert manager._ollama_available is False
+
+    def test_stream_prefers_ollama_when_configured(self):
+        manager = self._make("ollama")
+        manager.openrouter.is_alive.return_value = True
+        manager.ollama.is_alive.return_value = True
+        manager.ollama.stream.return_value = iter(["local chunk"])
+        chunks = list(manager.stream("sys", "usr"))
+        assert chunks == ["local chunk"]
+        manager.openrouter.stream.assert_not_called()
+
+    def test_stream_falls_back_to_openrouter_when_ollama_stream_fails(self):
+        manager = self._make("ollama")
+        manager.openrouter.is_alive.return_value = True
+        manager.ollama.is_alive.return_value = True
+        manager.ollama.stream.side_effect = RuntimeError("stream fail")
+        manager.openrouter.stream.return_value = iter(["cloud chunk"])
+        chunks = list(manager.stream("sys", "usr"))
+        assert chunks == ["cloud chunk"]

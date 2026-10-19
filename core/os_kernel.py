@@ -284,6 +284,12 @@ class AIOSKernel:
                         # We need to transcribe the audio
                         audio = result.get("audio")
                         if audio is not None and len(audio) > 0:
+                            # Whole-utterance VAD gate — noise never reaches STT
+                            ok, mean, ratio = self.voice_manager._gate_utterance(audio)
+                            if not ok:
+                                logger.info("[Kernel] Rejected non-speech utterance (mean=%.2f ratio=%.2f samples=%d)",
+                                            mean, ratio, len(audio))
+                                return "", None
                             # Transcribe
                             norm_audio = audio.astype(np.float32)
                             max_val = np.max(np.abs(norm_audio))

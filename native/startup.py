@@ -26,9 +26,11 @@ class StartupManager:
     def _default_exe() -> str:
         if getattr(sys, "frozen", False):
             return sys.executable
-        python = sys.executable
+        python = Path(sys.executable)
+        pythonw = python.parent / "pythonw.exe"
+        python_bin = pythonw if pythonw.exists() else python
         script = Path(__file__).resolve().parent.parent / "run_daemon.py"
-        return f'{python} "{script}"'
+        return f'"{python_bin}" "{script}"'
 
     def is_registered(self) -> bool:
         try:

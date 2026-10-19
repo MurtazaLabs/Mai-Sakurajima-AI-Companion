@@ -103,6 +103,39 @@ class VAD:
                 logger.warning("[VAD] Inference error: %s", e)
                 return 0.0
 
+    def utterance_score(self, audio, max_frames: int = 256):
+        """Score a whole utterance for speech content.
+
+        Returns (mean_prob, speech_ratio) where ratio is the fraction of
+        frames above this VAD's threshold — or None when the model is
+        unavailable / audio too short, so callers can fail open instead of
+        rejecting everything on a broken VAD.
+        """
+        with self._lock:
+            self._load_model()
+            if self._model is None:
+                return None
+        if audio is None:
+            return None
+        audio = np.asarray(audio, dtype=np.float32)
+        n_frames = len(audio) // self.frame_size
+        if n_frames == 0:
+            return None
+        if n_frames > max_frames:
+            step = (n_frames + max_frames - 1) // max_frames
+            indices = range(0, n_frames, step)
+        else:
+            indices = range(n_frames)
+        probs = []
+        for i in indices:
+            start = i * self.frame_size
+            probs.append(self.speech_prob(audio[start:start + self.frame_size]))
+        if not probs:
+            return None
+        mean = sum(probs) / len(probs)
+        ratio = sum(1 for p in probs if p > self.threshold) / len(probs)
+        return mean, ratio
+
     def _resample_frame(self, chunk):
         if len(chunk) > self.frame_size:
             return chunk[:self.frame_size]

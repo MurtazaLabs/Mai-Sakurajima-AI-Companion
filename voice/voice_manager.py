@@ -13,6 +13,11 @@ from voice.audio_buffer import AudioBuffer
 from voice.microphone import Microphone
 from voice.voice_state import VoiceState
 from voice.voice_config import VoiceConfig
+from config.voice import (
+    UTTERANCE_VAD_MIN_MEAN,
+    UTTERANCE_VAD_MIN_RATIO,
+    UTTERANCE_VAD_MAX_FRAMES,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -299,6 +304,30 @@ class VoiceManager:
                 logger.warning("[VoiceManager] Wake thread did not exit in 5s")
             self._wake_thread = None
 
+    def _gate_utterance(self, audio):
+        """Whole-utterance VAD gate — (ok, mean_prob, speech_ratio).
+
+        Fails open when VAD is unavailable or errors so voice stays usable;
+        only rejects when VAD positively scored the audio as non-speech.
+        """
+        vad = self._vad
+        if vad is None:
+            return True, 0.0, 0.0
+        try:
+            score = vad.utterance_score(audio, max_frames=UTTERANCE_VAD_MAX_FRAMES)
+        except Exception as e:
+            logger.warning("[VoiceManager] Utterance VAD scoring failed (failing open): %s", e)
+            return True, 0.0, 0.0
+        if score is None:
+            logger.warning("[VoiceManager] VAD unavailable — utterance gate skipped")
+            return True, 0.0, 0.0
+        mean, ratio = score
+        ok = mean >= UTTERANCE_VAD_MIN_MEAN and ratio >= UTTERANCE_VAD_MIN_RATIO
+        if ok:
+            logger.info("[Gate] Accepted speech (mean=%.2f ratio=%.2f samples=%d)",
+                        mean, ratio, len(audio))
+        return ok, mean, ratio
+
     def _wake_loop(self):
         """Background loop: consume utterances from the recorder's queue.
 
@@ -315,39 +344,53 @@ class VoiceManager:
             except queue.Empty:
                 continue
 
-            # Transcribe with latency tracking
-            t0 = time.perf_counter()
-            try:
-                norm = audio.astype(np.float32)
-                mx = np.max(np.abs(norm))
-                if mx > 0:
-                    norm = norm / mx
-                assert self.stt is not None
-                text = self.stt.transcribe(norm, initial_prompt="Wake up, hey, hello, computer, mai")
-            except TranscriptionUnavailable as e:
-                logger.error("[WakeThread] Whisper unavailable: %s", e)
-                continue
-            except Exception as e:
-                logger.warning("[WakeThread] Transcribe error: %s", e)
-                continue
-            latency = (time.perf_counter() - t0) * 1000
+            self._handle_wake_audio(audio)
 
-            if not text:
-                continue
+    def _handle_wake_audio(self, audio) -> bool:
+        """Gate + transcribe + wake-word check for one queued utterance.
 
-            logger.info("[WakeThread] Heard: %s (Whisper: %.0fms, samples=%d)", text, latency, len(audio))
+        Returns True only when the wake word was found.
+        """
+        ok, mean, ratio = self._gate_utterance(audio)
+        if not ok:
+            logger.info("[WakeThread] Rejected non-speech (mean=%.2f ratio=%.2f samples=%d)",
+                        mean, ratio, len(audio))
+            return False
 
-            # Check for wake word
-            if self.wake_detector and self.wake_detector.detect_in_text(text):
-                logger.info("[WakeThread] Wake word detected in: %s", text)
-                self._wake_event.set()
-                if self.event_bus:
-                    from voice.events import VOICE_WAKE_FOUND, voice_wake_found_data, publish_voice
-                    publish_voice(self.event_bus, VOICE_WAKE_FOUND, voice_wake_found_data(text, len(audio)))
-                self._set_state(VoiceState.WAKE_DETECTED)
-                while not self._wake_stop.is_set() and self.state == VoiceState.WAKE_DETECTED:
-                    self._wake_stop.wait(0.5)
-                continue
+        # Transcribe with latency tracking
+        t0 = time.perf_counter()
+        try:
+            norm = audio.astype(np.float32)
+            mx = np.max(np.abs(norm))
+            if mx > 0:
+                norm = norm / mx
+            assert self.stt is not None
+            text = self.stt.transcribe(norm, initial_prompt="Wake up, hey, hello, computer, mai")
+        except TranscriptionUnavailable as e:
+            logger.error("[WakeThread] Whisper unavailable: %s", e)
+            return False
+        except Exception as e:
+            logger.warning("[WakeThread] Transcribe error: %s", e)
+            return False
+        latency = (time.perf_counter() - t0) * 1000
+
+        if not text:
+            return False
+
+        logger.info("[WakeThread] Heard: %s (Whisper: %.0fms, samples=%d)", text, latency, len(audio))
+
+        # Check for wake word
+        if self.wake_detector and self.wake_detector.detect_in_text(text):
+            logger.info("[WakeThread] Wake word detected in: %s", text)
+            self._wake_event.set()
+            if self.event_bus:
+                from voice.events import VOICE_WAKE_FOUND, voice_wake_found_data, publish_voice
+                publish_voice(self.event_bus, VOICE_WAKE_FOUND, voice_wake_found_data(text, len(audio)))
+            self._set_state(VoiceState.WAKE_DETECTED)
+            while not self._wake_stop.is_set() and self.state == VoiceState.WAKE_DETECTED:
+                self._wake_stop.wait(0.5)
+            return True
+        return False
 
     # ──────────────────────────────────────────────
     # Conversation listen
@@ -395,13 +438,23 @@ class VoiceManager:
 
         events = []
         if speaker_segments:
-            for seg in speaker_segments:
-                seg_audio = audio[seg.start_sample:seg.end_sample]
-                if len(seg_audio) < 160:
-                    continue
-                speaker, speaker_conf = seg.speaker_id, seg.confidence
-                event = self._transcribe(seg_audio, speaker, speaker_conf, emotion)
-                events.append(event)
+            # Diarization returns only the speech regions it detected —
+            # everything else was silently dropped before STT, so short
+            # utterances reached Whisper as ~0.2s fragments (empty
+            # transcripts, live log 2026-10-09). Transcribe the FULL clip
+            # and use diarization only to label the dominant speaker.
+            dominant = max(
+                speaker_segments,
+                key=lambda s: (s.end_sample - s.start_sample)
+                * max(getattr(s, "confidence", 0.0) or 0.0, 0.01),
+            )
+            logger.info(
+                "[VoiceManager] Diarization: %d region(s), full-clip transcription (speaker=%s conf=%.2f)",
+                len(speaker_segments), dominant.speaker_id, dominant.confidence,
+            )
+            events.append(
+                self._transcribe(audio, dominant.speaker_id, dominant.confidence, emotion)
+            )
         else:
             for seg in segments:
                 speaker, speaker_conf = self._identify_speaker(seg)
@@ -551,6 +604,22 @@ class VoiceManager:
         from voice.voice_event import VoiceEvent
         text = ""
         wake_detected = False
+
+        ok, mean, ratio = self._gate_utterance(audio)
+        if not ok:
+            logger.info("[VoiceManager] Rejected non-speech utterance (mean=%.2f ratio=%.2f samples=%d)",
+                        mean, ratio, len(audio))
+            return VoiceEvent(
+                text="",
+                speaker=speaker,
+                speaker_confidence=speaker_conf,
+                audio_length=len(audio),
+                duration=len(audio) / self.sample_rate,
+                timestamp=time.time(),
+                wake_detected=False,
+                emotion=emotion,
+            )
+
         if self.stt:
             try:
                 norm_audio = audio.astype(np.float32)

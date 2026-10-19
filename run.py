@@ -160,19 +160,21 @@ def run_cli_mode():
         app.shutdown()
 
 
-def run_daemon_mode():
-    """Background daemon with tray, hotkeys, uvicorn API, and kernel FSM."""
+def run_daemon_mode(window=True):
+    """Background daemon: tray, hotkeys, kernel FSM, uvicorn API, desktop window.
+
+    Bootstraps the system exactly once (via MaiAPI.bootstrap). The previous
+    implementation built the whole application twice (two brains, two voice
+    managers fighting over the mic) and never started the kernel, because
+    bootstrap_system() does not return it.
+    """
     logger.info("[Daemon] Starting Mai AI daemon...")
 
-    from run import bootstrap_system
-    components = bootstrap_system()
-    app = components.get("app")
-    brain = components.get("brain")
-    voice_manager = components.get("voice_manager")
-
-    from api.server import MaiAPI
+    from api.server import MaiAPI, app
     mai = MaiAPI()
-    mai.bootstrap()
+    if not mai.bootstrap():
+        logger.error("[Daemon] Bootstrap failed — aborting")
+        sys.exit(1)
 
     from execution.handlers import ClipboardActions, FileSystemActions, _configure_sandbox
     mai.clipboard_actions = ClipboardActions()
@@ -180,14 +182,26 @@ def run_daemon_mode():
     from config.paths import ROOT_DIR, OBSIDIAN_VAULT
     _configure_sandbox(str(ROOT_DIR), str(OBSIDIAN_VAULT))
 
-    # System tray
-    tray = None
+    from app.config_loader import API_HOST, API_PORT
+    host = API_HOST if API_HOST in ("127.0.0.1", "localhost") else "127.0.0.1"
+    port = int(API_PORT or 8000)
+
+    # Desktop window (pywebview); degrades to tray+browser if unavailable
+    app_window = None
+    try:
+        from native.app_window import AppWindow
+        app_window = AppWindow(host=host, port=port)
+    except Exception as e:
+        logger.warning("[Daemon] App window unavailable: %s", e)
+
+    # System tray — "Open Mai" focuses the desktop window when present
     try:
         from native.tray import TrayDaemon
         tray = TrayDaemon(
-            host=mai.host, port=mai.port,
+            host=host, port=port,
             voice_manager=mai.voice_manager, brain=mai.brain,
-            on_quit=lambda: os._exit(0),  # Use os._exit to avoid cleanup issues
+            on_open=app_window.show if app_window else None,
+            on_quit=lambda: os._exit(0),
         )
         tray.start()
         logger.info("[Daemon] System tray started")
@@ -195,35 +209,61 @@ def run_daemon_mode():
         logger.warning("[Daemon] Tray init failed: %s", e)
 
     # Global hotkeys
-    hotkeys = None
     try:
         from native.hotkeys import HotkeyManager
-        hotkeys = HotkeyManager(voice_manager=voice_manager)
+        hotkeys = HotkeyManager(voice_manager=mai.voice_manager)
         hotkeys.start()
         logger.info("[Daemon] Global hotkeys started")
     except Exception as e:
         logger.warning("[Daemon] Hotkeys init failed: %s", e)
 
-    # Start kernel in background mode (FSM tick loop)
-    kernel = components.get("kernel")
-    if kernel:
-        kernel.background_start(tick_interval=0.5)
-        logger.info("[Daemon] Kernel background FSM started")
+    # Kernel wake/greeting FSM in background tick mode
+    if mai.kernel:
+        try:
+            mai.kernel.background_start(tick_interval=0.5)
+            logger.info("[Daemon] Kernel background FSM started")
+        except Exception as e:
+            logger.warning("[Daemon] Kernel start failed: %s", e)
+    else:
+        logger.warning("[Daemon] No kernel attached — wake/greeting FSM disabled")
 
-    from app.config_loader import API_HOST, API_PORT
-    from api.server import app
-    import uvicorn
-
-    logger.info("[Daemon] Serving on %s:%s", API_HOST or "127.0.0.1", API_PORT or 8000)
+    # Health monitor (logs failures/recovery)
     try:
-        uvicorn.run(
-            app,
-            host=API_HOST or "127.0.0.1",
-            port=int(API_PORT or 8000),
-        )
+        from native.watchdog import HealthMonitor
+        monitor = HealthMonitor(host="127.0.0.1", port=port)
+        monitor.start()
     except Exception as e:
-        logger.error("[Daemon] Uvicorn crashed: %s", e)
-        raise
+        logger.warning("[Daemon] Health monitor init failed: %s", e)
+
+    logger.info("[Daemon] Serving on %s:%s", host, port)
+
+    def _serve():
+        import uvicorn
+        try:
+            uvicorn.run(app, host=host, port=port)
+        except Exception as e:
+            logger.error("[Daemon] Uvicorn crashed: %s", e)
+
+    server_thread = threading.Thread(target=_serve, daemon=True, name="api-server")
+    server_thread.start()
+
+    if window and app_window is not None:
+        import time as _time
+        import urllib.request as _urlrequest
+        for _ in range(240):  # up to ~120s — first boot loads models slowly
+            try:
+                _urlrequest.urlopen(f"http://127.0.0.1:{port}/api/health", timeout=2)
+                break
+            except Exception:
+                _time.sleep(0.5)
+        logger.info("[Daemon] Opening desktop window")
+        app_window.start()  # blocks in the GUI loop; close hides to tray
+        return
+
+    # No window (or pywebview missing): stay alive until tray quit
+    import time
+    while True:
+        time.sleep(3600)
 
 
 def run_api_mode():
