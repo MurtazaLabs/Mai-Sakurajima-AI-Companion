@@ -56,3 +56,4 @@ package.json
 # Local config
 .freebuff/
 .opencode
+mypy_log.txt
