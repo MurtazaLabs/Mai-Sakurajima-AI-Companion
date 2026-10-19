@@ -178,7 +178,7 @@ class PluginLoader:
         """Load plugin using manifest.json."""
         # Validate manifest
         is_valid, errors, manifest = PluginManifestValidator.validate_manifest_file(manifest_path)
-        if not is_valid:
+        if not is_valid or manifest is None:
             logger.error("[Plugins] Invalid manifest for %s: %s", manifest_path.parent.name, errors)
             return None
 
@@ -306,7 +306,7 @@ class PluginLoader:
         from plugins.plugin_manifest import PluginManifestValidator
 
         is_valid, errors, manifest = PluginManifestValidator.validate_package(package_path)
-        if not is_valid:
+        if not is_valid or manifest is None:
             logger.error("[Plugins] Invalid package %s: %s", package_path, errors)
             return False
 

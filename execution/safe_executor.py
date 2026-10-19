@@ -17,7 +17,7 @@ class SafeExecutor:
     def __init__(self, executor, mode=None, confirm_fn=None):
         self.executor = executor
         self.mode = mode or EXECUTOR_MODE
-        self.last_action_time = 0
+        self.last_action_time: float = 0.0
         self.cooldown = EXECUTOR_COOLDOWN
         self.history = []
         self.min_confidence = EXECUTOR_MIN_CONFIDENCE

@@ -58,7 +58,7 @@ class EmotionProfile(str, Enum):
     ANNOYED = "annoyed"
 
 
-def safe_call(obj: Any, method_name: str, *args, fallback: T = None, log_name: str = "", **kwargs) -> T:
+def safe_call(obj: Any, method_name: str, *args, fallback: T | None = None, log_name: str = "", **kwargs) -> T | None:
     try:
         if hasattr(obj, method_name):
             result = getattr(obj, method_name)(*args, **kwargs)
@@ -70,7 +70,7 @@ def safe_call(obj: Any, method_name: str, *args, fallback: T = None, log_name: s
         return fallback
 
 
-def safe_attr(obj: Any, attr: str, fallback: T = None, log_name: str = "") -> T:
+def safe_attr(obj: Any, attr: str, fallback: T | None = None, log_name: str = "") -> T | None:
     try:
         return getattr(obj, attr, fallback)
     except Exception as e:
@@ -79,7 +79,7 @@ def safe_attr(obj: Any, attr: str, fallback: T = None, log_name: str = "") -> T:
         return fallback
 
 
-def safe_call_fn(fn: Callable | None, *args, fallback: T = None, log_name: str = "", **kwargs) -> T:
+def safe_call_fn(fn: Callable | None, *args, fallback: T | None = None, log_name: str = "", **kwargs) -> T | None:
     if fn is None:
         return fallback
     try:
@@ -105,7 +105,7 @@ class TTLCache:
         self._cache: OrderedDict = OrderedDict()
         self._lock = threading.RLock()
 
-    def get(self, key: str) -> str | None:
+    def get(self, key: str) -> Any | None:
         with self._lock:
             if key not in self._cache:
                 return None
@@ -116,7 +116,7 @@ class TTLCache:
             self._cache.move_to_end(key)
             return value
 
-    def set(self, key: str, value: str) -> None:
+    def set(self, key: str, value: Any) -> None:
         with self._lock:
             self._cache[key] = (value, time.time() + self._ttl)
             self._cache.move_to_end(key)

@@ -260,7 +260,7 @@ class BeliefEngine:
             return cached
         
         with self._lock:
-            results = [
+            results: list = [
                 b for b in self._beliefs.values()
                 if b.topic == topic
             ]

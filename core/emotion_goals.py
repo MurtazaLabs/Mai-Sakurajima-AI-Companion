@@ -1,8 +1,9 @@
 import logging
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
-EMOTION_GOAL_MAP = {
+EMOTION_GOAL_MAP: dict[str, list[dict[str, Any]]] = {
     "lonely": [
         {"description": "Start a conversation with someone", "priority": "high", "condition": lambda e: e.get("lonely", 0) > 0.6},
         {"description": "Reach out to a friend", "priority": "normal", "condition": lambda e: e.get("lonely", 0) > 0.4},

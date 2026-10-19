@@ -11,11 +11,11 @@ class EvidenceDB:
     def __init__(self, db_dir: Path):
         self.db_path = db_dir / "relationship_evidence.db"
         self.db_path.parent.mkdir(parents=True, exist_ok=True)
-        self._conn = None
+        self._conn: sqlite3.Connection | None = None
         self._lock = threading.RLock()
         self._available = False
-        self._memory_fallback = []  # In-memory fallback when DB unavailable
-        
+        self._memory_fallback: list[dict] = []  # In-memory fallback when DB unavailable
+
         try:
             self._init_db()
             self._available = True
@@ -23,10 +23,12 @@ class EvidenceDB:
             logger.warning("[EvidenceDB] Database initialization failed, using in-memory fallback: %s", e)
             self._available = False
 
-    def _get_conn(self):
-        if self._conn is None:
-            self._conn = sqlite3.connect(self.db_path, check_same_thread=False)
-        return self._conn
+    def _get_conn(self) -> sqlite3.Connection:
+        conn = self._conn
+        if conn is None:
+            conn = sqlite3.connect(self.db_path, check_same_thread=False)
+            self._conn = conn
+        return conn
 
     def log_evidence(self, ev_id: str, ts: float, ev_type: str, desc: str, impacts: dict, weight: float):
         evidence_record = {

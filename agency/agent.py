@@ -2,6 +2,7 @@ import json
 import logging
 import threading
 import time
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -23,7 +24,7 @@ class Agent:
         context = context or {}
         start = time.time()
 
-        steps = []
+        steps: list[dict[str, Any]] = []
         result = None
 
         for step_num in range(1, self.max_steps + 1):

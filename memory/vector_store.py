@@ -74,7 +74,7 @@ class VectorStore:
         self._migrate()
 
         # Track indexed files for incremental sync
-        self._indexed_files = {}  # file_path -> (mtime, hash)
+        self._indexed_files: dict[str, tuple[float, str]] = {}  # file_path -> (mtime, hash)
 
     # ==================================================
     # 🔧 SAFE METADATA
@@ -82,7 +82,7 @@ class VectorStore:
 
     def _safe_meta(self, metadata):
 
-        safe = {}
+        safe: dict[str, Any] = {}
 
         if not metadata:
             return safe
@@ -250,7 +250,10 @@ class VectorStore:
         
         try:
             # Search for similar memories
-            results = self.collection.query(
+            collection = self.collection
+            if collection is None:
+                return []
+            results = collection.query(
                 query_embeddings=[embedding],
                 n_results=10,
                 include=["metadatas", "documents", "distances"]
@@ -283,14 +286,21 @@ class VectorStore:
             with self._lock:
                 if not self._check_ready(need_model=False, need_collection=True):
                     return
-                
+
+                collection = self.collection
+                if collection is None:
+                    return
+
                 for old_id in superseded_ids:
                     # Get current metadata
-                    existing = self.collection.get(ids=[old_id])
+                    existing = collection.get(ids=[old_id])
                     if not existing["ids"]:
                         continue
-                    
-                    meta = existing["metadatas"][0].copy()
+
+                    meta = (existing["metadatas"] or [None])[0]
+                    if meta is None:
+                        meta = {}
+                    meta = dict(meta).copy()
                     superseded_by = json.loads(meta.get("superseded_by", "[]"))
                     
                     if new_memory_id not in superseded_by:
@@ -298,7 +308,7 @@ class VectorStore:
                         meta["superseded_by"] = json.dumps(superseded_by)
                         
                         # Update the old memory's metadata
-                        self.collection.update(
+                        collection.update(
                             ids=[old_id],
                             metadatas=[meta]
                         )
@@ -321,7 +331,7 @@ class VectorStore:
     # 🧠 HARD CAP ENFORCEMENT
     # ==================================================
 
-    def enforce_cap(self, max_rows: int = None) -> int:
+    def enforce_cap(self, max_rows: int | None = None) -> int:
         with self._lock:
             if not self._check_ready(need_model=False, need_collection=True):
                 return 0

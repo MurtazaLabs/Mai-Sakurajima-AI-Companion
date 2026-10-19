@@ -295,6 +295,12 @@ class MemoryHierarchy:
         self.brain_graph = brain_graph
         self.event_bus = event_bus
 
+    def _all_stores(self) -> list["SemanticMemoryStore | EpisodicMemoryStore | ProceduralMemoryStore | AutobiographicalMemoryStore"]:
+        return [
+            self.semantic, self.episodic,
+            self.procedural, self.autobiographical,
+        ]
+
     def store_semantic(self, fact_key, content, confidence=0.5, tags=None, source=None, emotion=None):
         code = self.semantic.add(fact_key, content, confidence, tags, source)
         self._sync_to_brain_graph(code, emotion=emotion)
@@ -387,7 +393,7 @@ class MemoryHierarchy:
         return deduped[:limit]
 
     def apply_decay(self, elapsed_hours=1.0):
-        for store in [self.semantic, self.episodic, self.procedural, self.autobiographical]:
+        for store in self._all_stores():
             for code in store.all():
                 code.apply_decay(elapsed_hours)
 
@@ -397,9 +403,7 @@ class MemoryHierarchy:
             "episodic": len(self.episodic.all()),
             "procedural": len(self.procedural.all()),
             "autobiographical": len(self.autobiographical.all()),
-            "total": sum(len(s.all()) for s in [
-                self.semantic, self.episodic, self.procedural, self.autobiographical
-            ]),
+            "total": sum(len(s.all()) for s in self._all_stores()),
         }
 
     def to_dict(self):

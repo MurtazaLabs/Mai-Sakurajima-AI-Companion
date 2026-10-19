@@ -79,16 +79,16 @@ class StateDumper:
             return
         entries = state.knowledge
         seen = {}
-        for e in entries:
-            key = (e.topic.lower().strip(), e.fact.lower().strip())
-            seen[key] = e
+        for entry in entries:
+            key = (entry.topic.lower().strip(), entry.fact.lower().strip())
+            seen[key] = entry
         entries = list(seen.values())
         if len(entries) > 500:
             entries = sorted(entries, key=lambda x: x.timestamp, reverse=True)[:500]
         lines = ["# Knowledge", ""]
-        for e in entries:
-            ts = e.timestamp if e.timestamp else date_str
-            lines.append(f"- **{e.topic}** — {e.fact} — {ts}")
+        for entry in entries:
+            ts = entry.timestamp if entry.timestamp else date_str
+            lines.append(f"- **{entry.topic}** — {entry.fact} — {ts}")
         lines.append("")
         lines.append(f"_Updated: {date_str}_")
         with self._lock:

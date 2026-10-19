@@ -12,7 +12,7 @@ class Cognition:
         self.state = state  # ✅ Connected to Centralized Cognitive Operating State
         self.emotion = emotion
 
-        self.last_thought_time = 0
+        self.last_thought_time: float = 0.0
         self.current_focus = None
         self.last_thought = None
 

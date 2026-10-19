@@ -5,6 +5,7 @@ import os
 import threading
 import time
 from collections import deque
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -39,7 +40,7 @@ class Memory:
         self.event_bus = event_bus or EventBus()
 
         # 🧠 short-term memory
-        self.short = deque(maxlen=20)
+        self.short: deque[dict[str, Any]] = deque(maxlen=20)
 
         # 🧠 obsidian systems
         if obsidian_reader is not None:

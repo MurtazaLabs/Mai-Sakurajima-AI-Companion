@@ -3,6 +3,7 @@ import json
 import logging
 import threading
 import time
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -11,7 +12,7 @@ class ThoughtJournal:
 
     def __init__(self, path: str | None = None, brain_graph=None):
         self._lock = threading.RLock()
-        self._thoughts = []
+        self._thoughts: list[dict[str, Any]] = []
         self._path: str | None = path
         self.brain_graph = brain_graph
 
@@ -124,7 +125,6 @@ class ThoughtJournal:
             with open(self._path, "r", encoding="utf-8") as f:
                 content = f.read()
             if not content.strip():
-                self._thoughts = []
                 return
             if content.lstrip().startswith("["):
                 # Legacy format: whole journal was one JSON array.  Migrate

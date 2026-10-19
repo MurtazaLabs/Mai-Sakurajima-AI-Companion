@@ -79,8 +79,8 @@ class LearningEngine:
             text = ""
             mem_type = ""
             if isinstance(mem, dict):
-                text = mem.get("text", mem.get("content", ""))
-                mem_type = mem.get("memory_type", mem.get("type", ""))
+                text = str(mem.get("text", mem.get("content", "")))
+                mem_type = str(mem.get("memory_type", mem.get("type", "")))
             else:
                 text = str(getattr(mem, "text", getattr(mem, "content", "")))
                 mem_type = str(getattr(mem, "memory_type", getattr(mem, "type", "")))

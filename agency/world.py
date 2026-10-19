@@ -124,7 +124,7 @@ class WorldModel:
         return results
 
     def list_categories(self):
-        cats = {}
+        cats: dict[str, int] = {}
         with self._lock:
             for e in self._entities.values():
                 cats[e.category] = cats.get(e.category, 0) + 1

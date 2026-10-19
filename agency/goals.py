@@ -2,6 +2,7 @@ import logging
 import threading
 import time
 import uuid
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -271,7 +272,7 @@ class GoalManager:
     def check_goals(self, beliefs):
         if not beliefs:
             return {"created": 0, "adjusted": 0, "details": []}
-        results = {"created": 0, "adjusted": 0, "details": []}
+        results: dict[str, Any] = {"created": 0, "adjusted": 0, "details": []}
         with self._lock:
             # Check ALL goals (not just active) to prevent duplicates
             all_descriptions = {g.description.lower() for g in self._goals.values()}

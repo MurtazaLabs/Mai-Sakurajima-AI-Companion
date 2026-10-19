@@ -63,7 +63,7 @@ class RedisSharedState:
         self.persistence_dir = persistence_dir
         self.redis_config = redis_config or RedisConfig()
         self._redis_client = redis_client
-        self._pool = None
+        self._pool: ConnectionPool | None = None
         self._lock = threading.RLock()
         self._available = False
         self._fallback = InMemoryState()
@@ -98,7 +98,7 @@ class RedisSharedState:
             
         try:
             cfg = self.redis_config
-            connection_kwargs = {
+            connection_kwargs: dict[str, Any] = {
                 "host": cfg.host,
                 "port": cfg.port,
                 "db": cfg.db,
@@ -139,8 +139,12 @@ class RedisSharedState:
         if not self._available:
             return None
         try:
-            self._redis_client.ping()
-            return self._redis_client
+            client = self._redis_client
+            if client is None:
+                self._available = False
+                return None
+            client.ping()
+            return client
         except Exception as e:
             logger.warning("[RedisSharedState] Redis connection lost: %s", e)
             self._available = False
@@ -165,18 +169,18 @@ class RedisSharedState:
     # 🔒 LOCKING
     # ==================================================
 
-    def acquire_lock(self, name: str, ttl: int = None) -> bool:
+    def acquire_lock(self, name: str, ttl: int = 10) -> bool:
         """Acquire distributed lock."""
         if not self._available:
             return self._fallback.acquire_lock(name, ttl)
-        
+
         redis = self._get_redis()
         if not redis:
             return self._fallback.acquire_lock(name, ttl)
         
         lock_key = self._make_key("locks", name)
         ttl = ttl or self.LOCK_TTL
-        return redis.set(lock_key, "1", nx=True, ex=ttl)
+        return bool(redis.set(lock_key, "1", nx=True, ex=ttl))
 
     def release_lock(self, name: str) -> bool:
         """Release distributed lock."""

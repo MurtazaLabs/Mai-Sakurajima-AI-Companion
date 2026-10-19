@@ -21,7 +21,7 @@ t1 = time.time()
 print(f"Build: {t1 - t0:.2f}s")
 
 brain = app.brain
-messages = [
+messages: list[str] = [
 ]
 
 print(f"\nChat hot path: {len(messages)} calls")

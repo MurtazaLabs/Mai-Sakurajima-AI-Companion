@@ -265,7 +265,7 @@ class KnowledgeGraph:
 
     def most_connected(self, limit=10):
         with self._lock:
-            degree = {}
+            degree: dict[str, int] = {}
             for rel in self._relations:
                 degree[rel.source] = degree.get(rel.source, 0) + 1
                 degree[rel.target] = degree.get(rel.target, 0) + 1
@@ -283,7 +283,7 @@ class KnowledgeGraph:
                     "nodes": 0, "edges": 0, "avg_degree": 0.0,
                     "isolated": 0, "most_connected": [],
                 }
-            degree = {}
+            degree: dict[str, int] = {}
             for rel in self._relations:
                 degree[rel.source] = degree.get(rel.source, 0) + 1
                 degree[rel.target] = degree.get(rel.target, 0) + 1
@@ -338,7 +338,7 @@ class KnowledgeGraph:
 
     def count_by_type(self):
         with self._lock:
-            counts = {}
+            counts: dict[str, int] = {}
             for e in self._entities.values():
                 t = e.type or "unknown"
                 counts[t] = counts.get(t, 0) + 1

@@ -1,6 +1,7 @@
 import logging
 import threading
 import time
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -34,14 +35,14 @@ class PersonalityEvolution:
         self.personality_state = personality_state
         self.event_bus = event_bus
         self._lock = threading.RLock()
-        self._adjustment_log = []
+        self._adjustment_log: list[dict[str, Any]] = []
         self._max_log = 100
 
     def evolve(self, behavior_adjustments=None, reflections=None):
         if not behavior_adjustments and not reflections:
             return {}
 
-        adjustments = {}
+        adjustments: dict[str, float] = {}
 
         if behavior_adjustments:
             for signal, delta in behavior_adjustments.items():

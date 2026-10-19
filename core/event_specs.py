@@ -109,6 +109,7 @@ STATE_GOAL_UPDATED = "state.goal.updated"
 STATE_AGENT_COMPLETED = "state.agent.completed"
 STATE_NEEDS_UPDATED = "state.needs.updated"
 STATE_MONOLOGUE_GENERATED = "state.monologue.generated"
+STATE_USER_SWITCHED = "state.user.switched"
 
 # Retrieval and tool-execution projections.
 #
@@ -293,6 +294,8 @@ VERTEX_SPECS: list[EventSpec] = [
           payload_keys=("needs", "triggered", "unmet"), priority="high"),
     _spec(STATE_MONOLOGUE_GENERATED, "cognition", "Internal monologue packet produced (UI truth)",
           payload_keys=("thought", "decision", "speech_plan", "response"), priority="high"),
+    _spec(STATE_USER_SWITCHED, "app", "Active user context switched (UI truth)",
+          payload_keys=("old_user", "new_user"), priority="normal"),
     _spec(STATE_RETRIEVAL_STARTED, "memory", "Memory retrieval began (UI truth)",
           payload_keys=(), priority="normal"),
     _spec(STATE_RETRIEVAL_COMPLETED, "memory", "Memory retrieval finished (UI truth)",

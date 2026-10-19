@@ -42,7 +42,7 @@ class DocumentStore:
     def __init__(self, path: str | None = None):
         self.path: str | None = path
         self._lock = threading.RLock()
-        self._records = {}
+        self._records: dict[str, DocumentRecord] = {}
         self._dirty = False
 
         if path:

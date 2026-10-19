@@ -3,6 +3,7 @@ import logging
 import random
 import threading
 import time
+from typing import Any
 
 logger = logging.getLogger("Mai.Autonomy")
 
@@ -45,7 +46,7 @@ class Autonomy:
         self.intent_repeat_cooldown = 180
 
         # 📊 Renamed to avoid shadowing/conflicting with the central 'state' object
-        self.runtime_stats = {
+        self.runtime_stats: dict[str, Any] = {
             "actions_taken": 0,
             "last_action": None,
             "started_at": time.time()

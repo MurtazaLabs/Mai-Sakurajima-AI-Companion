@@ -2,6 +2,7 @@
 import logging
 import threading
 import time
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +28,7 @@ class CognitiveState:
         self.confidence = 0.5
         self.current_thought = None
         self.recent_thoughts = []
-        self.conversation_state = {
+        self.conversation_state: dict[str, Any] = {
             "turn_count": 0,
             "session_duration": 0.0,
             "user_mood": "neutral",

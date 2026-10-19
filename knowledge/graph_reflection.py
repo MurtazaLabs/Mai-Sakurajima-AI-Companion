@@ -19,7 +19,7 @@ class GraphReflection:
         all_rels = self.graph.all_relations()
         if not all_ents:
             return []
-        adj = {e.name: set() for e in all_ents}
+        adj: dict[str, set[str]] = {e.name: set() for e in all_ents}
         for rel in all_rels:
             adj.setdefault(rel.source, set()).add(rel.target)
             adj.setdefault(rel.target, set()).add(rel.source)
@@ -55,7 +55,7 @@ class GraphReflection:
         clusters = self.identify_clusters()
         if len(clusters) < 2:
             return []
-        suggestions = []
+        suggestions: list = []
         for i in range(len(clusters)):
             for j in range(i + 1, len(clusters)):
                 for src_name in clusters[i][:3]:

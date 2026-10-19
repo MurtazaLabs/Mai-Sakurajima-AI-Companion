@@ -12,6 +12,7 @@ import re
 import time
 from collections import Counter, defaultdict
 from datetime import datetime, timedelta
+from typing import Any
 
 from agency.dream_report import (
     ARCHIVE_DAYS,
@@ -58,7 +59,7 @@ def find_orphans(engine, state, report):
 
 def _find_co_occurring(state, name, folder):
     candidates = []
-    all_entities = []
+    all_entities: list[tuple[str, str]] = []
     if folder != "person":
         all_entities.extend(
             (e["name"].strip().lower(), "person")
@@ -84,7 +85,7 @@ def merge_duplicates(engine, state, report):
     merged = 0
     for folder in ("people", "places", "projects"):
         entities = getattr(state, folder, [])
-        seen = {}
+        seen: dict[str, dict[str, Any]] = {}
         to_remove = []
         for ent in entities:
             name = ent.get("name", "").strip().lower()
@@ -116,7 +117,7 @@ def merge_knowledge(engine, state, report):
 
 
 def _build_entity_pairs(state):
-    pairs = defaultdict(int)
+    pairs: defaultdict[tuple[str, str], int] = defaultdict(int)
     for folder in ("people", "places", "projects"):
         for ent in getattr(state, folder, []):
             name = ent.get("name", "").strip().lower()
@@ -506,7 +507,7 @@ def detect_contradictions(engine, state, report):
     Same topic with differing facts and timestamps -> keep both as temporal
     knowledge (do NOT overwrite) and flag the contradiction as an insight.
     """
-    by_topic = {}
+    by_topic: dict[str, list] = {}
     for e in state.knowledge:
         by_topic.setdefault(e.topic.lower(), []).append(e)
     found = 0

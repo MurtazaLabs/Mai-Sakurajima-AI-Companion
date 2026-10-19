@@ -65,7 +65,7 @@ class TaskExecutor:
         # 🧠 ACTION QUEUE
         # ==================================================
 
-        self.task_queue = queue.Queue()
+        self.task_queue: queue.Queue = queue.Queue()
 
         self.queue_running = True
 

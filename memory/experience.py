@@ -105,8 +105,8 @@ class ExperienceStore:
     def __init__(self, path: str | None = None):
         self._lock = threading.RLock()
         self._path = str(path) if path else None
-        self._experiences = []
-        self._fingerprints = {}
+        self._experiences: list[EmotionExperience] = []
+        self._fingerprints: dict[str, str] = {}  # md5(event) -> experience id
         self._deduped = 0
         if self._path:
             self._load()
@@ -117,7 +117,7 @@ class ExperienceStore:
 
     def _load(self):
         try:
-            with open(self._path, "r", encoding="utf-8") as fh:
+            with open(self._path or "", "r", encoding="utf-8") as fh:
                 for line in fh:
                     line = line.strip()
                     if not line:
@@ -196,7 +196,7 @@ class ExperienceStore:
         if not self._path:
             return
         try:
-            with open(self._path, "w", encoding="utf-8") as fh:
+            with open(self._path or "", "w", encoding="utf-8") as fh:
                 fh.writelines(json.dumps(e.to_dict()) + "\n" for e in self._experiences)
         except Exception as e:
             logger.debug("[ExperienceStore] rewrite failed: %s", e)
@@ -205,7 +205,7 @@ class ExperienceStore:
         with self._lock:
             return list(self._experiences[-n:])
 
-    def format_context(self, limit: int = 3, min_significance: float = 0.6, query: str = None) -> str:
+    def format_context(self, limit: int = 3, min_significance: float = 0.6, query: str | None = None) -> str:
         """Format reflected experiences for context injection.
         
         If query is provided, only experiences with relevance above threshold

@@ -4,6 +4,7 @@ import threading
 import time
 from collections import OrderedDict
 from concurrent.futures import ThreadPoolExecutor, as_completed
+from typing import Any
 
 from app.config_loader import MEMORY_SIMILARITY_THRESHOLD
 
@@ -150,7 +151,7 @@ class AdvancedRetriever:
             self._publish_retrieval_completed(len(cached))
             return cached
 
-        results = []
+        results: list[dict[str, Any]] = []
         seen_content = set()
         _lock = threading.Lock()
 
@@ -183,7 +184,7 @@ class AdvancedRetriever:
             if not self.vector_store:
                 return []
             try:
-                filter_kw = {}
+                filter_kw: dict[str, Any] = {}
                 if memory_type:
                     filter_kw["metadata_filter"] = {"memory_type": {"$eq": memory_type}}
                 if user_id:
@@ -200,10 +201,13 @@ class AdvancedRetriever:
                 out = []
                 for item in vector_results:
                     text = ""
-                    score = 0.5
+                    score: float = 0.5
                     if isinstance(item, dict):
-                        text = item.get("text", item.get("content", ""))
-                        score = item.get("score", item.get("relevance", 0.5))
+                        text = str(item.get("text", item.get("content", "")))
+                        raw = item.get("score", item.get("relevance", 0.5))
+                        if raw is None:
+                            raw = 0.5
+                        score = float(raw)
                     else:
                         text = str(item)
                     if speaker and isinstance(item, dict):
@@ -234,7 +238,7 @@ class AdvancedRetriever:
             if not self.knowledge_graph:
                 return []
             try:
-                local_seen = set()
+                local_seen: set[str] = set()
                 enriched = self._enriched_graph_retrieval(query, local_seen)
                 out = list(enriched)
                 for item in enriched:

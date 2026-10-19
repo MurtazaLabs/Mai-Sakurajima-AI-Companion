@@ -100,9 +100,9 @@ class MemoryCoordinator:
         self.event_bus = event_bus
         self.experience_store = experience_store
         self._lock = threading.RLock()
-        self._short = []  # Recent conversation turns
+        self._short: list[dict[str, Any]] = []  # Recent conversation turns
         self.current_topic = None
-        self.last_user_message = None
+        self.last_user_message: str | None = None
 
     def before_think(self, user_input: str, user_id: str = "") -> 'MemoryCoordinationResult':
         """
@@ -245,7 +245,7 @@ class MemoryCoordinator:
             logger.error("[EXPERIENCE CONTEXT ERROR] %s", e)
             return ""
 
-    def experience_context(self, user_input: str = None, limit: int = 3, max_chars: int = None) -> str:
+    def experience_context(self, user_input: str | None = None, limit: int = 3, max_chars: int | None = None) -> str:
         """Public API for experience context with optional character limit."""
         if user_input is not None:
             # Temporarily override last_user_message for this call

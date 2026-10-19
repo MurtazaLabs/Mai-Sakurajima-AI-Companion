@@ -1,6 +1,7 @@
 # memory/consolidation.py
 import logging
 import time
+from typing import Any
 
 from core.utils import compute_text_overlap
 from memory.schema import MemoryObject
@@ -30,7 +31,7 @@ def consolidate(nodes):
     if not nodes:
         return [], nodes
 
-    groups = {}
+    groups: dict[str, list] = {}
     for node in nodes:
         if getattr(node, "consolidated", False) or getattr(node, "archived", False):
             continue
@@ -39,7 +40,7 @@ def consolidate(nodes):
             groups[group] = []
         groups[group].append(node)
 
-    consolidated_entries = []
+    consolidated_entries: list[dict[str, Any]] = []
     remaining = list(nodes)
 
     for group_name, group_nodes in groups.items():

@@ -149,12 +149,12 @@ class ReflectionEngine:
         return reflection
 
     def _extract_topics(self, memories, thoughts):
-        topics = {}
+        topics: dict[str, int] = {}
 
         for mem in memories:
             text = ""
             if isinstance(mem, dict):
-                text = mem.get("text", mem.get("content", ""))
+                text = str(mem.get("text", mem.get("content", "")))
                 tags = mem.get("tags", [])
                 for tag in tags:
                     topics[str(tag)] = topics.get(str(tag), 0) + 1

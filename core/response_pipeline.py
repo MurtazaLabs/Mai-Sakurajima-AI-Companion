@@ -33,6 +33,7 @@ class ResponsePipeline:
         if not (self._validate_action(action) or self._validate_via_registry(action)):
             return PipelineResult()
 
+        output: str | dict = ""
         if self.tool_registry and self._validate_via_registry(action):
             tool_result = self.tool_registry.call(action["type"], content=action.get("content", ""))
             if tool_result.get("success"):

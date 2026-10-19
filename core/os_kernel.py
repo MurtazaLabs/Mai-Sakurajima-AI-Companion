@@ -28,10 +28,15 @@ logger = logging.getLogger("Mai.OSKernel")
 
 
 def _get_identity():
-    """Lazy import to avoid circular dependency."""
+    """Lazy import to avoid circular dependency.
+
+    Returns the canonical identity module (dict). The live IdentityCore
+    (with overlay state) is reachable only through the Brain; kernel-level
+    generators get the static canon.
+    """
     try:
-        from core.identity.identity_core import get_identity_summary
-        return get_identity_summary()
+        from core.identity import IDENTITY
+        return dict(IDENTITY)
     except Exception:
         return {}
 
@@ -443,7 +448,7 @@ class AIOSKernel:
                 continue
 
             logger.info("[Kernel] Speaking response...")
-            collected_chunks = []
+            collected_chunks: list[str] = []
 
             def collecting_stream(s, chunks=collected_chunks):
                 for chunk in s:

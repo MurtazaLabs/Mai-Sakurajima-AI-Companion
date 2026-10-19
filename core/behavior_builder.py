@@ -1,6 +1,7 @@
 # core/behavior_builder.py
 import logging
 import threading
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -584,7 +585,7 @@ class BehaviorBuilder:
     def _resolve_conflicts(self):
 
         with self._lock:
-            resolved = {}
+            resolved: dict[str, dict[str, Any]] = {}
             for behavior in self.behaviors:
                 trait = behavior["trait"]
                 if trait not in resolved or behavior["strength"] > resolved[trait]["strength"]:

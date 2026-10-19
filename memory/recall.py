@@ -399,7 +399,7 @@ class RecallEngine:
 
         with self.lock:
 
-            counter = Counter()
+            counter: Counter[str] = Counter()
 
             for node in nodes:
 

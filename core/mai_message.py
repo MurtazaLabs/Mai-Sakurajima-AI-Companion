@@ -124,15 +124,18 @@ class correlation_scope:
 
     def __init__(self, correlation_id: str | None = None):
         self._provided = correlation_id
-        self._previous = None
+        self._previous: str | None = None
 
     def __enter__(self) -> str:
         self._previous = current_correlation_id()
         if self._provided:
-            set_correlation(self._provided)
+            cid = self._provided
         elif self._previous is None:
-            set_correlation(new_correlation_id())
-        return current_correlation_id()
+            cid = new_correlation_id()
+        else:
+            cid = self._previous
+        set_correlation(cid)
+        return cid
 
     def __exit__(self, exc_type, exc_val, exc_tb) -> None:
         if self._previous is None:

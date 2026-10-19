@@ -3,6 +3,7 @@ import logging
 import random
 import threading
 from collections import Counter
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -98,11 +99,11 @@ class MemoryReflectionEngine:
                 # 🧠 PATTERN TRACKING
                 # ==================================================
 
-                tag_counter = Counter()
+                tag_counter: Counter[str] = Counter()
 
-                emotion_counter = Counter()
+                emotion_counter: Counter[str] = Counter()
 
-                memory_type_counter = Counter()
+                memory_type_counter: Counter[str] = Counter()
 
                 # ==================================================
                 # 🧠 ANALYZE MEMORIES
@@ -361,7 +362,7 @@ class MemoryReflectionEngine:
                 # 🚫 REMOVE REPETITIONS
                 # ==================================================
 
-                available = [
+                available: list[dict[str, Any]] = [
 
                     reflection
 
@@ -382,9 +383,11 @@ class MemoryReflectionEngine:
 
                     available,
 
-                    key=lambda r: r.get(
-                        "confidence",
-                        Settings.REFLECTION_DEFAULT_CONFIDENCE
+                    key=lambda r: float(
+                        r.get(
+                            "confidence",
+                            Settings.REFLECTION_DEFAULT_CONFIDENCE
+                        )
                     ),
 
                     reverse=True
@@ -413,9 +416,11 @@ class MemoryReflectionEngine:
 
                     "confidence":
                         round(
-                            selected.get(
-                                "confidence",
-                                Settings.REFLECTION_DEFAULT_CONFIDENCE
+                            float(
+                                selected.get(
+                                    "confidence",
+                                    Settings.REFLECTION_DEFAULT_CONFIDENCE
+                                )
                             ),
                             3
                         ),

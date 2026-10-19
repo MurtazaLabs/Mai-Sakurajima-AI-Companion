@@ -1,4 +1,4 @@
-"""SQLite-backed persistent user profile store with multi-tenancy support.
+﻿"""SQLite-backed persistent user profile store with multi-tenancy support.
 
 Replaces the in-memory ``_users`` dict from ``api/routes_auth.py`` with
 a durable store so profiles survive server restarts.
@@ -42,21 +42,20 @@ class ProfileStore:
         self._conn: sqlite3.Connection | None = None
         self._init_db()
 
-    # ── Connection management ──────────────────────────────────────────
-    def _init_db(self):
+    # â”€â”€ Connection management â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
+    def _init_db(self) -> sqlite3.Connection:
         with self._lock:
             if self._conn:
-                return
+                return self._conn
             self._conn = sqlite3.connect(str(self._db_path), check_same_thread=False)
             self._conn.row_factory = sqlite3.Row
             self._conn.executescript(_SCHEMA)
             self._conn.commit()
             logger.info("ProfileStore ready at %s", self._db_path)
+            return self._conn
 
-    def _cursor(self):
-        if not self._conn:
-            self._init_db()
-        return self._conn.cursor()
+    def _cursor(self) -> sqlite3.Cursor:
+        return self._init_db().cursor()
 
     def close(self):
         with self._lock:
@@ -64,7 +63,7 @@ class ProfileStore:
                 self._conn.close()
                 self._conn = None
 
-    # ── CRUD ───────────────────────────────────────────────────────────
+    # â”€â”€ CRUD â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€â”€
     def create_user(self, user_id: str, password_hash: str, display_name: str = "") -> bool:
         with self._lock:
             try:
@@ -74,7 +73,7 @@ class ProfileStore:
                     "VALUES (?, ?, ?, ?, ?, ?)",
                     (user_id, password_hash, display_name, "{}", now, now),
                 )
-                self._conn.commit()
+                self._conn.commit()  # type: ignore[union-attr]
                 logger.info("Created user: %s", user_id)
                 return True
             except sqlite3.IntegrityError:
@@ -111,7 +110,7 @@ class ProfileStore:
                 "UPDATE profiles SET preferences = ?, updated_at = ? WHERE user_id = ?",
                 (json.dumps(preferences), time.time(), user_id),
             )
-            self._conn.commit()
+            cur.connection.commit()
             return cur.rowcount > 0
 
     def update_display_name(self, user_id: str, display_name: str) -> bool:
@@ -121,14 +120,14 @@ class ProfileStore:
                 "UPDATE profiles SET display_name = ?, updated_at = ? WHERE user_id = ?",
                 (display_name, time.time(), user_id),
             )
-            self._conn.commit()
+            cur.connection.commit()
             return cur.rowcount > 0
 
     def delete_user(self, user_id: str) -> bool:
         with self._lock:
             cur = self._cursor()
             cur.execute("DELETE FROM profiles WHERE user_id = ?", (user_id,))
-            self._conn.commit()
+            cur.connection.commit()
             return cur.rowcount > 0
 
     def list_users(self) -> list[dict]:

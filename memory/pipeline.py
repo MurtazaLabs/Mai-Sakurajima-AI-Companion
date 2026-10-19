@@ -3,6 +3,7 @@ import logging
 import threading
 import time
 from collections import deque
+from typing import Any
 
 from memory.consolidation import consolidate
 from memory.extractor import FastExtractor
@@ -41,7 +42,7 @@ class MemoryPipeline:
         if write_journal is not None:
             self._configure_journal()
 
-        self.short = deque(maxlen=20)
+        self.short: deque[dict[str, Any]] = deque(maxlen=20)
         self.current_topic = None
         self.last_user_message = None
 
@@ -137,8 +138,8 @@ class MemoryPipeline:
         # instead of duplicating those operations here.
         # ==================================================
         node = None
-        tags = []
-        emo = {}
+        tags: list[str] = []
+        emo: dict[str, Any] = {}
 
         entity_names = self._match_entity_names(f"{user} {ai or ''}")
         if self.intelligence:

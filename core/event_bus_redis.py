@@ -286,14 +286,14 @@ class RedisEventBus:
         # Redis configuration
         self._redis_config = redis_config or RedisConfig()
         self._redis_client = redis_client
-        self._redis = None
-        self._pubsub = None
+        self._redis: redis.Redis | None = None
+        self._pubsub: _RedisPubSub | None = None
         self._redis_available = False
-        
+
         # Initialize Redis connection
         self._init_redis()
 
-        self._pool = _WorkerPool(self, workers=worker_count, max_queue=max_queue)
+        self._pool: _WorkerPool = _WorkerPool(self, workers=worker_count, max_queue=max_queue)
         self._middleware: dict[str, Callable] = {}
         self._install_default_middleware()
 
@@ -391,6 +391,17 @@ class RedisEventBus:
         msg.payload = {"__zlib__": base64.b64encode(zlib.compress(blob)).decode("ascii")}
         msg.metadata["compressed"] = True
 
+    def _decompress_payload(self, msg: 'MaiMessage') -> None:
+        """Undo _default_compression: restore the original payload dict."""
+        payload = msg.payload
+        if isinstance(payload, dict) and "__zlib__" in payload:
+            try:
+                blob = zlib.decompress(base64.b64decode(payload["__zlib__"]))
+                msg.payload = json.loads(blob.decode("utf-8"))
+            except Exception as e:
+                logger.warning("[RedisEventBus] decompress failed for %s: %s", msg.type, e)
+        msg.metadata["compressed"] = False
+
     def _run_middleware(self, msg: MaiMessage) -> None:
         for name in MIDDLEWARE_ORDER:
             fn = self._middleware.get(name)
@@ -399,12 +410,13 @@ class RedisEventBus:
 
     def _init_redis(self):
         """Initialize Redis connection."""
+        client: redis.Redis | None = None
         try:
             if self._redis_client:
-                self._redis = self._redis_client
+                client = self._redis_client
             else:
                 cfg = self._redis_config
-                connection_kwargs = {
+                connection_kwargs: dict[str, Any] = {
                     "host": cfg.host,
                     "port": cfg.port,
                     "db": cfg.db,
@@ -421,16 +433,20 @@ class RedisEventBus:
                     ssl_context.check_hostname = False
                     ssl_context.verify_mode = ssl.CERT_NONE
                     connection_kwargs["ssl_cert_reqs"] = ssl.CERT_NONE
-                
-                self._pool = ConnectionPool(
+
+                pool = ConnectionPool(
                     **connection_kwargs
                 )
-                self._redis = redis.Redis(connection_pool=self._pool)
+                client = redis.Redis(connection_pool=pool)
+
+            if client is None:
+                raise RuntimeError("Redis client unavailable")
 
             # Test connection
-            self._redis.ping()
+            client.ping()
+            self._redis = client
             self._redis_available = True
-            self._pubsub = _RedisPubSub(self._redis)
+            self._pubsub = _RedisPubSub(client)
             logger.info("[RedisEventBus] Connected to Redis")
         except Exception as e:
             logger.warning("[RedisEventBus] Redis unavailable, using local mode: %s", e)
@@ -453,9 +469,12 @@ class RedisEventBus:
         """Subscribe to a Redis channel for a topic."""
         if not self._redis_available:
             return
+        pubsub = self._pubsub
+        if pubsub is None:
+            return
         try:
             channel = f"mai:events:{topic}"
-            self._pubsub.subscribe(channel, self._on_redis_message)
+            pubsub.subscribe(channel, self._on_redis_message)
         except Exception as e:
             logger.warning("[RedisEventBus] Failed to subscribe to %s: %s", topic, e)
 
@@ -491,6 +510,9 @@ class RedisEventBus:
         """Publish message to Redis pub/sub."""
         if not self._redis_available:
             return
+        pubsub = self._pubsub
+        if pubsub is None:
+            return
         try:
             payload = {
                 "type": msg.type,
@@ -502,7 +524,7 @@ class RedisEventBus:
                 "causation_id": msg.causation_id,
                 "timestamp": msg.timestamp,
             }
-            self._pubsub.publish(msg.type, payload)
+            pubsub.publish(msg.type, payload)
         except Exception as e:
             logger.warning("[RedisEventBus] Redis publish failed: %s", e)
 

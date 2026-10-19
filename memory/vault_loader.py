@@ -3,6 +3,7 @@ import logging
 import re
 import time
 from pathlib import Path
+from typing import Any
 
 from memory.schema import MemoryObject
 from memory.state import MemoryState
@@ -227,9 +228,9 @@ def verify_consistency(reader, vector_store, knowledge_graph, memory_hierarchy):
     This is an advisory check — it does *not* block boot or repair data.
     Returns a dict of consistency metrics.
     """
-    result = {"vault_entries": 0, "vector_entries": 0,
-              "graph_entities": 0, "hierarchy_entries": 0,
-              "ok": True, "warnings": []}
+    result: dict[str, Any] = {"vault_entries": 0, "vector_entries": 0,
+                              "graph_entities": 0, "hierarchy_entries": 0,
+                              "ok": True, "warnings": []}
     if reader is not None:
         try:
             memories = reader.load_memories()

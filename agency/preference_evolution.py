@@ -11,6 +11,7 @@ import logging
 import re
 import threading
 import time
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -37,11 +38,11 @@ class PreferenceEvolution:
         self._trail_path = str(trail_path) if trail_path else None
 
         # overlay: topic -> {"list": "likes"|"dislikes", "applied_at": float}
-        self._overlay = {}
+        self._overlay: dict[str, dict[str, Any]] = {}
         # evidence: topic -> {"like": n, "dislike": n, "last_seen": float}
-        self._evidence = {}
+        self._evidence: dict[str, dict[str, Any]] = {}
         # decision trail: [{timestamp, topic, before, after, reason}]
-        self._trail = []
+        self._trail: list[dict[str, Any]] = []
 
         self._load_state()
         self._load_trail()

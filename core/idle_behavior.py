@@ -10,7 +10,7 @@ class IdleBehavior:
     def __init__(self, emotion=None):
         self.emotion = emotion
 
-        self.last_idle_time = 0
+        self.last_idle_time: float = 0.0
 
         self.cooldown_range = (45, 120)
 
