@@ -1,4 +1,3 @@
-#!/usr/bin/env python3
 """
 Horizontal scaling tests for the Redis-backed shared-state layer.
 
