@@ -2,9 +2,20 @@ import os
 import subprocess
 import sys
 
+import pytest
+
 sys.path.insert(0, r'E:\Mai_ai')
 
 def test_documentation():
+    # This diagnostic inspects one developer's local Windows vault and checkout.
+    # It is not runnable in a clean CI environment without that private setup.
+    from pathlib import Path
+
+    project_path = Path(r'E:\Mai_ai')
+    vault_path = Path(r'C:\Users\Administrator\Documents\OpenCode Obsidian Vault')
+    if not project_path.is_dir() or not vault_path.is_dir():
+        pytest.skip('Requires the developer-local OpenCode/Obsidian environment')
+
     # Test the documentation system
     from pathlib import Path
     
