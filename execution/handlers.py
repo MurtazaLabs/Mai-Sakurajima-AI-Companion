@@ -135,12 +135,12 @@ class SystemActions:
                 return self._result(False, "app_not_allowed", 0)
             if os.name == "nt":
                 try:
-                    os.startfile(app_name)  # type: ignore[attr-defined]
+                    os.startfile(app_name)
                 except OSError:
                     resolved = self._resolve_app_path(app_name)
                     if not resolved:
                         return self._result(False, f"app_not_found:{app_name}", 0)
-                    os.startfile(resolved)  # type: ignore[attr-defined]
+                    os.startfile(resolved)
                 return self._result(True, f"opened:{app_name}", 0)
             else:
                 subprocess.Popen([app_name])
