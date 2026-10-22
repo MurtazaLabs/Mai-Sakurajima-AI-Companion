@@ -9,7 +9,9 @@ try:
     import pystray
     from PIL import Image, ImageDraw
     _HAS_TRAY = True
-except ImportError:
+except Exception:
+    # Some platform backends (notably X11 on headless Linux) can fail during
+    # import when no display is available. Tray support is optional.
     _HAS_TRAY = False
     logger.warning("[Tray] pystray not installed — tray disabled")
 
