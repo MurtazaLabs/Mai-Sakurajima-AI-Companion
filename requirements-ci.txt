@@ -13,3 +13,7 @@
 pytest-cov>=6.0
 pytest-timeout>=2.4
 cryptography>=44.0.1
+# Runtime imports exercised by the test suite but missing from the shared lockfile.
+SQLAlchemy>=2.0
+alembic>=1.13
+python-jose[cryptography]>=3.3
