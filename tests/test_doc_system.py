@@ -2,10 +2,18 @@ import json
 import os
 import sys
 
+import pytest
+
 sys.path.insert(0, r'E:\Mai_ai')
 
 def test_documentation():
     from pathlib import Path
+
+    config_path = Path(r'C:\Users\Administrator\.config\opencode\documentation.json')
+    project_path = Path(r'E:\Mai_ai')
+    vault_path = Path(r'C:\Users\Administrator\Documents\OpenCode Obsidian Vault')
+    if not config_path.is_file() or not project_path.is_dir() or not vault_path.is_dir():
+        pytest.skip('Requires the developer-local OpenCode/Obsidian environment')
     
     # Load config
     with open(r'C:\Users\Administrator\.config\opencode\documentation.json', 'r', encoding='utf-8-sig') as f:
