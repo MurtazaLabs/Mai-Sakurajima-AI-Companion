@@ -1,4 +1,4 @@
-# Byte-compiled / optimized / DLL files
+﻿# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
@@ -8,52 +8,42 @@ mai_env/
 venv/
 env/
 .env
-
 # Distribution / packaging
 dist/
 build/
 *.egg-info/
-
 # IDE
 .vscode/
 .idea/
 *.swp
 *.swo
-
 # Logs
 logs/
 *.log
-
 # OS
 .DS_Store
 Thumbs.db
 mai.db
-
 # Test / coverage
 .coverage
 .pytest_cache/
 htmlcov/
-
 # Cache
 .cache/
 vector_memory/
 cache/
-
 # Data
 data/
 temp/
 models/
-
-# Local model weights — never publish
+# Local model weights â€” never publish
 Embedding_models/
 kyutai STT/
-
 # Node (if any)
 node_modules/
 package-lock.json
 package.json
-
 # Local config
 .freebuff/
-.opencode
+.opencode/
 mypy_log.txt
