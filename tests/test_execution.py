@@ -105,7 +105,7 @@ class TestTaskExecutorOpenApp:
         from execution.task_executor import TaskExecutor
         executor = TaskExecutor()
         with patch("execution.handlers.os.name", "nt"):
-            with patch("execution.handlers.os.startfile") as mock_start:
+            with patch("execution.handlers.os.startfile", create=True) as mock_start:
                 result = executor.open_app("notepad")
         assert result["success"] is True
         assert "opened:notepad" in result["output"]
@@ -126,7 +126,7 @@ class TestTaskExecutorOpenApp:
         from execution.task_executor import TaskExecutor
         executor = TaskExecutor(allowed_apps=["nonexistent", "notepad"])
         with patch("execution.handlers.os.name", "nt"):
-            with patch("execution.handlers.os.startfile", side_effect=FileNotFoundError("not found")):
+            with patch("execution.handlers.os.startfile", create=True, side_effect=FileNotFoundError("not found")):
                 result = executor.open_app("nonexistent")
         assert result["success"] is False
 
@@ -134,7 +134,7 @@ class TestTaskExecutorOpenApp:
         from execution.task_executor import TaskExecutor
         executor = TaskExecutor(allowed_apps=["chrome", "notepad"])
         with patch("execution.handlers.os.name", "nt"):
-            with patch("execution.handlers.os.startfile", side_effect=[FileNotFoundError("no bare name"), None]) as mock_start:
+            with patch("execution.handlers.os.startfile", create=True, side_effect=[FileNotFoundError("no bare name"), None]) as mock_start:
                 with patch("execution.handlers.os.path.isfile", return_value=True):
                     result = executor.open_app("chrome")
         assert result["success"] is True
@@ -146,7 +146,7 @@ class TestTaskExecutorOpenApp:
         from execution.task_executor import TaskExecutor
         executor = TaskExecutor(allowed_apps=["chrome", "notepad"])
         with patch("execution.handlers.os.name", "nt"):
-            with patch("execution.handlers.os.startfile", side_effect=FileNotFoundError("no browser")):
+            with patch("execution.handlers.os.startfile", create=True, side_effect=FileNotFoundError("no browser")):
                 with patch("execution.handlers.os.path.isfile", return_value=False):
                     result = executor.open_app("chrome")
         assert result["success"] is False
@@ -156,7 +156,7 @@ class TestTaskExecutorOpenApp:
         from execution.task_executor import TaskExecutor
         executor = TaskExecutor()
         with patch("execution.handlers.os.name", "nt"):
-            with patch("execution.handlers.os.startfile") as mock_start:
+            with patch("execution.handlers.os.startfile", create=True) as mock_start:
                 result = executor.open_app("notepad")
         assert result["success"] is True
         mock_start.assert_called_once_with("notepad")
