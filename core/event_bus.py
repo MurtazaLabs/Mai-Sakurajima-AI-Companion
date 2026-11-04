@@ -318,6 +318,10 @@ class EventBus:
             )
 
     def _default_metrics(self, msg: MaiMessage, bus: EventBus) -> None:
+        # Internal inspector records are implementation traffic, not published
+        # application events; counting them makes stats depend on worker timing.
+        if msg.type == TELEMETRY_TOPIC:
+            return
         with bus._lock:
             bus._counter_total += 1
             bus._counters[msg.type] = bus._counters.get(msg.type, 0) + 1
