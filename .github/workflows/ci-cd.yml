@@ -41,6 +41,11 @@ jobs:
         with:
           fetch-depth: 0
 
+      - name: Install PortAudio runtime
+        run: |
+          sudo apt-get update
+          sudo apt-get install -y libportaudio2
+
       - name: Set up Python
         uses: actions/setup-python@v5
         with:
