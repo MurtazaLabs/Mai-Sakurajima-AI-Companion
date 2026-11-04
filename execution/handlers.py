@@ -1,4 +1,5 @@
 import logging
+import ntpath
 import os
 import shlex
 import subprocess
@@ -302,10 +303,48 @@ def _configure_sandbox(*directories: str):
 
 
 def _path_allowed(path: str) -> bool:
-    p = os.path.abspath(path)
+    """Return whether *path* is contained by a configured sandbox directory.
+
+    Handle Windows absolute paths explicitly even when tests run on POSIX;
+    never use string-prefix checks, which incorrectly accept sibling paths.
+    """
     if not _CLIPBOARD_SANDBOX_DIRS:
         return True
-    return any(p.startswith(os.path.abspath(d)) for d in _CLIPBOARD_SANDBOX_DIRS)
+
+    candidate = str(path).strip()
+    if not candidate:
+        return False
+
+    # A drive-qualified or UNC path is a Windows path regardless of the host OS.
+    drive, _ = ntpath.splitdrive(candidate)
+    is_windows_absolute = bool(drive) or candidate.startswith(("\\\\", "//"))
+    if is_windows_absolute:
+        target = ntpath.normcase(ntpath.normpath(candidate))
+        for directory in _CLIPBOARD_SANDBOX_DIRS:
+            allowed_drive, _ = ntpath.splitdrive(str(directory))
+            if not allowed_drive and not str(directory).startswith(("\\\\", "//")):
+                continue
+            root = ntpath.normcase(ntpath.normpath(str(directory)))
+            try:
+                if ntpath.commonpath((target, root)) == root:
+                    return True
+            except ValueError:
+                # Different drives (or incompatible UNC roots) are not contained.
+                continue
+        return False
+
+    try:
+        target_path = Path(candidate).resolve()
+        for directory in _CLIPBOARD_SANDBOX_DIRS:
+            root_path = Path(directory).resolve()
+            try:
+                target_path.relative_to(root_path)
+                return True
+            except ValueError:
+                continue
+    except (OSError, RuntimeError, ValueError):
+        return False
+    return False
 
 
 class ClipboardActions:
