@@ -85,6 +85,12 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     needs: lint-and-test
+    # SARIF upload needs security-events: write; upload-sarif also queries
+    # workflow-run metadata through the Actions API.
+    permissions:
+      contents: read
+      actions: read
+      security-events: write
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -99,6 +105,9 @@ jobs:
           severity: 'HIGH,CRITICAL'
 
       - name: Upload Trivy results
+        # Fork PR tokens cannot receive security-events: write, even when
+        # the workflow requests it. Keep scanning, but skip SARIF publishing.
+        if: github.event_name != 'pull_request' || github.event.pull_request.head.repo.fork == false
         uses: github/codeql-action/upload-sarif@v3
         with:
           sarif_file: 'trivy-results.sarif'
