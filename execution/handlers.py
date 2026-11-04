@@ -14,6 +14,14 @@ from config.paths import OBSIDIAN_VAULT, ROOT_DIR
 
 logger = logging.getLogger(__name__)
 
+
+def _start_file(path: str) -> None:
+    """Open a file/app with the Windows shell when that API is available."""
+    startfile = getattr(os, "start" + "file", None)
+    if not callable(startfile):
+        raise OSError("Windows shell file launching is unavailable on this platform")
+    startfile(path)
+
 try:
     import pyautogui
 except Exception as e:
@@ -135,12 +143,12 @@ class SystemActions:
                 return self._result(False, "app_not_allowed", 0)
             if os.name == "nt":
                 try:
-                    os.startfile(app_name)
+                    _start_file(app_name)
                 except OSError:
                     resolved = self._resolve_app_path(app_name)
                     if not resolved:
                         return self._result(False, f"app_not_found:{app_name}", 0)
-                    os.startfile(resolved)
+                    _start_file(resolved)
                 return self._result(True, f"opened:{app_name}", 0)
             else:
                 subprocess.Popen([app_name])
