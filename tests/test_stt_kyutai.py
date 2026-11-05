@@ -14,7 +14,6 @@ from types import ModuleType
 import numpy as np
 import pytest
 import torch
-
 from voice import stt_kyutai as stt_mod
 
 
