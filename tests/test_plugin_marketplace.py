@@ -14,6 +14,7 @@ Verifies:
 import json
 import subprocess
 import sys
+import zipfile
 from pathlib import Path
 from unittest.mock import MagicMock
 
@@ -33,7 +34,7 @@ from plugins.lifecycle import (
     PluginState,
     create_plugin_lifecycle_manager,
 )
-from plugins.marketplace_client import create_marketplace_client
+from plugins.marketplace_client import MarketplaceClient, create_marketplace_client
 from plugins.plugin_manifest import PluginManifestValidator
 
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
@@ -47,8 +48,18 @@ client = TestClient(app)
 
 
 @pytest.fixture
-def manager(tmp_path):
-    """An isolated lifecycle manager per test; routes wired to it."""
+def manager(tmp_path, monkeypatch):
+    """Isolated manager and portable local package for marketplace tests."""
+    package_path = tmp_path / "example_plugin-1.0.0.mpkg"
+    plugin_dir = PROJECT_ROOT / "plugins" / "example_plugin"
+    with zipfile.ZipFile(package_path, "w") as package:
+        package.write(plugin_dir / "manifest.json", "manifest.json")
+        package.write(plugin_dir / "example_plugin.py", "example_plugin.py")
+
+    def download_test_package(self, plugin, verify_checksum=True):
+        return package_path
+
+    monkeypatch.setattr(MarketplaceClient, "download_package", download_test_package)
     mgr = create_plugin_lifecycle_manager(tmp_path / "plugins", HookRegistry())
     set_lifecycle_manager(mgr)
     yield mgr

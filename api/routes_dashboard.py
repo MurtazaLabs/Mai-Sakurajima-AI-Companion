@@ -68,7 +68,15 @@ class DashboardMixin:
             except Exception as ex:
                 logger.exception("[Dashboard] world: %s", ex)
         try:
-            kg = brain.graph_manager.graph if brain and hasattr(brain, "graph_manager") and brain.graph_manager else None
+            # Do not use hasattr()/getattr() on an unconstrained brain mock here:
+            # MagicMock manufactures a truthy graph_manager on attribute access,
+            # which sends a lightweight dashboard-state request into graph
+            # reflection with a synthetic graph (and can block the API worker).
+            # Read only explicitly configured attributes; real Brain instances
+            # store graph_manager in __dict__.
+            brain_attrs = getattr(brain, "__dict__", {}) if brain else {}
+            graph_manager = brain_attrs.get("graph_manager")
+            kg = getattr(graph_manager, "graph", None) if graph_manager is not None else None
             if kg:
                 from knowledge.graph_reflection import GraphReflection
                 state["graph_reflection"] = GraphReflection(kg).summary()

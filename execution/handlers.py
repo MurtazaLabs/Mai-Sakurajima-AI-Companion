@@ -1,4 +1,5 @@
 import logging
+import ntpath
 import os
 import shlex
 import subprocess
@@ -13,6 +14,14 @@ from app.config_loader import Settings
 from config.paths import OBSIDIAN_VAULT, ROOT_DIR
 
 logger = logging.getLogger(__name__)
+
+
+def _start_file(path: str) -> None:
+    """Open a file/app with the Windows shell when that API is available."""
+    startfile = getattr(os, "start" + "file", None)
+    if not callable(startfile):
+        raise OSError("Windows shell file launching is unavailable on this platform")
+    startfile(path)
 
 try:
     import pyautogui
@@ -135,12 +144,12 @@ class SystemActions:
                 return self._result(False, "app_not_allowed", 0)
             if os.name == "nt":
                 try:
-                    os.startfile(app_name)
+                    _start_file(app_name)
                 except OSError:
                     resolved = self._resolve_app_path(app_name)
                     if not resolved:
                         return self._result(False, f"app_not_found:{app_name}", 0)
-                    os.startfile(resolved)
+                    _start_file(resolved)
                 return self._result(True, f"opened:{app_name}", 0)
             else:
                 subprocess.Popen([app_name])
@@ -294,10 +303,48 @@ def _configure_sandbox(*directories: str):
 
 
 def _path_allowed(path: str) -> bool:
-    p = os.path.abspath(path)
+    """Return whether *path* is contained by a configured sandbox directory.
+
+    Handle Windows absolute paths explicitly even when tests run on POSIX;
+    never use string-prefix checks, which incorrectly accept sibling paths.
+    """
     if not _CLIPBOARD_SANDBOX_DIRS:
         return True
-    return any(p.startswith(os.path.abspath(d)) for d in _CLIPBOARD_SANDBOX_DIRS)
+
+    candidate = str(path).strip()
+    if not candidate:
+        return False
+
+    # A drive-qualified or UNC path is a Windows path regardless of the host OS.
+    drive, _ = ntpath.splitdrive(candidate)
+    is_windows_absolute = bool(drive) or candidate.startswith(("\\\\", "//"))
+    if is_windows_absolute:
+        target = ntpath.normcase(ntpath.normpath(candidate))
+        for directory in _CLIPBOARD_SANDBOX_DIRS:
+            allowed_drive, _ = ntpath.splitdrive(str(directory))
+            if not allowed_drive and not str(directory).startswith(("\\\\", "//")):
+                continue
+            root = ntpath.normcase(ntpath.normpath(str(directory)))
+            try:
+                if ntpath.commonpath((target, root)) == root:
+                    return True
+            except ValueError:
+                # Different drives (or incompatible UNC roots) are not contained.
+                continue
+        return False
+
+    try:
+        target_path = Path(candidate).resolve()
+        for directory in _CLIPBOARD_SANDBOX_DIRS:
+            root_path = Path(directory).resolve()
+            try:
+                target_path.relative_to(root_path)
+                return True
+            except ValueError:
+                continue
+    except (OSError, RuntimeError, ValueError):
+        return False
+    return False
 
 
 class ClipboardActions:

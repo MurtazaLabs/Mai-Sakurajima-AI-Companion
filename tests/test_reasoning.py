@@ -589,13 +589,26 @@ class TestReflectionEngine:
     def test_updates_timestamps(self):
         from reasoning.reflection import ReflectionEngine
         engine = ReflectionEngine()
+
+        # Each reflection must be checked against its own call interval.
+        # A shared "after" captured after the daily call can incorrectly
+        # reject the later weekly/monthly timestamps.
         before = time.time()
-        engine.daily_reflection()
+        daily = engine.daily_reflection()
         after = time.time()
+        assert daily is not None
         assert before <= engine._last_daily <= after
-        engine.weekly_reflection()
+
+        before = time.time()
+        weekly = engine.weekly_reflection()
+        after = time.time()
+        assert weekly is not None
         assert before <= engine._last_weekly <= after
-        engine.monthly_reflection()
+
+        before = time.time()
+        monthly = engine.monthly_reflection()
+        after = time.time()
+        assert monthly is not None
         assert before <= engine._last_monthly <= after
 
     def test_cadence_disabled_by_default_runs_every_time(self):
