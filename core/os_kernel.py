@@ -536,8 +536,14 @@ class AIOSKernel:
                     "cognitive_state": self.brain.cognitive.get() if hasattr(self.brain, "cognitive") else {},
                     "time_of_day": self.brain._time_of_day() if hasattr(self.brain, "_time_of_day") else "day",
                 })
-                self.voice.speak_stream(iter([wake_text]))
-                self.voice.wait_until_done()
+                if self.voice_manager:
+                    self.voice_manager.set_speaking(True, self.voice.interrupt)
+                try:
+                    self.voice.speak_stream(iter([wake_text]))
+                    self.voice.wait_until_done()
+                finally:
+                    if self.voice_manager:
+                        self.voice_manager.set_speaking(False)
                 time.sleep(1.5)
 
                 # Restore last known speaker from previous session (no blocking identification)
@@ -561,8 +567,14 @@ class AIOSKernel:
             "cognitive_state": self.brain.cognitive.get() if hasattr(self.brain, "cognitive") else {},
             "time_of_day": self.brain._time_of_day() if hasattr(self.brain, "_time_of_day") else "day",
         })
-        self.voice.speak_stream(iter([wake_text]))
-        self.voice.wait_until_done()
+        if self.voice_manager:
+            self.voice_manager.set_speaking(True, self.voice.interrupt)
+        try:
+            self.voice.speak_stream(iter([wake_text]))
+            self.voice.wait_until_done()
+        finally:
+            if self.voice_manager:
+                self.voice_manager.set_speaking(False)
         time.sleep(1.5)
         self._restore_last_known_speaker()
         self._conversation_phase()

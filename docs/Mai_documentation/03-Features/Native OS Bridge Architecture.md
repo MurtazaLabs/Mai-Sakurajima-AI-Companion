@@ -1,6 +1,6 @@
 # Native OS Bridge — Architecture Plan
 
-> **Date:** Jul 22 2026 | **Status:** Proposed → **Phases 1-3 Complete (Jul 24)** | **Priority:** P1 — Production Hardening
+> **Date:** Jul 22 2026 | **Status:** **Phases 1–3 Complete (Jul 24)** · **M14 Desktop App shipped Oct 13 2026** (pywebview shell — primary; Java/JavaFX client planned as successor per [[future-vision-roadmap]]) | **Priority:** P1 — Production Hardening
 
 ---
 
@@ -196,6 +196,20 @@ All paths validated against an allowlist of directories.
 #### 3d — Frontend Enhancements
 - Reconnection logic in `api/static/js/os.js` — detect daemon disconnect, show "Daemon offline" overlay, auto-reconnect
 - Connection status indicator in browser UI (green/yellow/red dot)
+
+---
+
+## M14 — Desktop App (shipped Oct 13 2026)
+
+The pywebview desktop shell is now the primary native surface (kept permanently as fallback once the Java client lands):
+
+- **`run_daemon.py` rewritten** — two old bugs fixed en route: *double bootstrap* (daemon called `bootstrap_system()` + `MaiAPI.bootstrap()` → two full Applications) and *kernel never started* (`bootstrap_system()` doesn't return it). Now: single bootstrap via `MaiAPI()`, kernel from `mai.kernel`, uvicorn in a daemon thread, AppWindow opens on the main thread after a ≤120s health poll; `--install-startup` / `--uninstall-startup`; second launch focuses the running instance (port probe).
+- **`native/app_window.py`** — `AppWindow` via pywebview 6.2.1 (Edge WebView2) at `http://127.0.0.1:<port>/desktop`; close intercept → **hide-to-tray**, `show()` for tray re-focus; degrades to browser when `webview` is missing.
+- **`scripts/install_app.py`** — Desktop "Mai AI.lnk" (`pythonw run_daemon.py`) + HKCU autostart; **refuses a voiceless interpreter** (probes fastapi/pystray/kokoro/webview — base Python lacks the stack; `mai_env` is the real runtime), `--force` overrides.
+- **`scripts/build_daemon.py`** — fixed dead `DATA_DIRS` (now emits `--add-data` for `api/static` + `plugins`), `--noconsole`, webview hidden imports. Note: frozen exe still needs the repo runtime (venv, models, `.env`) — the shortcut/pythonw path is the primary launch method.
+- **Tray** — "Open Mai" focuses the AppWindow (webbrowser fallback).
+- **Gate:** `tests/test_desktop_app.py` (13 tests) — suite **1,930 passed / 2 skipped**.
+- **Successor:** [[future-vision-roadmap]] M14 revision — Java/JavaFX client (streaming chat + expression avatar + tray/hotkey, `jpackage` `Mai.exe`); pending JDK install go. API addition shipped: `POST /api/voice/toggle`.
 
 ---
 

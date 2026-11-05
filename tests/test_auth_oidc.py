@@ -67,3 +67,16 @@ class TestSessionCookieHardening:
         header = resp.headers["set-cookie"].lower()
         assert "samesite=lax" in header
         assert "secure" not in header
+
+
+def test_auto_secret_random_and_persisted(tmp_path, monkeypatch):
+    """_auto_secret generates a random secret and persists it across calls
+    (the old hostname-hash was guessable — audit Oct 25 2026, finding 4)."""
+    import api.auth as a
+
+    secret_file = tmp_path / "jwt_secret"
+    monkeypatch.setattr(a, "_SECRET_FILE", secret_file)
+    first = a._auto_secret()
+    assert len(first) >= 32
+    assert secret_file.read_text(encoding="utf-8") == first
+    assert a._auto_secret() == first  # reloaded from disk, not regenerated

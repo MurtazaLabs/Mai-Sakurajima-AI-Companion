@@ -1,3 +1,8 @@
+import os
+from pathlib import Path
+
+from config.paths import ROOT_DIR
+
 WHISPER_MODEL = "small"
 VOICE_SAMPLE_RATE = 16000
 SILENCE_THRESHOLD = 0.01
@@ -9,11 +14,22 @@ USE_CUSTOM_VOICE = True
 VOICE_COOLDOWN = 2.0
 WAKE_COOLDOWN = 2.0
 
+# STT backend selection — "whisper" (default) | "kyutai".
+# Kyutai (kyutai/stt-1b-en_fr-trfs, streaming, semantic VAD) is gated on the
+# Phase 1 RTF benchmark (docs/Mai_documentation/03-Features/stt-kyutai-replacement-plan.md),
+# RTF <= 0.7 on this machine; faster-whisper stays the fallback backend.
+STT_BACKEND = os.environ.get("STT_BACKEND", "whisper").strip().lower()
+KYUTAI_STT_DIR = str(Path(
+    os.environ.get("KYUTAI_STT_DIR", str(ROOT_DIR / "kyutai STT" / "stt-1b-en_fr-trfs"))))
+
 # VAD settings
 VAD_THRESHOLD = 0.5 
-VAD_SILENCE_TIMEOUT = 0.5
+# 0.7s (was 0.5): 500ms cut natural mid-sentence pauses short. The extra tail is
+# trimmed before STT (UTTERANCE_TRAILING_KEEP), so this costs no decode time.
+VAD_SILENCE_TIMEOUT = 0.7
 VAD_MIN_RECORDING = 0.5
 VAD_MAX_RECORDING = 30.0
+# Pre-roll: audio kept from before the VAD onset so the first syllable survives.
 VAD_PRE_ROLL = 0.5
 VAD_FRAME_SIZE = 512
 
@@ -29,6 +45,16 @@ VAD_FRAME_SIZE = 512
 UTTERANCE_VAD_MIN_MEAN = 0.15
 UTTERANCE_VAD_MIN_RATIO = 0.10
 UTTERANCE_VAD_MAX_FRAMES = 256
+
+# Minimum VAD-voiced time (ratio x duration) before STT is worth calling.
+# Kills sub-word fragments (measured: a 0.58s click scores ratio 0.06 -> 0.03s
+# voiced) that cost a full 2-3s transcription and return ""; real speech clears
+# it easily ("hey mai" ~0.45s at ratio 0.6 -> 0.27s voiced).
+UTTERANCE_MIN_VOICED = 0.20
+
+# Trailing silence kept after the last voiced frame (the rest of the
+# silence_timeout window is trimmed, so longer patience is free).
+UTTERANCE_TRAILING_KEEP = 0.2
 
 # Noise filter settings
 NOISE_LOW_CUT = 80.0

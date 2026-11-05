@@ -21,6 +21,15 @@ KPipeline: type = None  # type: ignore[assignment]
 def _load_kokoro():
     global KPipeline
     if KPipeline is None:
+        # speechbrain's lazy deprecated-alias placeholders (registered by ANY
+        # prior `import speechbrain`) poison the inspect sys.modules walk that
+        # torchvision — first-imported inside the kokoro→transformers chain —
+        # performs; every import path must defuse before kokoro loads first.
+        try:
+            from voice.speaker.speaker_encoder import _defuse_speechbrain_deprecated_redirects
+            _defuse_speechbrain_deprecated_redirects()
+        except Exception as e:
+            logger.debug("[TTS] speechbrain defusal skipped: %s", e)
         from kokoro import KPipeline as _KPipeline
         KPipeline = _KPipeline
 

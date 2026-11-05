@@ -6,7 +6,7 @@
 
 ## Package Stats
 
-`voice/` — 34 files, 4,346 lines.
+`voice/` — 32 files, 3,526 lines.
 
 ## Mission
 
@@ -15,8 +15,11 @@ Full-duplex voice: wake word → listen → transcribe → understand → respon
 ## Pipeline
 
 ```
-WakeWord / hotkey → Mic capture (16k) → VAD → STT → IntentCore
-    → Brain.think → KokoroTTS (emotion=) → StreamPlayer
+WakeWord / hotkey → Mic capture (16k) → Recorder
+    → whole-utterance VAD gate (Phase 0, Oct 2026: VAD.utterance_score — mean ≥ 0.15, ratio ≥ 0.10; fail-open; noise-only clips rejected before Whisper)
+    → STT (full clip — diarization labels the dominant speaker, never slices)
+    → IntentCore
+    → Brain.think / think_stream (stream-guarded) → KokoroTTS (emotion=) → StreamPlayer
     → InterruptManager (barge-in: mic RMS > threshold breaks speak_stream)
 ```
 
@@ -24,7 +27,7 @@ WakeWord / hotkey → Mic capture (16k) → VAD → STT → IntentCore
 
 ### Input / Front-End
 
-- `WakeWordDetector` + `PorcupineDetector` (Picovoice); `VAD` (Silero, SHA-256-checksummed model download, load-failure latch).
+- `WakeDetector` (STT phrase matching, phonetic-close tolerance); `VAD` (Silero, SHA-256-checksummed model download, load-failure latch).
 - `Microphone` (stop() clears callbacks — no accumulation), `AudioBuffer`, `Recorder`, `UtteranceSegmenter`.
 - `AdaptiveNoiseFilter`, `FullAEC` (vectorized acoustic echo cancellation).
 
@@ -51,7 +54,7 @@ WakeWord / hotkey → Mic capture (16k) → VAD → STT → IntentCore
 
 ## Known Issues
 
-- `listen()` 124-line method (P2); `_valid_audio()` extension-only check (P2); dead `noise_filter` param (P2); AEC has no live feed call sites (P2).
+Former P2s all resolved (see [[02-Subsystems/Voice Pipeline]] — listen() refactored, `_valid_audio` header check, dead `noise_filter` param removed, AEC wired with live feed via `add_playback`). Current watch item: the STT-based wake path transcribes ambient noise - diagnostics only (Phase 0 gate suppresses it as a conversation-turn source). A dedicated wake-word engine is the planned fix.
 
 ---
 

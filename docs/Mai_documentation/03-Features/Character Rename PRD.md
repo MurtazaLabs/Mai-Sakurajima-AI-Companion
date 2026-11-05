@@ -1,10 +1,12 @@
 # Character Rename PRD — Identity Layer Migration
 
-> **Status:** **DECIDED** — Migration in progress  
+> **Status:** **DECIDED — NOT EXECUTED** (verified Oct 25 2026)
 > **Priority:** P1 (blocks public release)  
 > **Date:** 2026-08-29  
-> **Final Name:** **Yukira**  
+> **Selected candidate name:** **Yukira** (0 occurrences in code — migration never started; codebase, prompts, vault, docs still use "Mai")  
 > **Owner:** AI Product Manager + Character Narrative Designer + Python Master Engineer
+
+> ⚠️ **Ground-truth note (Oct 2026):** the four phases below were planned but never run. `rg -i "yukira"` across the repo returns zero hits; all code, config, prompts, vault and docs still use "Mai". The trademark exposure described below therefore remains open. Engineering sessions since Aug 29 went to the roadmap ([[future-vision-roadmap]]), M14 desktop app, and the Oct-19 security audit instead. Re-run this PRD before any public release.
 
 ---
 

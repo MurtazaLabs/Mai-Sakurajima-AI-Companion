@@ -134,7 +134,7 @@ Sandboxed primitives (all thread-safe):
 
 ## Known Issues
 
-- `generate_with_tools()` dead passthrough in LLMManager
+- `generate_with_tools()` ~~dead passthrough~~ — **it is live** (`core/brain.py`, `core/brain_routing.py`); the stale claim was removed Oct 2026
 - Providers duck-typed (no ABC)
 - `_result()` duplicated across 3 handler classes
 

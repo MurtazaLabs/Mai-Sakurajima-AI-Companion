@@ -6,7 +6,7 @@
 
 ## Package Stats
 
-`knowledge/` — 28 files, 5,427 lines.
+`knowledge/` — 29 files, 5,144 lines.
 
 ## Mission
 
@@ -30,7 +30,7 @@ Maintain the durable world-knowledge layer: entity graph, document knowledge bas
 ## Belief Engine
 
 - `belief_engine.py` — beliefs with confidence, source, updates.
-- ⚠️ **Triple storage drift** (P0-class debt D-1): `BeliefEngine._beliefs`, BrainGraph belief nodes, `CognitiveGraph.import_beliefs()` are independent copies.
+- ✅ **Single source of truth (D-1 resolved Aug 12 2026):** `BeliefEngine._beliefs` is the only belief store; `BrainGraph` belief operations delegate to it (a wired `BeliefEngine` is required, legacy graph fallbacks removed). `CognitiveGraph.import_beliefs()` reads from it.
 
 ## Retrieval — `AdvancedRetriever`
 
@@ -68,7 +68,7 @@ Cascade + **parallel** (4 sources concurrent): vector search (MMR), beliefs, KG 
 
 ## Known Issues
 
-- Three-layer graph abstraction (D-3); triple belief storage (D-1); `memory/` imports `knowledge/` (D-2).
+- Three-layer graph abstraction (D-3); `memory/` imports `knowledge/` (D-2 — 3 lazy imports, 2 files). ~~Triple belief storage~~ resolved Aug 12 2026 (BrainGraph delegates to BeliefEngine).
 
 ---
 

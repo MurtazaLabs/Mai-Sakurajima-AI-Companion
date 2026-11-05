@@ -8,15 +8,15 @@
 
 A production-oriented, modular AI companion (inspired by Mai Sakurajima) built for **long-term personal companionship**: conversational intelligence, persistent memory, voice interaction, emotional consistency, knowledge management, and extensible tooling — designed as a *platform*, not a chatbot. Every subsystem is expected to evolve independently over a multi-year timeline.
 
-## Scale (measured Aug 9 2026)
+## Scale (measured Oct 25 2026)
 
 | Metric | Value |
 |--------|-------|
-| Python files | 256 |
-| Lines | 42,395 |
-| Packages | 18 + 2 root entry points |
-| Subsystems | core, memory, knowledge, voice, api, agency, app, config, llm, observability, execution, reasoning, native, plugins, scripts, prompt, gateways, evaluation |
-| Tests | 1,812 (all passing) |
+| Python files | 376 (incl. tests/profiling/integrations) |
+| Lines | 66,767 |
+| Packages | 19 + 2 root entry points |
+| Subsystems | core, memory, knowledge, voice, api, agency, app, config, llm, observability, execution, reasoning, native, plugins, scripts, prompt, gateways/integrations, evaluation, profiling |
+| Tests | 1,990 passing + 2 skipped (0 failures — live-verified) |
 
 ## Character Layer (M0–M13, complete Aug 9 2026)
 

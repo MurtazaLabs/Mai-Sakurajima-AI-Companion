@@ -123,3 +123,31 @@ class TestMaiAPIWiring:
         assert ok is True
         assert m.app is not None
         assert m.kernel == "kernel-obj"
+
+
+class TestDaemonQuit:
+    """Tray Quit drains the WriteJournal before exiting (audit Oct 25 2026)."""
+
+    def test_quits_after_graceful_shutdown(self, monkeypatch):
+        import run as run_mod
+        calls = []
+
+        class _App:
+            def shutdown(self):
+                calls.append("shutdown")
+
+        monkeypatch.setattr(run_mod.os, "_exit", lambda code: calls.append(("exit", code)))
+        run_mod._daemon_quit(_App())
+        assert calls == ["shutdown", ("exit", 0)]
+
+    def test_exit_even_if_shutdown_crashes(self, monkeypatch):
+        import run as run_mod
+        calls = []
+
+        class _App:
+            def shutdown(self):
+                raise RuntimeError("boom")
+
+        monkeypatch.setattr(run_mod.os, "_exit", lambda code: calls.append(("exit", code)))
+        run_mod._daemon_quit(_App())
+        assert calls == [("exit", 0)]

@@ -41,29 +41,31 @@
 
 | Metric | Value |
 |--------|-------|
-| **Python files** | ~260 |
-| **Lines of code** | ~45,000 |
-| **Subsystems** | 18 packages + 2 entry points |
-| **Tests** | ~1,900 passing |
-| **Overall maturity** | ~82% (B+) |
+| **Python files** | 376 (measured Oct 25 2026) |
+| **Lines of code** | 66,767 |
+| **Subsystems** | 19 packages + 2 entry points |
+| **Tests** | 1,990 passing + 2 skipped, 0 failures (live-verified Oct 25 2026, mai_env) |
+| **Overall maturity** | ~83% (B+) |
 
 ### ✅ Complete Milestones
 - **Character Layer M0–M13** — Canon volumes I–IV, behavioral validation harness, experience store, preference evolution, real-world evaluation, relationship dynamics on chat path, envelope-leak guard, experience-in-speech, conflict coherence
 - **Core Platform** — Conversation (text+voice), long-term memory, knowledge graph + beliefs, vault compile, tool calling, multi-step agent, goals + auto-advance, dreaming, personality evolution, world model
-- **Interfaces** — REST/SSE/WS, native Windows daemon (tray, hotkeys, watchdog), rate limiting, Docker, HTTPS + JWT auth-by-default, log rotation, graceful shutdown
+- **Interfaces** — REST/SSE/WS, native Windows daemon (tray, hotkeys, watchdog), rate limiting, Docker, **desktop app shell (pywebview — M14, Oct 2026)**, HTTPS auto-gen by default + JWT auth opt-in on loopback / forced on non-loopback hosts, log rotation, graceful shutdown
 - **P0/P1 Critical Fixes** — Deadlock risk, data races, belief drift, TOCTOU, bare excepts, thread safety — all P1 items resolved
-- **Production Hardening** — HTTPS + JWT auth-by-default, rate limiting, log rotation, graceful SIGTERM handling, log rotation, graceful shutdown
+- **Post-M13 sprints (Aug–Oct 2026)** — Vault remediation + ecosystem audit (Aug 6), P1 security remediation (Aug 12), Phase 0 whole-utterance VAD noise gate + live calibration (Oct 9), `LLM_PROVIDER` local-first + Ollama `think:false` + OpenRouter retry budget/model sanitization (Oct 9), Prometheus/OTel metrics endpoint (Oct 7), M14 desktop app (Oct 13), Oct-19 security bug audit remediated in full (SSRF, sandbox eval, auth cookies, XSS, redirect allowlist) with independent verification
+- **Production Hardening** — Rate limiting, HTTPS auto-gen by default + JWT auth opt-in on loopback / forced on non-loopback hosts, log rotation, graceful shutdown
 
 ### 🟡 In Progress
+- Java/JavaFX desktop client (M14 revision — replaces pywebview shell; pending JDK install + P1 go)
+- STT → Kyutai 1B (Phase 1 RTF benchmark pending go/​no-go)
 - Plugin ecosystem (manifest, lifecycle, marketplace, signing, sandbox)
 - Multi-session profiles / cloud sync
-- Knowledge enrichment (semantic chunking, chunk metadata)
+- Roadmap M15–M25 — see [[03-Features/future-vision-roadmap]]
 
 ### ❌ Not Started
 - Documentation site (MkDocs)
 - Performance profiling & optimization
-- Embedding model versioning (fingerprinting)
-- Cloud sync for multi-session
+- Embedding-service **cache** fingerprinting (chunk-level `embedding_hash` already shipped in the chunker)
 
 ---
 
@@ -78,12 +80,9 @@
 
 ## Related External Docs
 
-- `AGENTS.md` → [[00-Overview/Project Charter]]
-- `docs/MERGED_COMPLETE.md` — 860KB+ merged reference (source of truth for deep dives)
-- `docs/native-bridge-architecture.md` → [[03-Features/Native OS Bridge Architecture]]
-- `docs/discord-integration-plan.md` → [[03-Features/Discord Integration Plan]]
-- `docs/product/character-rename-prd.md` → [[03-Features/Character Rename PRD]]
+- `AGENTS.md` → [[00-Overview/Project Charter]] — **live source of truth for the session progress log**
+- [[03-Features/Native OS Bridge Architecture]] · [[03-Features/Discord Integration Plan]] · [[03-Features/Character Rename PRD]]
 
 ---
 
-*Last updated: September 2026 (post-M13, production-hardened)*
+*Last updated: October 25 2026 — refreshed against verified ground truth (1,990 tests live, 376 py files / 66,767 lines). Covers post-M13 sprints through the Oct 19 security remediation.*

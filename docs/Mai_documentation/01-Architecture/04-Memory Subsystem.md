@@ -6,7 +6,7 @@
 
 ## Package Stats
 
-`memory/` — 27 files, 7,183 lines.
+`memory/` — 28 files, 5,886 lines.
 
 ## Mission
 
@@ -76,8 +76,8 @@ turn text → FastExtractor → MemoryPipeline.store (single unified entry)
 
 - `VectorStore`: RLock on all 9 public methods.
 - `EmbeddingService._cache`: RLock.
-- Legacy `Memory` uses `Lock()` — flagged (should be RLock).
-- ⚠️ `memory/` imports from `knowledge/` — known layer breach (see debt register).
+- Legacy `Memory` uses RLock (verified Oct 2026).
+- ⚠️ `memory/` imports from `knowledge/` — known layer breach (debt D-2; narrowed to 3 lazy in-method imports across 2 files).
 
 ## Known Issues (Register Refs)
 

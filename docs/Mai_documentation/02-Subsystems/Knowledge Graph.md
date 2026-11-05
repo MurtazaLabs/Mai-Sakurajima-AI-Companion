@@ -104,7 +104,7 @@ Beliefs with confidence, source, updates:
 - `update_belief(belief_id, confidence_delta, evidence)`
 - `get_beliefs(topic, min_confidence)` → filtered
 - **Cache:** `TTLCache` on `get_belief()` and `query()` (TTL 300s, max 1024) — invalidated on `_merge()`, `contradict()`, `_evict_if_needed()`
-- **Triple storage drift (D-1):** `_beliefs` dict, BrainGraph belief nodes, CognitiveGraph.import_beliefs() — independent copies
+- ✅ **Single source of truth (D-1 resolved Aug 12 2026):** `BeliefEngine._beliefs` is the only belief storage — `BrainGraph` delegates all belief operations to it (wired requirement, legacy graph fallbacks removed); `CognitiveGraph.import_beliefs()` reads from it.
 
 ---
 
@@ -139,8 +139,8 @@ Exports entities to `graph/{safe_name}.md` with:
 
 ## Known Issues
 
-- **D-1:** Triple belief storage drift (P0-class)
-- **D-2:** `memory/` imports `knowledge/` (layer breach)
+- ~~**D-1:** Triple belief storage drift~~ — **resolved Aug 12 2026** (single source: BeliefEngine)
+- **D-2:** `memory/` imports `knowledge/` (layer breach — narrowed to 3 lazy imports, 2 files)
 - **D-3:** Three-layer overlap — collapse to 2 layers proposed
 
 ---

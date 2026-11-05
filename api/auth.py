@@ -7,7 +7,7 @@ for enterprise single sign-on.
 """
 
 import base64
-import hashlib
+import ipaddress
 import logging
 import os
 import re
@@ -15,6 +15,7 @@ import secrets
 import time
 from datetime import datetime, timedelta, timezone
 from typing import Any
+from pathlib import Path
 from urllib.parse import urlencode
 
 import bcrypt
@@ -55,10 +56,29 @@ def configure(jwt_secret: str = "", access_expire_minutes: int = 15, refresh_exp
     _init_jwt_keys()
 
 
+_SECRET_FILE = Path(__file__).resolve().parent.parent / "data" / "jwt_secret"
+
+
 def _auto_secret() -> str:
-    """Generate a persistent pseudo-random secret from a machine-local seed."""
-    seed = f"{os.name}-{os.environ.get('COMPUTERNAME', '')}-{os.environ.get('USERNAME', '')}-mai-jwt"
-    return hashlib.sha256(seed.encode()).hexdigest()
+    """Random secret persisted to ``data/jwt_secret`` so tokens survive restarts.
+
+    The old implementation hashed hostname+username — a guessable, non-random
+    string that would let anyone on the network mint tokens for a published
+    host.
+    """
+    try:
+        secret = _SECRET_FILE.read_text(encoding="utf-8").strip()
+        if secret:
+            return secret
+    except OSError:
+        pass
+    secret = secrets.token_urlsafe(32)
+    try:
+        _SECRET_FILE.parent.mkdir(parents=True, exist_ok=True)
+        _SECRET_FILE.write_text(secret, encoding="utf-8")
+    except OSError as e:
+        logger.warning("[auth] could not persist JWT secret: %s", e)
+    return secret
 
 
 # ── JWT Key Rotation ──────────────────────────────────────────────────────
@@ -425,6 +445,34 @@ def list_saml_providers() -> list[str]:
 
 
 # ── FastAPI dependencies ─────────────────────────────────────────────────
+def _loopback_host(host: str) -> bool:
+    try:
+        return ipaddress.ip_address(host).is_loopback
+    except ValueError:
+        return host in ("localhost", "")
+
+
+def api_auth_required() -> bool:
+    """Single source of the effective auth rule.
+
+    Auth is on when configured — or whenever the configured API host is not
+    loopback: published ports must never come up unauthenticated.
+    """
+    from app.config_loader import API_HOST, API_REQUIRE_AUTH
+
+    required = API_REQUIRE_AUTH or not _loopback_host(API_HOST)
+    if required and not API_REQUIRE_AUTH and not api_auth_required.warned:
+        api_auth_required.warned = True
+        logger.warning(
+            "[auth] API_HOST '%s' is not loopback — enforcing auth on /api/* "
+            "(the default desktop setup uses API_HOST=127.0.0.1)", API_HOST,
+        )
+    return required
+
+
+api_auth_required.warned = False
+
+
 def get_current_user(
     request: Request,
 ) -> str:
@@ -434,9 +482,9 @@ def get_current_user(
     1. JWT ``access_token`` from ``/api/auth/login``
     2. Legacy static ``API_AUTH_TOKEN``
     """
-    from app.config_loader import API_AUTH_TOKEN, API_REQUIRE_AUTH
+    from app.config_loader import API_AUTH_TOKEN
 
-    if not API_REQUIRE_AUTH:
+    if not api_auth_required():
         return "anonymous"
 
     auth_header = request.headers.get("Authorization", "")

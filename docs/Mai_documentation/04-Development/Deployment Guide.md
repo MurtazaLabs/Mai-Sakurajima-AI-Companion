@@ -24,11 +24,17 @@ docker compose logs -f
 docker compose down
 ```
 
-**Volumes (persisted):**
-- `./data:/app/data` — memory, graph, profiles
+**Volumes (persisted — mirrors `config/paths.py`):**
+- `./data:/app/data` — certs, JWT secret, Obsidian vault (`/app/data/vault`)
+- `./vector_memory:/app/vector_memory` — vector store
+- `./memory:/app/memory` — memory pipeline state
 - `./cache:/app/cache` — embedding cache
 - `./logs:/app/logs` — application logs
-- `./knowledge_docs:/app/knowledge_docs` — KB source files
+
+**Auth note:** the container binds `API_HOST=0.0.0.0`, so auth is *enforced* on
+`/api/*` (JWT/static token via `Authorization: Bearer …`). The web UI has no
+browser login flow yet — REST clients work today; the Java M14 client wires the
+login/token flow. Locally (desktop daemon, loopback) auth stays off by design.
 
 **Ports:** `8000:8000` (FastAPI)
 
@@ -93,16 +99,18 @@ MAI_API_HOST=0.0.0.0 MAI_API_PORT=8080 python run.py
 - [x] App whitelist (20+ apps in `SystemActions.open_app()`)
 - [x] Keystroke filter (blocks Alt+F4, Ctrl+W, etc.)
 - [x] SHA-256 VAD model verification
-- [x] JWT auth infrastructure (`auth.py`, `get_current_user`)
+- [x] JWT auth infrastructure (`auth.py`, `get_current_user`) + enforcement on `/api/config` + `/metrics`
+- [x] **HTTPS** — `api/certs.py` auto-generates dev certs on first boot (openssl or pure-python fallback); production Let's Encrypt
 - [x] Health registry with fail-safe telemetry
+- [x] Metrics endpoint (`/metrics`, Prometheus text format) + optional OpenTelemetry tracing
+- [x] **Desktop app shell** — `run_daemon.py` + pywebview `AppWindow` (hide-to-tray), `scripts/install_app.py` shortcut + autostart (M14, Oct 2026)
+- [x] **Oct-19 security fixes** — SSRF-guarded scraper (public-target + connected-peer + proxy bypass), sandbox eval lockdown, marketplace signature enforcement, auth cookie flags, redirect-target allowlist, XSS escape in chat.js
 
 ### 🟡 In Progress / Partial
-- [ ] HTTPS certificates (auto-gen via `cryptography`/`trustme` for dev; Let's Encrypt for prod)
-- [ ] JWT auth enforced on all routes (currently optional)
 - [ ] Multi-session / user profiles (memory scoping, profile CRUD)
 - [ ] Cloud sync (S3/Backblaze B2 periodic backup)
 - [ ] Structured logging pipeline (JSON, Loki/ELK compatible)
-- [ ] Metrics endpoint (`/metrics` for Prometheus)
+- [ ] Let's Encrypt certs for public deployments (dev HTTPS auto-generated is done)
 
 ### ❌ Not Started
 - [ ] Alerting (PagerDuty, email, Discord webhook)
@@ -132,7 +140,8 @@ STATIC_API_TOKEN=<fallback-token>
 # LLM
 OPENROUTER_API_KEY=<key>
 OLLAMA_HOST=http://localhost:11434
-LLM_DEFAULT_PROVIDER=openrouter
+LLM_PROVIDER=openrouter            # or "ollama" for local-first ordering (Oct 2026)
+OPENROUTER_DEFAULT_MODEL=openrouter/free   # sanitized failover list; default router (free, no 402)
 
 # Paths
 OBSIDIAN_VAULT=E:/MaiMemory

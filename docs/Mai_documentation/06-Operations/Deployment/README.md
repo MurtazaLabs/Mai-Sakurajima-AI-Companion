@@ -100,8 +100,9 @@ STATIC_API_TOKEN=<fallback-token>
 
 # LLM
 OPENROUTER_API_KEY=<key>
+LLM_PROVIDER=openrouter              # or "ollama" for local-first; failover chain preserved
+OPENROUTER_DEFAULT_MODEL=openrouter/free
 OLLAMA_HOST=http://localhost:11434
-LLM_DEFAULT_PROVIDER=openrouter
 
 # Paths
 OBSIDIAN_VAULT=E:/MaiMemory

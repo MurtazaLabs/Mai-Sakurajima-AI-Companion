@@ -198,7 +198,7 @@ Cognitive-science hierarchy:
 | `VectorStore` | RLock on all 9 public methods |
 | `EmbeddingService._cache` | RLock |
 | `ExperienceStore` | RLock |
-| Legacy `Memory` | `Lock()` — **flagged** (should be RLock) |
+| Legacy `Memory` | RLock (verified Oct 2026) |
 
 ⚠️ **Known layer breach:** `memory/` imports from `knowledge/` (debt D-2)
 

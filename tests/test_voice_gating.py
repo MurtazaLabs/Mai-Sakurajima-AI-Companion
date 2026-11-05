@@ -145,6 +145,20 @@ class TestGateUtterance:
         ok, _, _ = vm._gate_utterance(noise_audio())
         assert ok is False
 
+    def test_rejects_subword_fragment(self):
+        # 0.1 s at ratio 1.0 = 0.1 s voiced: too little speech to bother with
+        # STT (measured: these clips return "" after burning 2-3 s of decode)
+        vm = make_vm(vad=FixedVad(0.9))
+        ok, _, ratio = vm._gate_utterance(noise_audio(seconds=0.1))
+        assert ok is False
+        assert ratio == 1.0
+
+    def test_accepts_short_wake_phrase(self):
+        # "hey mai" is short but real: must stay above the voiced floor
+        vm = make_vm(vad=FixedVad(0.9))
+        ok, _, _ = vm._gate_utterance(noise_audio(seconds=0.5))
+        assert ok is True
+
     def test_fails_open_when_scoring_raises(self):
         vm = make_vm(vad=BrokenVad())
         ok, mean, ratio = vm._gate_utterance(noise_audio())

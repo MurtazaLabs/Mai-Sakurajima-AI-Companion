@@ -19,7 +19,7 @@ _SAFE_KEYS = {
     "WHISPER_MODEL", "KOKORO_VOICE", "KOKORO_LANG_CODE",
     "SILENCE_THRESHOLD", "SILENCE_DURATION", "VAD_THRESHOLD",
     "DEBUG_MODE", "LOG_LEVEL", "ENABLE_AUTONOMY",
-    "SCHEDULER_ENABLED", "PORCUPINE_ENABLED",
+    "SCHEDULER_ENABLED",
     "AI_NAME", "LLM_MAX_CONTEXT",
     "EXECUTOR_MODE",
 }
@@ -39,7 +39,6 @@ _KEY_META = {
     "LOG_LEVEL": {"label": "Log Level", "category": "system", "type": "select", "options": ["DEBUG", "INFO", "WARNING", "ERROR"]},
     "ENABLE_AUTONOMY": {"label": "Autonomous Mode", "category": "system", "type": "bool"},
     "SCHEDULER_ENABLED": {"label": "Scheduler", "category": "system", "type": "bool"},
-    "PORCUPINE_ENABLED": {"label": "Wake Word Detection", "category": "voice", "type": "bool"},
     "AI_NAME": {"label": "AI Name", "category": "system", "type": "text"},
     "EXECUTOR_MODE": {"label": "Executor Mode", "category": "system", "type": "select", "options": ["safe", "advanced", "admin"]},
 }

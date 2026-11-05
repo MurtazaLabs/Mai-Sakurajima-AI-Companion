@@ -68,7 +68,7 @@
 
 **Mitigation:**
 - Fallback to text-only mode (API chat still works)
-- Disable voice in config: `PORCUPINE_ENABLED=False`
+- Disable voice by running without the voice kernel: `python run.py --mode api` (REST intact, no mic)
 
 ---
 
@@ -83,7 +83,7 @@
 
 **Mitigation:**
 - Wait 30s for circuit breaker reset
-- Force Ollama: `LLM_DEFAULT_PROVIDER=ollama`
+- Force Ollama: `LLM_PROVIDER=ollama` (Oct 2026 provider-preference switch; ordering flips to ollama-first)
 - If Ollama down: fallback text responses
 
 ---

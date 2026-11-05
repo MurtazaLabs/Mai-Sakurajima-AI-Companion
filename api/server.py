@@ -1,4 +1,5 @@
 import asyncio
+import ipaddress
 import json
 import logging
 import os
@@ -14,7 +15,7 @@ logger = logging.getLogger("api.server")
 from typing import Any
 
 import uvicorn
-from fastapi import Depends, FastAPI, Request, WebSocket
+from fastapi import Depends, FastAPI, HTTPException, Request, WebSocket
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.middleware.trustedhost import TrustedHostMiddleware
 from fastapi.responses import HTMLResponse, JSONResponse, StreamingResponse
@@ -462,7 +463,9 @@ def _require_auth(request: Request):
 
 def _resolve_user(request: Request) -> str:
     """Extract username from JWT or fall back to anonymous."""
-    if not API_REQUIRE_AUTH:
+    from api.auth import api_auth_required
+
+    if not api_auth_required():
         return "anonymous"
     auth = request.headers.get("Authorization", "")
     if not auth.startswith("Bearer "):
@@ -476,6 +479,27 @@ def _resolve_user(request: Request) -> str:
     except Exception:
         pass
     return "anonymous"
+
+
+# ── Auth gate — middleware covers every /api/* route, not only the ones
+#    carrying an inline Depends(_require_auth) (audit Oct 25 2026) ──────────
+# Reachable without a token: how to get one, external SSO redirects, and the
+# bare availability probe the daemon watchdog and desktop window poll.
+_AUTH_EXEMPT = ("/api/auth/login", "/api/auth/refresh", "/api/auth/oidc/",
+                "/api/auth/saml/", "/api/health")
+
+
+@app.middleware("http")
+async def api_auth_middleware(request: Request, call_next):
+    from api.auth import api_auth_required, get_current_user
+
+    path = request.url.path
+    if path.startswith("/api/") and not path.startswith(_AUTH_EXEMPT) and api_auth_required():
+        try:
+            get_current_user(request)
+        except HTTPException as exc:
+            return JSONResponse(status_code=exc.status_code, content={"detail": exc.detail})
+    return await call_next(request)
 
 
 _rate_limiter = RateLimiter()
@@ -1168,15 +1192,8 @@ def run(host=None, port=None):
     print(f"\n  ~~ Mai OS ~~ {url}\n", flush=True)
     logger.info("[API] Starting on %s (auth=%s, ssl=%s)", url, bool(API_REQUIRE_AUTH and API_AUTH_TOKEN), ssl_enabled)
 
-    # SEC-002/SEC-003: enforce auth on non-localhost binding
-    on_non_localhost = host not in ("127.0.0.1", "localhost")
-    if on_non_localhost and not (API_REQUIRE_AUTH and API_AUTH_TOKEN):
-        logger.warning(
-            "[API] SECURITY: binding on %s without API_REQUIRE_AUTH/API_AUTH_TOKEN. "
-            "The API will be reachable from the network. Set API_REQUIRE_AUTH=True and "
-            "API_AUTH_TOKEN to a secret value, or bind to 127.0.0.1.",
-            host,
-        )
+    # Non-localhost bindings are always auth-enforced now
+    # (api.auth.api_auth_required warns once at first /api/* request).
 
     uvicorn_kwargs = dict(host=host, port=port, log_level="info")
     if ssl_enabled:

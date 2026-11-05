@@ -33,7 +33,6 @@ class PermissionsMixin:
         try:
             from app.config_loader import (
                 API_RATE_LIMIT_PER_MINUTE,
-                API_REQUIRE_AUTH,
                 EXECUTOR_BLOCKED_COMMANDS,
                 EXECUTOR_COOLDOWN,
                 EXECUTOR_MIN_CONFIDENCE,
@@ -43,7 +42,8 @@ class PermissionsMixin:
             info["cooldown"] = EXECUTOR_COOLDOWN
             info["min_confidence"] = EXECUTOR_MIN_CONFIDENCE
             info["blocked_commands"] = EXECUTOR_BLOCKED_COMMANDS
-            info["auth_required"] = API_REQUIRE_AUTH
+            from api.auth import api_auth_required
+            info["auth_required"] = api_auth_required()
             info["rate_limit_per_minute"] = API_RATE_LIMIT_PER_MINUTE
         except Exception as e:
             logger.exception("[Permissions] config settings: %s", e)

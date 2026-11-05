@@ -1611,13 +1611,15 @@ User request: launch Mai as a desktop app — no VS Code, no bat file. Assessmen
 
 ---
 
-## GitHub History Scrub � Oct 19 2026
+## GitHub History Scrub � Oct 19 2026
 
 - \Embedding_models/\ (all-MiniLM-L6-v2, ~61.5k tracked lines) was committed in the initial release and already on GitHub (\MurtazaLabs/Mai-Sakurajima-AI-Companion\). User requested full removal.
-- Untracked \kyutai STT/\ (1.9GB + 367MB weights, never committed) was also unignored � added both to \.gitignore\ under a \"Local model weights � never publish\" section (commit was untrack + ignore first, then user approved history scrub).
-- History scrub: workbatch (18 modified + 7 untracked files) held via \git stash -u\ + local backup branch; \git filter-branch --index-filter 'git rm -r --cached --ignore-unmatch Embedding_models' -- --all\ rewrote all refs (8 commits incl. stash lineage); \efs/original/*\ deleted, reflog expired, \gc --prune=now\; force-push \2ed2178..ec70455\. Verified 0 Embedding_models objects repo-wide, workbatch restored intact, weights still on disk (runtime unaffected).
-- Notes: local branch \cognitive-desktop-v3\ never contained the weights (unchanged by filter); stale \efs/remotes/origin/master\ left as harmless local tracking ref; GitHub server-side object cache may retain old blobs temporarily; 1 existing fork still holds pre-rewrite history.
-- Researched (README-only, no code): \codeninjavik/myra-ultra\ � cloud-Gemini voice/desktop assistant; UI patterns (floating orb, edge-glow, system-stats panel, unified input) flagged as candidates for the M14 Java client; Mai's differentiators remain memory/character/local-first.
+- Untracked \kyutai STT/\ (1.9GB + 367MB weights, never committed) was also unignored � added both to \.gitignore\ under a \"Local model weights � never publish\" section (commit was untrack + ignore first, then user approved history scrub).
+- History scrub: workbatch (18 modified + 7 untracked files) held via \git stash -u\ + local backup branch; \git filter-branch --index-filter 'git rm -r --cached --ignore-unmatch Embedding_models' -- --all\ rewrote all refs (8 commits incl. stash lineage); \
+efs/original/*\ deleted, reflog expired, \gc --prune=now\; force-push \2ed2178..ec70455\. Verified 0 Embedding_models objects repo-wide, workbatch restored intact, weights still on disk (runtime unaffected).
+- Notes: local branch \cognitive-desktop-v3\ never contained the weights (unchanged by filter); stale \
+efs/remotes/origin/master\ left as harmless local tracking ref; GitHub server-side object cache may retain old blobs temporarily; 1 existing fork still holds pre-rewrite history.
+- Researched (README-only, no code): \codeninjavik/myra-ultra\ � cloud-Gemini voice/desktop assistant; UI patterns (floating orb, edge-glow, system-stats panel, unified input) flagged as candidates for the M14 Java client; Mai's differentiators remain memory/character/local-first.
 
 ---
 
@@ -1661,3 +1663,187 @@ Auditor verdict: remediation sprint successful (1,986 passed / 2 skipped evidenc
 3. Gate: tests/test_web_scraper.py TestConnectedPeer +4 (private peer aborts, unverifiable fails closed, public passes, empty ProxyHandler in opener chain); scraper now 21 tests. Full suite 1,990 passed / 2 skipped / 0 failures, 1m45s, mai_env.
 
 Residuals officially tracked (report doc, Independent Verification section 1b): in-process eval() not a sandbox (env-gated, first-party only, run_subprocess() for untrusted); symlink resolve-then-open TOCTOU (inherent; OS handle-based ops if attacker-concurrent threat model lands). No further security work queued beyond these two - original bug-audit sprint CLOSED.
+
+---
+
+## Fix Sprint - Post-Audit 6-Item Remediation - Oct 25 2026
+
+Ponytail audit delivered 6 findings (2 doc drift fixes applied same day); user approved "start fixing". All fixed + gated.
+
+1. **Tray Quit memory loss (P0)** - run.py `on_quit=lambda: os._exit(0)` skipped the WriteJournal 2s drain batching. New module-level `_daemon_quit(app)`: `app.shutdown()` (drains journal + ordered teardown per app/lifecycle.py) then `os._exit(0)`; shutdown crash still exits (try/except). Tests: TestDaemonQuit in tests/test_desktop_app.py (shutdown-then-exit, exit-on-shutdown-crash).
+2. **`/api/memory*` and ~46 route sites had NO auth check (P0)** - replacement: single-source rule `api.auth.api_auth_required()` (auth on when `API_REQUIRE_AUTH` env true OR configured `API_HOST` not loopback - ipaddress-based, hostnames fail-closed, warn-once). All three use it: inline `Depends(_require_auth)` sites (via `get_current_user`, which previously let anonymous through on the flag alone - the silent forced-mode bypass), new `api_auth_middleware` in server.py covering EVERY `/api/*` route (exempt: `/api/auth/login`, `/api/auth/refresh`, `/api/auth/oidc/`, `/api/auth/saml/`, `/api/health` probe), and `_resolve_user`. Stale SEC-002/SEC-003 serve-time warning replaced (middleware enforces now). `routes_permissions` auth_required info reports the effective rule. Desktop loopback default unchanged (no auth, UI unaffected).
+3. **JWT auto-secret guessable (P1)** - `_auto_secret()` now `secrets.token_urlsafe(32)` persisted to `data/jwt_secret` on first boot (read back after; warns+degrades to per-boot random on write failure). Old: sha256(hostname+username).
+4. **enforce_cap O(n)-per-5th-add (P1)** - extracted `VectorStore._maybe_enforce_cap()`; throttle 5 -> 50 (full collection.get() is O(n) in stored memories; growth-slows-writes fixed). Cap/delete-order semantics unchanged.
+5. **docker-compose.yml was a broken cluster template (P1)** - rewritten single-replica: correct env names (`API_HOST=0.0.0.0`, `API_REQUIRE_AUTH=true`; dropped unused `OPENAI_API_KEY`/`REDIS_URL`-shadowing), `./data`+`vector_memory`+`memory`+`cache`+`logs` mounts mirroring `config/paths.py`, `env_file: .env` optional, `restart: unless-stopped`. Old: `replicas: 2` (two brains fighting over one mic + concurrent Chroma dir writers = corruption).
+6. **`_result()` duplicated (P2)** - `TaskExecutor._result` delegates to `execution/handlers._result` (callers unchanged).
+
+**Gate:** suite **2,002 passed / 2 skipped / 0 failures** (baseline 1,990 + 12: TestApiAuthGate 7 - non-loopback force ip/hostname, memory 401 forced, open-when-off, exempts health+oidc-start, gated config stays 401; TestDaemonQuit 2; auto-secret persistence 1; cap throttle 1; _result delegation 1). Suite warmed to 1m47s from 4m04s (models JIT-cached).
+
+---
+
+## Kyutai STT Replacement Sprint - CLOSED at NO-GO - Oct 25 2026
+
+Executed `docs/Mai_documentation/03-Features/stt-kyutai-replacement-plan.md` Phases 1-3 end to end; the RTF latency gate failed, so **faster-whisper stays the default backend** and Kyutai ships as tested, opt-in code. Full detail lives in the plan doc; here are the durable facts.
+
+### Built (Phase 2, all uncommitted work-tree files)
+- `voice/stt_kyutai.py` - `KyutaiSTT`: lazy load, auto device select (cuda+bf16 when VRAM allows / cpu+fp32), permanent `FasterWhisperSTT` fallback on load OR runtime failure, `stats()` with `avg_rtf`, public `.model`/`.sample_rate` (voice_manager checks them), dynamo-to-eager suppression helper for no-triton Windows.
+- `config/voice.py` `STT_BACKEND` (default "whisper" - unchanged product behavior) + `KYUTAI_STT_DIR`; mirrors in `config/settings.py`; factory branch in `app/builders/voice.py`.
+- `scripts/bench_kyutai.py` - 10 runs x 2/4/8s synth utterances, median RTF vs 0.7 gate; now reports the REAL device (`stt._device`) + final stats (it originally hardcoded "device=cpu", which produced one false GO print from whisper-fallback numbers).
+
+### Environment
+- transformers 4.49.0 -> 4.57.6 (Kyutai native support needs >=4.53; plan doc's earlier "5.17.0 / torch 2.14.0" were wrong).
+- torch 2.3.0+cpu -> **2.3.0+cu121** (+ torchvision 0.18.0+cu121): PEP 440 local-tag trap - `pip install torch==2.3.0` is "already satisfied" by +cpu; the +cu121 tag must be pinned explicitly against the pytorch index. PyPI Windows torch wheels are cpu-only; both requirements files now document the cu121 override comment (important/requirements.txt is UTF-16 - bytes round-trip).
+- **Triton does not exist on Windows** - torch.compile'd generate regions crash with `BackendCompilerFailed: backend='inductor'`. Fix: `torch._dynamo.config.suppress_errors = True` after CUDA load -> compiled regions run eager (perf cost visible in the bench).
+- speechbrain lazy-placeholder landmine defused at a SECOND choke point: `voice/kokoro_tts.py:_load_kokoro()` now runs `_defuse_speechbrain_deprecated_redirects()` before the first kokoro import (any prior `import speechbrain` on unrelated paths used to poison kokoro's first load; previously only the speaker_encoder path was defused).
+
+### Contracts discovered (live-verified)
+- transformers 4.57 `ProcessorMixin.__call__` binds its first POSITIONAL arg to `images` - `KyutaiSpeechToTextProcessor` audio MUST be keyword-passed (`processor(audio=x)`), else BatchFeature comes back EMPTY and generate dies on None.shape. Positional examples in the model card are outdated for 4.57.
+- Kyutai output tensors: `padding_mask` [1, T*0.4] + `input_values` [1,1,T] (24kHz Mimi path); silence/tone synth correctly decodes to ''.
+- bf16 load on Quadro T1000: 2,365MB VRAM (fp32 ~4GB does not fit 4GB).
+
+### Benchmark verdict (RTF = stt_seconds / audio_seconds, median of 10 per case)
+- CPU fp32: 6.09 / 4.78 / 4.38 - **median 4.78** vs gate 0.7 (whisper-class; whisper-small baseline from logs/mai.log Sep 12: 0.61s utterance ~3.0s transcribe, RTF ~4.9, wake outliers 11s/175s).
+- GPU bf16 (device=cuda verified): 1.487 / 1.219 / 1.000 - **median 1.219, avg 1.200** - a real ~4x win vs the whisper baseline but ABOVE the 0.7 gate (fixed ~1s overhead: 2s clip -> 2.97s; dynamo-to-eager runs the compiled cache/codec regions serially).
+- **NO-GO stands**: default stays faster-whisper; promotion of "kyutai" blocked on a clean multi-session live run (Phase 3) which is blocked by the failed gate. Kyutai remains available opt-in via `STT_BACKEND=kyutai` for anyone who wants the ~4x.
+
+### Gate
+- `tests/test_stt_kyutai.py` (9: fakes expose `from_pretrained(torch_dtype=)`, `.to()`, generate registry, keyword-processor contract, runtime-failure fallback, stats) + `tests/test_speaker_encoder_compat.py` (4) - 13/13 green solo.
+- Full suite under cu121 + bf16 device-select: **2,015 passed / 2 skipped / 0 failures** in 110s (baseline 2,002 + 13). `pip check` clean.
+
+### User opt-in + production hardening (same day, Oct 25 2026)
+- After the NO-GO report, user opted in anyway - `.env` now sets `STT_BACKEND=kyutai` on this machine (config default in `config/voice.py` stays `"whisper"`; permanent faster-whisper fallback active on any kyutai load/runtime failure).
+- Real-speech round-trip verified live (kokoro TTS generative voice -> wav -> kyutai): `Hello Mai, the weather is really nice today, is it not?` decodes verbatim except `Mai`->`my` (anime-name classification).
+- **Second-bucket quantization** shipped in `_kyutai_transcribe`: dynamo caches kernels by input shape, so production's continuous utterance lengths would retrace EVERY call; clips are now zero-padded to whole-second buckets (max 1s pad, ~10 shapes ever). Measured: cold shape 8.79s -> same-bucket 2.39s; steady RTF 1.12-1.25; short clips bound ~2.4s absolute vs whisper's ~3.0s.
+- `test_stt_backend_*` made ambient-aware: they reload `config.voice` under whatever the local `.env` sets instead of assuming `"whisper"` (a `.env` opt-in must not break the suite).
+- Round-trip artifacts: `cache/tts_roundtrip.wav`.
+- Gate: full suite **2,015 passed / 2 skipped / 0 failures** under the live kyutai config (torch cu121, bf16 device select).
+- Log-noise fix after the first live kyutai session (Oct 25): dynamo emits a WARNING traceback wall (`convert_frame.py` x ~200 lines + `BackendCompilerFailed: Cannot find a working triton installation`) for EVERY suppressed compile failure - one per new input shape - which flooded the daemon log. `_suppress_dynamo_compile()` now also sets `logging.getLogger("torch._dynamo"/"torch._inductor").setLevel(ERROR)` (genuine errors still surface); verified live: two fresh shapes transcribe on cuda with zero dynamo lines. Wake-loop latency note: the `Heard: ... (Whisper: XXXXms)` path is the wake detector's own faster-whisper instance (porcupine fallback), NOT the STT backend - untested by the kyutai swap.
+- Wake-path label + corrupt-peak fix (Oct 25, user-directed): (1) the wake thread ALREADY shares the configured `app.stt` backend (kyutai under the .env opt-in) - the `Whisper: XXXXms` in the `[WakeThread] Heard:` log line was a hardcoded legacy label, now `STT: XXXXms` (voice_manager.py). (2) Corrupt out-of-range float chunks (observed live: peak 30.4 and earlier 1.17e11 - int16-reinterpretation / unstable-adaptive-filter signature; both normalize-crushed real speech to rejection-level) are now clamped at the Recorder trust boundary: `add_chunk` clamps `|values| > 1.0` to [-1, 1] with a `[Recorder] Corrupt chunk clamped (peak=...)` warning so the producing stage can be identified in future logs. Root cause NOT pinned to one stage (noise_filter FFT vs full_aec LMS both feed processed chunks unclamped); the boundary fix covers all producers, AEC treatment deferred until a warning actually fires. Tests: `tests/test_recorder.py` (2: corrupt loud-spike utterance keeps tone amplitude + warning fires; clean audio never clamps). Gate: full suite **2,017 passed / 2 skipped / 0 failures** (baseline 2,015 + 2).
+
+## Speech-Not-Transcribed Incident - AEC Divergence Root Cause - Oct 25 2026
+
+Live report: gate accepted real speech (`[Gate] Accepted speech mean=0.16-0.21`) but NO `[WakeThread] Heard` line ever appeared; minutes later `Corrupt chunk clamped` peaks grew ~3.4x per chunk (16 -> 6.4e3 -> ... -> 1.7e18) then `overflow in divide` / `invalid value in multiply` at `voice/full_aec.py:130/133`, ending `max=nan` utterances. Kyutai was NOT the culprit: offline slices of `cache/tts_roundtrip.wav` transcribe fine at all short lengths (0.75s -> 'Hello,', 0.92s -> 'Hello, my.') - verified before touching the STT.
+
+### Root cause (P0) - FullAEC residual LMS diverges with zero playback reference
+`add_playback` has 0 production call sites (never-fed backlog item), so `ref_matrix` is all zeros and the MAIN filter cannot grow (update x 0). But the RESIDUAL stage is self-referential: `_residual_buffer` is fed `errors` (its own output history) and adapts against it (`res_update = (mu*0.3*errors/res_norms) x res_matrix`). With the old 1e-10 post-square norm floor, adaptation on a near-zero window divides by ~1e-10 and the recursion diverges: first into in-range distortion (real speech still accepted by VAD but transcribing to '' - the silent failure), then into float overflow -> nan -> irrevocable (Nan > 1.0 is False, so the Oct 25 recorder clamp missed it).
+
+### Fixes
+1. `voice/full_aec.py` - (a) `_has_playback` flag set by `add_playback`, cleared by `reset()`; `process()` is a strict pass-through until playback is actually fed (no reference = nothing to cancel, only corruption to add). Deliberately a flag, NOT the `_far_end_power` EMA - the EMA only updates inside the full path, so gating on it created permanent pass-through even when playback was wired (caught by test before shipping). (b) norm floors raised to `np.maximum(sum, 1e-6)` for both filters. (c) weights clipped to [-1, 1] after each update (echo gain > 1 is unphysical; the 1e27-peak mechanism). (d) non-finite output -> `reset()` + warn + return sanitized raw mic. (e) output clipped to [-1, 1].
+2. `voice/recorder.py` - `add_chunk` checks `np.isfinite` BEFORE the peak clamp; non-finite chunks go through `np.nan_to_num` with a warning (NaN bypassed the `> 1.0` comparison entirely).
+3. `voice/voice_manager.py` - `_handle_wake_audio` logs `[WakeThread] Empty transcription (mean= ratio= samples= ms)` on the accepted-but-empty path, so content corruption is distinguishable from silence in future logs.
+
+### Verification
+- Offline end-to-end: 10 consecutive 0.87s utterances through `FullAEC.process` - bit-identical pass-through every time, all finite; Kyutai transcribes 'Hello, my.' through the same path.
+- Tests: `tests/test_deferred_v43.py` TestFullAEC +3 (no-playback pass-through never diverges/no adaptation; NaN mic resets + returns sanitized; fed-playback stays bounded with finite clamped weights), `tests/test_recorder.py` +1 (NaN chunk sanitized, utterance survives, tone audible). Gate: full suite **2,021 passed / 2 skipped / 0 failures** (baseline 2,017 + 4).
+
+### Notes
+- `torch_dtype` deprecation warning (transformers wants `dtype`) - cosmetic, deferred.
+- `stt=MISSING` in the Components checklist is benign (lazy load on first use).
+
+---
+
+## Voice Pipeline Stabilisation - Measured - Oct 27 2026
+
+User report: STT 2.8-4.6s, empty transcriptions, 500ms silence timeout suspected of cutting speech. Measured first, then fixed four things. No streaming rebuild (see verdict).
+
+### Measurement (real speech clip `cache/tts_roundtrip.wav`, T1000 4GB, 3 runs median)
+| clip | before (bucket + dynamo suppress) | after (dynamo off, no padding) | cold first call before -> after |
+|---|---|---|---|
+| 0.6s | 2.17s | **1.73-1.78s** | 9.60s -> 2.63s |
+| 1.0s | 2.21s | **2.05-2.13s** | 2.16s -> 2.26s |
+| 1.5s | 2.98s | **2.47-2.52s** | 4.78s -> 2.64s |
+| 2.0s | 3.14s | **2.86-2.91s** | 3.00s -> 2.89s |
+| 3.6s | 5.07s | **4.23s** | 5.32s -> 4.22s |
+
+- **fp16 is 1.6-1.8x SLOWER than bf16 on this GPU** (measured, not assumed): T1000 is sm_75, `torch.cuda.is_bf16_supported()` is True only via *emulation*, and fp16 hits the non-tensor-core path for these matmuls. Keep bf16; do not "optimise" to fp16.
+- Decode is ~67ms/token sequential, so clip length is the cost driver and there is a ~1.7s floor for any clip. RTF 1.17 (3.6s) to 2.97 (0.6s).
+- The 4.5-8.7s outliers in the live log are **cold shapes**: with `suppress_errors` the compiled regions still attempt a compile per new input shape and fail (no triton on Windows) before running eager.
+
+### Root causes found
+1. **Onset frames were discarded** (`_audio = [np.copy(chunk)]`): the 2 frames that triggered onset plus everything before it was dropped, so "hey mai" reached STT as a mid-word fragment. `VAD_PRE_ROLL=0.5` existed in config but was never used.
+2. Empty transcriptions were mostly *sub-word fragments* (0.55s clips = ~32-100ms of signal + 0.5s of waited silence), not noise: probe showed silero scores pure noise 0.00 (white and pink+hum), so the gate was never the problem. Spectral flatness was tested as an extra discriminator and **rejected** (pink+hum 0.004 vs speech 0.010 — no separation).
+3. **Whole-second bucket padding** added up to 1s of extra decode per clip to keep dynamo shapes stable — pointless once dynamo is off.
+4. **500ms silence timeout** is tight for natural pauses; the extra tail is now free because it is trimmed before STT.
+
+### Fixes
+- `voice/stt_kyutai.py` — `_disable_dynamo()` sets `torch._dynamo.config.disable = True` when `triton` is absent (called *before* the transformers import); whole-second padding removed.
+- `voice/recorder.py` — pre-roll ring buffer (onset frames + `pre_roll` seconds now kept and prepended), `_trim_trailing_silence()` keeps 0.2s after the last voiced frame, both configurable; depth/DT default `pre_roll=0.4`, `trailing_keep=0.2`.
+- `config/voice.py` — `VAD_SILENCE_TIMEOUT` 0.5 -> 0.7, `UTTERANCE_MIN_VOICED = 0.20`, `UTTERANCE_TRAILING_KEEP = 0.2`, `VAD_PRE_ROLL` now actually used.
+- `voice/voice_manager.py` — recorder wiring + gate rejects `voiced < 0.20s` (`voiced = ratio x duration`) before spending an STT call; caller logs renamed `Rejected non-speech` -> `Rejected utterance` (the gate now logs which reason).
+
+### CUDA warning verdict
+`Could not parse CUDA device string 'cuda': ... Falling back to device 0` is **SpeechBrain's** device parser; device 0 *is* the T1000, and `SpeakerEncoder initialized successfully on cuda` follows — no inference impact. The *real* GPU defect is triton/inductor absence (fixed above) plus no flash-attention on sm_75 (`Torch was not compiled with flash attention`), which costs speed and cannot be fixed on this card.
+
+### Streaming verdict (Phase 2, deliberately not built)
+- **Incremental speech already exists**: `voice/realtime.py:speak_stream()` emits on sentence end (>=50 chars), 180 chars, or 3.5s, and `os_kernel` feeds it `brain.think_stream()` directly — Mai already talks while generating.
+- **True streaming STT is hardware-blocked**: it needs sustained RTF < 1, and measured RTF is 1.17 at best (3.6s clip), 2.97 at the 0.6s clips that dominate. A 1B model on a 4GB T1000 cannot decode faster than real time. Revisit after the M19 GPU window, or with a much smaller streaming model.
+
+### Gate
+New tests: `tests/test_recorder.py` +3 (pre-roll carries pre-onset audio, zero pre-roll keeps the onset chunk, trailing silence trimmed to the keep window), `tests/test_voice_gating.py` +2 (sub-word fragment rejected, 0.5s wake phrase accepted), `tests/test_stt_kyutai.py` +1 (`_disable_dynamo`) with the padding assertion updated (2400 samples, was 2400-padded-to-24000). Full suite **2,027 passed / 2 skipped / 0 failures** (baseline 2,021 + 6).
+- Pending live verification: speak "hey mai" after restart; expect `[Gate] Accepted speech` -> `Heard: ... (STT: ~2000ms)`, and `[Gate] Rejected short speech` instead of `Empty transcription` when only a click was captured.
+
+---
+
+## Self-Hearing Loop — Root Cause + Fix (Oct 29 2026)
+
+Follow-up report: wake path returning junk (`Hello.`, `week.`) and the conversation path producing text the user never said (`Hello, beautiful.`, `You're also listening.`, `weapon my`, `shut up.`). Full read-only investigation first; **the backend was never at fault**.
+
+### Confirmed facts
+- **One STT object, one VoiceManager.** `app/builders/voice.py:53-58` builds `app.stt` (Kyutai under `STT_BACKEND=kyutai`), `:108-116` builds the single `VoiceManager(stt=app.stt)`. `voice_manager.py:150` hands the same object to `WakeDetector`; `core/os_kernel.py:121` stores `self.stt` and never reads it (kernel uses `voice_manager.stt` at `os_kernel.py:300`).
+- **The conversation path runs Kyutai, not Whisper.** `voice_manager.py:670,673` hardcode the strings `"Starting Whisper transcription"` / `"Whisper result"` regardless of backend. Whole-log grep for `falling back to faster-whisper`, `Load failed`, `Runtime failure`, `STT error`, `Whisper unavailable` → **0 matches**; `[KyutaiSTT] Ready in 2.7s (device=cuda)` at 16:38:34 and no fallback line afterwards.
+- **No echo cancellation exists.** `VoiceManager.send_playback_audio()` (`voice_manager.py:742-747`) is the only caller of `full_aec.add_playback()`; its only call site is `tests/test_deferred_v43.py:505`. With no playback reference, `FullAEC.process()` is a strict pass-through by design (Oct 25 fix).
+- **The recorder is fed unconditionally** (`voice_manager.py:233-234`), including while `_speaking` is True. Live proof (16:45:55 `Playing:` → onsets at 16:45:59/16:46:01/16:46:06/16:46:08/16:46:12/16:46:14/16:46:15 → `listen()` at 16:46:20 returns a 1.43 s "utterance" → `text='shut up.'`). Same shape at 16:40:46 → 16:40:48 onset → 16:40:50 `listen()`.
+- **The utterance queue was never drained.** `_utterance_queue` written at `:86`, read at `:360`, `:421`, `:607`; nothing clears it, so audio recorded during playback is consumed as the next user turn.
+- **Measured hallucination shape** (real TTS clip, this GPU, shipped eager path): her own voice at speaker-bleed level, mid-sentence 1.43 s → `'moment to let it'`, `'rather is being natural.'`, `'I did not.'`. Clean speech → correct. Full-scale white noise → `''`. Pure room tone peak-normalized → `''`. **Her voice is the only input that produces fluent wrong sentences.**
+- **Peak normalization is the amplifier.** `recorder.py:235-236` forces every utterance to 1.0; Silero scores the same white noise 0.00 at peak 0.20 but **0.60** at peak 1.0, so normalization is what lets noise-like input clear the gate.
+- **`stt=MISSING` is cosmetic.** `voice_manager.py:162` requires a non-`None` `stt.model`; `KyutaiSTT` loads lazily (`stt_kyutai.py:36,124`). Log: MISSING at 16:38:25, `Ready` at 16:38:34, `ok` on every later `_ensure_components()` (39 MISSING / 95 ok overall).
+
+### Fixes (uncommitted)
+- `voice/voice_manager.py` `_build_mic_callback` — do not feed the recorder while `_speaking`; barge-in still works because the interrupt check runs on the raw chunk before the guard.
+- `voice/voice_manager.py` `set_speaking` — on the transition into speaking, `recorder.stop()` so the pre-roll cannot replay pre-playback audio into the next turn.
+- `voice/voice_manager.py` `_discard_stale_utterances()` — drains the queue at `_listen_impl` and `_listen_raw_impl` entry, so audio recorded before the turn is never returned as user input.
+- `core/os_kernel.py` — both greeting paths (`_tick` greeting and `_run_greeting_first`) now wrap `speak_stream` in `set_speaking(True/False)`; previously the greeting played with the mic fully armed.
+
+### Gate
+`tests/test_voice_selfhearing.py` (6): no recording while speaking, recording resumes after, entering speech clears the recorder buffer, queue drain, `_listen_impl` never returns pre-turn audio, greeting sets `set_speaking(True)` during playback. Full suite **2,033 passed / 2 skipped / 0 failures** (baseline 2,027 + 6).
+
+### Deliberately deferred
+- Wiring `send_playback_audio` for real AEC (bigger change; LMS quality on this hardware unproven).
+- `app/builders/voice.py:111` passes `adaptive_noise_filter=` but the constructor reads `noise_filter=` (`voice_manager.py:39`), so the tuned filter is dropped and a default one is built in `_ensure_components` (`:151-153`) — real bug, unrelated to this regression.
+- The second peak normalization in `_transcribe` (`:666-669`) is a no-op today; keep until the echo fix is validated live.
+
+### Known trade-off
+Muting the recorder while she speaks means a user who talks *over* her is only captured from the moment barge-in fires, so the first syllable of an interruption may be lost. Accepted over self-transcription.
+- Pending live verification: restart, speak normally; expect zero `listen()` returns that were recorded during a `Playing:` window, and no fluent text in response to silence.
+
+---
+
+## Porcupine Removal (Oct 31 2026)
+
+User request: remove Picovoice Porcupine entirely. Audit found it was **already gone from the runtime** - `wake_word.py` is a shared-flag coordinator over `VoiceManager`, and wake detection is STT phrase matching (`wake_detector.py`). Only vestiges remained, and they were actively misleading:
+
+- `core/config_manager.py` - `PORCUPINE_ENABLED` removed from `_SAFE_KEYS` and `_KEY_META`. The settings UI was advertising a **"Wake Word Detection" toggle, but the key was never defined anywhere in `config/`**; flipping it did nothing.
+- `api/routes_system.py` - `PORCUPINE_ENABLED` dropped from the `/api/system` settings key list (it never appeared; the `hasattr` guard hid it).
+- `requirements.txt` - comment corrected to "wake is STT phrase matching + Silero VAD".
+- Docs: `01-Architecture/07-Voice Subsystem.md` claimed a `PorcupineDetector` existed (no such file) and described a "no-porcupine whisper wake-fallback"; `05-Reference/Complete Folder Structure.md` listed `porcupine_detector.py`; `06-Operations/Incident-Response/README.md` told operators to set `PORCUPINE_ENABLED=False` to disable voice - replaced with the real mitigation, `python run.py --mode api` (REST intact, no mic).
+- `AGENTS.md` historical entries left intact (they are an accurate dated record).
+
+Gate: full suite **2,033 passed / 2 skipped / 0 failures** (unchanged baseline - pure deletion).
+
+---
+
+## openWakeWord Installed (Oct 31 2026)
+
+`openwakeword==0.6.0` installed into `mai_env` (user request). **Installed and verified, but NOT wired** - it cannot wake on "hey mai" yet.
+
+- Install was dependency-clean: dry-run showed only `openwakeword-0.6.0` would be added; every dep (numpy 1.26.4, onnxruntime 1.23.2, scipy, scikit-learn, tqdm, requests) already satisfied. `pip check` clean, torch 2.3.0+cu121 / CUDA still healthy. This matters because the last unpinned install in this repo dragged numpy 2.x in and broke torch/spacy (see TTS Fix, Aug 9).
+- Added `openwakeword==0.6.0` to `requirements.txt` (alphabetical, between onnxruntime and opentelemetry) and corrected the stale "Removed openwakeword" comment.
+- Pretrained models downloaded via `openwakeword.utils.download_models()` into `site-packages/openwakeword/resources/models/`: `alexa_v0.1`, `hey_jarvis_v0.1`, `hey_mycroft_v0.1`, `hey_rhasspy_v0.1`, `timer_v0.1`, `weather_v0.1` + `melspectrogram.onnx`, `embedding_model.onnx`, `silero_vad.onnx`.
+- **Measured** (`hey_jarvis_v0.1`, ONNX, 1280-sample/80 ms frames): **2.95 ms per frame = 3.7% of one core**, score 0.0 on noise. (Earlier consult note claiming "<1% CPU" was optimistic - 3.7% is the real number, still ~30x cheaper than a Kyutai pass per wake check.)
+- **Blocker: no pretrained "hey mai" model exists.** `WAKE_WORDS = ["wake up mai", "hey mai", "mai wake up", "wake up"]` (`config/ai.py`). The fixed pretrained set is alexa/hey_jarvis/hey_mycroft/hey_rhasspy/timer/weather.
+  - Path A - `openwakeword.custom_verifier_model.train_custom_verifier(positive_reference_clips, negative_reference_clips, output_path, model_name)`: few-shot sklearn verifier over openWakeWord embeddings. Needs **directories of real WAVs** - positives of you saying "hey mai", negatives of other speech. Minutes to train.
+  - Path B - full synthetic-data training (openWakeWord Colab pipeline): hours, custom phrase, best accuracy.
+- Wiring note for whoever does it: mic delivers float32 [-1,1] at 16 kHz in 512-sample blocks; openWakeWord wants **int16 and 1280-sample frames** - needs a 512->1280 accumulator plus `*32767` conversion in `_build_mic_callback` (or a separate wake thread reading `AudioBuffer`).
+- Nothing in `voice/` imports openwakeword; `wake_detector.py` STT phrase matching remains the live wake path.
+
+Gate: no runtime code changed - full suite unchanged at **2,033 passed / 2 skipped / 0 failures**.

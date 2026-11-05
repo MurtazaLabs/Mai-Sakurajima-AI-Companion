@@ -44,15 +44,15 @@ Packages: `agency/` 12 files, 2,499 lines.
 | `LearningEngine` | `learning.py` | behavior adjustment from outcomes |
 | `ThoughtPacket` | `thought_packet.py` | structured thought envelope; leak-strip guard (M11) |
 
-## LLM (3 files, 931 lines)
+## LLM (4 files, 1,262 lines)
 
 | Component | File | Role |
 |-----------|------|------|
-| `LLMManager` | `manager.py` | failover: OpenRouter → Ollama → static; probe TTL 15s; `_stream_with_failover()` |
-| `OpenRouterProvider` | `providers/openrouter.py` | bounded retry budget (45s default) |
-| `OllamaProvider` | `providers/ollama.py` | local inference |
+| `LLMManager` | `manager.py` | provider preference via `LLM_PROVIDER` (`openrouter` default, `ollama` = local-first ordering); probe TTL 15s, decision snapshotted under lock with network I/O outside; mid-stream failover restarts on next provider **with history**; final generate fallback passes history too |
+| `OpenRouterProvider` | `providers/openrouter.py` | bounded retry budget (45s default); permanent HTTP status codes (400/401/403/404/422) break the per-model attempt loop immediately; default model `openrouter/free` with sanitized failover list (drop None/empty/dup) |
+| `OllamaProvider` | `providers/ollama.py` | local inference; top-level `think: false` in every chat payload (single choke point, all 4 paths) |
 
-Key behaviors: probe decision snapshot under lock (network outside); mid-stream failure marks provider dead + restarts on next provider; `generate_with_tools()` is a dead passthrough (debt).
+Config: `LLM_PROVIDER` (env, Oct 9), `OPENROUTER_DEFAULT_MODEL` (default `openrouter/free`).
 
 ## Execution (3 files, 850 lines)
 
@@ -69,7 +69,7 @@ Security posture:
 
 ## Known Issues
 
-`generate_with_tools()` dead passthrough; providers duck-typed (no ABC); `_result()` duplicated across 3 handler classes.
+Providers duck-typed (no ABC); `_result()` duplicated across 3 handler classes. ~~`generate_with_tools()` dead passthrough~~ — resolved claim was stale: it is **live** (`core/brain.py`, `core/brain_routing.py` route the envelope path through it).
 
 ---
 

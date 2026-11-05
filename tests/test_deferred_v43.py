@@ -119,6 +119,50 @@ class TestFullAEC:
         result = aec.process(np.array([], dtype=np.float32))
         assert len(result) == 0
 
+    def test_no_playback_passthrough_never_diverges(self):
+        # Live bug (Oct 25): with playback never fed, AEC adaptation on its own
+        # output diverged exponentially and destroyed real speech in range
+        # before blowing up to NaN — "speech not transcribed" while the VAD
+        # gate still accepted it. No reference = nothing to cancel: pass-through.
+        from voice.full_aec import FullAEC
+        aec = FullAEC(sample_rate=16000)
+        mic = (np.sin(2 * np.pi * 440 * np.arange(4800) / 16000) * 0.4).astype(np.float32)
+        for _ in range(10):  # divergence was per-utterance, keep hammering
+            out = aec.process(mic.copy())
+        assert np.allclose(out, mic)
+        assert np.all(np.isfinite(out))
+        assert not np.any(aec._filter_weights)
+        assert not np.any(aec._residual_weights)
+
+    def test_nan_mic_resets_and_returns_sanitized(self):
+        from voice.full_aec import FullAEC
+        aec = FullAEC(sample_rate=16000, filter_length=64)
+        aec.add_playback(np.random.randn(1600).astype(np.float32) * 0.1)
+        aec._residual_weights[:] = 5.0
+        bad = np.random.randn(512).astype(np.float32)
+        bad[0] = np.nan
+        out = aec.process(bad)
+        assert np.all(np.isfinite(out))          # sanitized on the way out
+        assert not np.any(aec._residual_weights)  # reset happened
+
+    def test_fed_playback_stays_bounded(self):
+        # With a reference present the engine still adapts, but the guards
+        # keep weights and output finite/clamped (no 1e27/NaN escapes).
+        from voice.full_aec import FullAEC
+        aec = FullAEC(sample_rate=16000, filter_length=256, adaptation_rate=0.05)
+        rng = np.random.default_rng(7)
+        out = None
+        for _ in range(40):
+            far = rng.normal(0, 0.1, 512).astype(np.float32)
+            echo = far * 0.4
+            mic = (echo + rng.normal(0, 0.01, 512)).astype(np.float32)
+            aec.add_playback(far)
+            out = aec.process(mic)
+        assert np.all(np.isfinite(out))
+        assert float(np.max(np.abs(out))) <= 1.0
+        assert np.all(np.isfinite(aec._filter_weights))
+        assert np.all(np.isfinite(aec._residual_weights))
+
 
 class TestVoiceEmotionDetector:
     def test_default_creation(self):

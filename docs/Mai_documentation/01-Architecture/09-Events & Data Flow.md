@@ -6,7 +6,7 @@
 
 ## Event Fabric Overview
 
-- **67 registered specs**: 50 `data.*` (subsystem fabric record) + 17 `state.*` (UI projection); plus `telemetry.inspector.record` (`event_bus.py` constant). `control.*` reserved (0 in specs).
+- **72 catalog topics** (measured Oct 2026): 50 `data.*` (subsystem fabric record) + 22 `state.*` (UI projection) declared as flat topic constants in `core/event_specs.py` (per-subsystem modules re-export their constants). `telemetry.inspector.record` auto-subscribed by the EventBus. `control.*` reserved (0 in catalog).
 - Version=1, retry=NEVER, max_attempts=1, compressed=False (control exceptions documented).
 
 ### APIs
@@ -40,6 +40,9 @@
 | `state.belief.updated` | BeliefEngine |
 | `state.needs.updated` | NeedsEngine (M-series) |
 | `state.monologue.generated` | Monologue (M-series) |
+| `state.retrieval.started / completed` | AdvancedRetriever (v4.0 projections — no query/content in payload) |
+| `state.tool.started / completed` | ToolRegistry (v4.0 projections — name + success + duration only) |
+| `state.user.switched` | Brain / profile switch |
 
 ## M6 Additions (`data.*` — Subsystem Fabric Record)
 

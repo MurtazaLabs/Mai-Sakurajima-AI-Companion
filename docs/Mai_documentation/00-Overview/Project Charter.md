@@ -500,11 +500,29 @@ BrainGraph facade with 7 typed node types, full bridge to all 8 knowledge stores
 
 - **1,827 tests pass, 0 failures**
 
+### Phase 0 — Noise Gate + Voice/LLM Response-Path Fixes (Oct 9)
+- **Whole-utterance VAD gate** before any `stt.transcribe()` (`VAD.utterance_score`, thresholds live-calibrated 0.15 mean / 0.10 ratio, fail-open) in wake-audio, `_transcribe()` and the kernel `return_audio` path — killed Whisper hallucinations on fan/hiss noise
+- **Diarization full-clip fix** (P0): speaker label from the full clip; regions never sliced before STT ("stops responding" root cause)
+- **OpenRouter** — default model `openrouter/free`, sanitized failover list, permanent-status codes break the attempt loop, bounded retry budget (45s); removed `model:"None"` 400-ladder on every call
+- **`LLM_PROVIDER` preference** (default `openrouter`; `ollama` = local-first ordering, cached probes, exception→dead) + Ollama payloads send `think: false`
+- **1,905 tests pass**
+
+### Roadmap + M14 Desktop App + STT Plan (Oct 9–13)
+- STT replacement plan (Kyutai 1B; Phase 0 model download complete, Phase 1 pending go)
+- **Future roadmap** documented ([[future-vision-roadmap]] — T0–T8 workstreams, M14–M25 milestones, locked decisions); feature-review fold-in (all 7 recommendations adopted/merged)
+- **M14 Desktop App** — `run_daemon.py` rewritten (single bootstrap fixes double-boot + missing kernel), `native/app_window.py` pywebview (close→tray), `scripts/install_app.py` shortcut/autostart with voiceless-interpreter guard, `build_daemon.py` `--add-data` fix
+- **1,930 tests pass**
+
+### Security Bug Audit Remediation + Verification (Oct 19)
+- **10/10 findings verified against code, then fixed**: Brain response cache removed (cross-user leak + state-chain skips), request-local user_id, pre-chat hook append-not-replace, web scraper hardening + SSRF guard (public-target, connected-peer, proxy bypass), sandbox path containment + eval lockdown, marketplace signatures required (env opt-in), SafeExecutor injectable confirm gate, stream fallback history retention, auth cookies (HttpOnly/SameSite/Secure) + redirect-target allowlist + base64 NameError
+- **Independent verification pass** closed all 5 channels; DNS-peer hardening added same day
+- **1,986 → 1,990 tests pass, 2 skipped** — re-verified live Oct 25 (mai_env, 4m04s)
+
 ---
 
-## Active File Count
-- Non-venv Python modules: ~84+
-- Subsystems: core/, memory/, knowledge/, reasoning/, agency/, voice/, llm/, execution/, config/, observability/, prompt/, app/, native/, plugins/, evaluation/, scripts/, gateways/
+## Active File Count (Oct 25 2026)
+- **376 py files / 66,767 lines** | **19 packages** + `run.py`/`run_daemon.py` | tests: 83 py files / 19,281 lines (72 test modules)
+- Packages: core/, memory/, knowledge/, reasoning/, agency/, voice/, llm/, execution/, api/, app/, native/, config/, observability/, prompt/, plugins/, evaluation/, scripts/, profiling/, integrations/ (ex-gateways)
 
 ---
 

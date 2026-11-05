@@ -50,6 +50,36 @@ def _apply_torch_amp_compat() -> None:
         logger.debug("torch.amp compat shim unavailable; leaving as-is")
 
 
+def _defuse_speechbrain_deprecated_redirects() -> None:
+    """Neutralize speechbrain 1.x's deprecated-alias placeholders.
+
+    ``import speechbrain`` registers lazy ``DeprecatedModuleRedirect`` entries
+    in ``sys.modules`` for the old module paths it renamed in 1.x
+    (``speechbrain.pretrained``, ``speechbrain.k2_integration``, ...). Any
+    later ``inspect`` walk over ``sys.modules`` — torch performs one per
+    ``torch.library.impl_abstract`` call, which transformers >= 4.53 triggers
+    via torchvision during import — touches those ``__getattr__`` methods,
+    which attempt to import the (missing) external packages behind them, and
+    the unrelated import (kokoro/transformers) dies. This codebase uses only
+    ``speechbrain.inference`` (grep: zero deprecated-path imports), so every
+    placeholder is replaced with an inert module. Call directly after
+    speechbrain imports.
+    """
+    try:
+        import sys
+        import types
+
+        for key, placeholder in list(sys.modules.items()):
+            if not key.startswith("speechbrain."):
+                continue
+            if type(placeholder).__name__ == "DeprecatedModuleRedirect":
+                inert = types.ModuleType(key)
+                inert.__doc__ = "Deprecated speechbrain alias made inert; use the speechbrain.inference equivalents."
+                sys.modules[key] = inert
+    except Exception as e:
+        logger.debug("speechbrain deprecated-alias defusal unavailable: %s", e)
+
+
 _apply_torch_amp_compat()
 
 
@@ -96,6 +126,8 @@ class SpeakerEncoder:
                     warnings.simplefilter("ignore")
 
                     from speechbrain.inference.speaker import SpeakerRecognition
+
+                _defuse_speechbrain_deprecated_redirects()
 
                 self._model = SpeakerRecognition.from_hparams(
                     source=str(MODEL_DIR),

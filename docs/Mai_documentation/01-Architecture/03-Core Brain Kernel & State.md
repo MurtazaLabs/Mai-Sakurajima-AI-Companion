@@ -6,7 +6,7 @@
 
 ## Package Stats
 
-`core/` — 51 files, 10,551 lines (**25% of codebase** — the center of gravity).
+`core/` — 66 files, 13,729 lines (**~21% of codebase** — the center of gravity).
 
 ## The Brain (`core/brain.py`)
 

@@ -203,9 +203,7 @@ class VectorStore:
                         ids=[memory_id]
                     )
 
-                self._add_count = getattr(self, "_add_count", 0) + 1
-                if self._add_count % 5 == 0:
-                    self.enforce_cap()
+                self._maybe_enforce_cap()
 
                 return memory_id
 
@@ -336,6 +334,15 @@ class VectorStore:
             if not self._check_ready(need_model=False, need_collection=True):
                 return 0
             return self._lifecycle.enforce_cap(max_rows=max_rows)
+
+    def _maybe_enforce_cap(self):
+        # enforce_cap does a full collection.get() (O(n) in stored memories);
+        # running it on every add made writes slower as history grows, so it
+        # is throttled to every 50th add (audit Oct 25 2026, was every 5).
+        count = getattr(self, "_add_count", 0) + 1
+        self._add_count = count
+        if count % 50 == 0:
+            self.enforce_cap()
 
     # ==================================================
     # 🧠 MEMORY COUNT

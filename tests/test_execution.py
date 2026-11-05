@@ -766,3 +766,13 @@ class TestFileSystemSandbox:
         finally:
             _configure_sandbox(*defaults)
             assert _path_allowed(r"C:\Windows\evil.exe") is False
+
+
+def test_task_executor_result_delegates_to_shared_helper():
+    """_result keeps the method shape for callers but one shared helper lives
+    in execution.handlers (audit Oct 25 2026, finding 6)."""
+    from execution.task_executor import TaskExecutor
+
+    out = TaskExecutor._result(object(), True, "ok", 1.5)
+    assert out == {"success": True, "output": "ok", "duration": 1.5}
+    assert isinstance(out["duration"], float)

@@ -29,3 +29,17 @@ class TestVectorStoreMetadataWhere:
     def test_empty_filters_builds_empty_dict(self):
         where = VectorStore._build_metadata_where({})
         assert where == {}
+
+
+class TestCapCheckThrottle:
+    """enforce_cap is O(n) (full collection get) — throttle to every 50th add."""
+
+    def test_runs_only_every_50th_add(self):
+        vs = object.__new__(VectorStore)
+        calls = []
+        vs.enforce_cap = lambda *a, **k: calls.append(1) or 0
+        for _ in range(49):
+            vs._maybe_enforce_cap()
+        assert calls == []
+        vs._maybe_enforce_cap()
+        assert len(calls) == 1

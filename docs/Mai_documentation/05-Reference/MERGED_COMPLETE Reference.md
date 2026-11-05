@@ -1,12 +1,12 @@
 # MERGED_COMPLETE.md — Master Reference Document
 
-> **Location:** `docs/MERGED_COMPLETE.md` (860 KB, 8,211 lines) — too large for vault, kept at repository root.
+> ⚠️ **Historical snapshot (Jul 20 2026) — source file no longer on disk.** `docs/MERGED_COMPLETE.md` (860 KB, 8,211 lines) was removed during doc consolidation; only this digest survives. Current sources of truth: [[00-Overview/Project Charter]] (session log, mirrors `AGENTS.md`), [[01-Architecture/10-Status & Debt]], and the subsystem notes in this vault.
 
 ---
 
 ## Overview
 
-This is the **single source of truth** for all Mai AI architecture documentation. It was created by merging 24 individual audit/architecture documents into one comprehensive reference on Jul 20, 2026.
+This was the **single source of truth** for all Mai AI architecture documentation on Jul 20, 2026 — created by merging 24 individual audit/architecture documents into one comprehensive reference.
 
 **Size:** 860 KB | **Lines:** 8,211 | **Format:** Markdown
 

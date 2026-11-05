@@ -8,7 +8,7 @@
 
 The Event Fabric is the central nervous system of Mai AI. All cross-subsystem communication flows through the `EventBus`.
 
-**Design Spec:** [[03-Features/Event Fabric Architecture]] (v2.1)
+**Catalog (verified Oct 2026):** 72 topic constants declared in `core/event_specs.py` — 50 `data.*` + 22 `state.*` — as flat string constants per subsystem section; per-subsystem modules (e.g. `voice.events`) re-export the ones they publish. `EventRegistry` validates/authorizes publishers; the EventBus auto-subscribes `telemetry.inspector.record` for the Event Inspector.
 
 ---
 
@@ -44,17 +44,17 @@ class MaiMessage:
 
 Helper: `publish_event(bus, SPEC, payload, source)` — constructs envelope, runs middleware, delivers.
 
-### EventSpecs (`core/event_specs.py`)
+### Topic Catalog (`core/event_specs.py`)
 
-**67 registered specs** (auto-registered at import):
+**72 registered topics** (verified Oct 2026 — flat string constants grouped per subsystem; spec: [[03-Features/Event Fabric Architecture]] v2.1):
 
 | Category | Count | Prefix | Purpose |
 |----------|-------|--------|---------|
 | Subsystem fabric | 50 | `data.*` | durable record of what happened |
-| UI projection | 17 | `state.*` | UI subscribes **exclusively** here |
-| Telemetry | 1 | `telemetry.inspector.record` | Event Inspector feed |
+| UI projection | 22 | `state.*` | UI subscribes **exclusively** here |
+| Telemetry | auto | `telemetry.inspector.record` | Event Inspector feed (EventBus constant, auto-subscribed) |
 
-All specs define: `topic`, `version`, `retry`, `max_attempts`, `compressed`, `payload_schema` (JSON Schema).
+Delivery guarantees (versioning, retry policy, priority, validation/authorization) live in `EventRegistry` + the EventBus middleware chain below, not in per-topic `EventSpec` objects.
 
 ### EventRegistry (`core/event_registry.py`)
 
@@ -81,6 +81,11 @@ All specs define: `topic`, `version`, `retry`, `max_attempts`, `compressed`, `pa
 | `state.belief.updated` | BeliefEngine | `{belief_id, confidence, source}` |
 | `state.needs.updated` | NeedsEngine | `{need, level, delta}` |
 | `state.monologue.generated` | Monologue | `{text, emotion, context}` |
+| `state.retrieval.started` | AdvancedRetriever | `{}` (no query/content) |
+| `state.retrieval.completed` | AdvancedRetriever | `{count}` |
+| `state.tool.started` | ToolRegistry | `{name}` (no arguments/results) |
+| `state.tool.completed` | ToolRegistry | `{name, success, duration}` |
+| `state.user.switched` | Brain / profile switch | — |
 
 ### `data.*` (Subsystem Fabric Record)
 

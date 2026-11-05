@@ -4,21 +4,30 @@
 
 ---
 
-## Test Suite Overview (Aug 2026)
+## Test Suite Overview (Oct 2026)
 
 | Metric | Value |
 |--------|-------|
-| **Total tests** | 1,821+ passing |
-| **Test files** | 55 (incl. `tests/behavior/`) |
+| **Total tests** | 1,990 passing + 2 skipped, 0 failures (live-verified Oct 25 2026 under mai_env, ~4 min) |
+| **Test modules** | 72 `test_*.py` (83 py files under `tests/`, ~19,300 lines) |
 | **Coverage** | Core subsystems well-covered; api/, knowledge/ improving |
 | **Framework** | pytest with asyncio, fixtures, parametrize |
+| **Interpreter** | `mai_env/` is the real runtime (voice stack: kokoro, faster-whisper, speechbrain, webview, pystray…) — base Python only runs a wounded subset |
 
 ## Test Organization
 
 ```
 tests/
 ├── conftest.py              # shared fixtures, async event loop
-├── test_*.py                # subsystem test files (40+)
+├── test_*.py                # subsystem test files (~50)
+│   ├── test_brain.py        # + TestBrainNoResponseCache, stream-guard, think_stream action path
+│   ├── test_desktop_app.py  # M14: AppWindow, tray, autostart, single-instance, MaiAPI wiring
+│   ├── test_voice_gating.py # Phase 0: utterance VAD gate + diarization full-clip
+│   ├── test_sandbox.py      # path containment, symlink escape, eval lockdown
+│   ├── test_web_scraper.py  # explicit-intent, SSRF guard, connected-peer check
+│   ├── test_auth_oidc.py    # OIDC/SAML, cookies, redirect allowlist
+│   ├── test_rate_limiter.py / test_scheduler.py / test_vad.py / test_vector_store.py
+│   └── test_llm.py          # OpenRouter sanitization, retry budget, provider preference, failover
 ├── behavior/                # M7+ character behavioral harness
 │   ├── harness.py           # ScenarioDriver, virtual clock, causal traces
 │   ├── fixtures.py          # deterministic ThoughtPacket fixtures
@@ -26,11 +35,7 @@ tests/
 │   ├── test_character_behavior.py
 │   ├── test_conflict_resolution.py
 │   └── test_renderer_parity.py
-└── evaluation/              # M9 real-world evaluation
-    ├── rubric.py            # 7-axis CharacterRubric
-    ├── runner.py            # SessionRunner, FakeLLM, build_stub_brain()
-    ├── scenarios.py         # seed scripts
-    └── transcript.py        # SessionTranscript JSONL
+└── evaluation/              # M9 real-world evaluation (in evaluation/ package)
 ```
 
 ## Key Test Categories
@@ -150,9 +155,11 @@ pytest --cov=. --cov-report=html
 ## CI/CD Integration
 
 - Tests run on every push via GitHub Actions
-- Required: 0 failures, 1,800+ passing
+- Required: 0 failures, 1,900+ passing
 - Behavior harness runs in stub mode (fast, deterministic)
 - Real-mode evaluation runs on schedule / manual trigger
+
+> Gate numbers per milestone are tracked in [[01-Architecture/10-Status & Debt]]. Latest verified gate: **1,990 passed / 2 skipped, Oct 25 2026**.
 
 ---
 

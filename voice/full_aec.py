@@ -30,6 +30,7 @@ class FullAEC:
 
         self._near_end_power = 0.0
         self._far_end_power = 0.0
+        self._has_playback = False
         self._double_talk = False
         self._hangover = 0
         self._clip_counter = 0
@@ -38,6 +39,8 @@ class FullAEC:
     def add_playback(self, audio):
         if len(audio) == 0:
             return
+        with self._lock:
+            self._has_playback = True
         with self._lock:
             total = len(self._playback_buffer)
             offset = 0
@@ -55,6 +58,14 @@ class FullAEC:
             return mic_audio
         try:
             with self._lock:
+                # Live-verified (Oct 25): with no playback ever fed, this stage
+                # can only corrupt audio — the residual filter adapts on its own
+                # output history (res_matrix built from prior errors) with a
+                # 1e-10 norm floor, so adaptation diverges exponentially and
+                # destroyed real speech while still in range before it blew up
+                # to NaN. No far-end signal means there is nothing to cancel.
+                if not self._has_playback:
+                    return mic_audio
                 total = len(self._playback_buffer)
                 n = len(mic_audio)
 
@@ -113,6 +124,15 @@ class FullAEC:
                 clip_mask = np.abs(errors) > threshold
                 errors[clip_mask] *= 0.5
 
+                # Trust boundary: overflow anywhere upstream (live-observed
+                # once weights diverged) must never reach the recorder as NaN,
+                # and the recursive residual buffer must never store inf.
+                if not np.all(np.isfinite(errors)):
+                    self.reset()
+                    logger.warning("[FullAEC] Non-finite output — weights reset, returning raw mic")
+                    return np.nan_to_num(mic_audio, nan=0.0, posinf=1.0, neginf=-1.0)
+                errors = np.clip(errors, -1.0, 1.0)
+
                 # Update residual buffer (vectorized circular write)
                 end = self._residual_idx + n
                 if end <= self.residual_tail_length:
@@ -126,13 +146,20 @@ class FullAEC:
 
                 # NLMS weight update (accumulated across all samples)
                 if not self._double_talk:
-                    norms = np.sum(ref_matrix ** 2, axis=1) + 1e-10
+                    # Norm floor 1e-6 (was 1e-10 post-square): silence frames
+                    # made the division explode — the live divergence seed.
+                    norms = np.maximum(np.sum(ref_matrix ** 2, axis=1), 1e-6)
                     update = ((mu * errors / norms)[:, None]) * ref_matrix
                     self._filter_weights += np.sum(update, axis=0)
 
-                    res_norms = np.sum(res_matrix ** 2, axis=1) + 1e-10
+                    res_norms = np.maximum(np.sum(res_matrix ** 2, axis=1), 1e-6)
                     res_update = ((mu * 0.3 * errors / res_norms)[:, None]) * res_matrix
                     self._residual_weights += np.sum(res_update, axis=0)
+
+                    # Echo gain above 1.0 is unphysical; unclamped adaptation
+                    # diverges (live: 1e27 peaks) and would poison the recorder.
+                    np.clip(self._filter_weights, -1.0, 1.0, out=self._filter_weights)
+                    np.clip(self._residual_weights, -1.0, 1.0, out=self._residual_weights)
 
                 return errors
         except Exception as e:
@@ -153,6 +180,7 @@ class FullAEC:
             self._residual_idx = 0
             self._near_end_power = 0.0
             self._far_end_power = 0.0
+            self._has_playback = False
             self._double_talk = False
             self._hangover = 0
 

@@ -82,7 +82,7 @@ class SystemMixin:
             from config.settings import Settings
             s = Settings()
             keys = ["WHISPER_MODEL", "VOICE_SAMPLE_RATE", "SILENCE_THRESHOLD",
-                    "KOKORO_VOICE", "KOKORO_LANG_CODE", "PORCUPINE_ENABLED", "EMBEDDING_MODEL",
+                    "KOKORO_VOICE", "KOKORO_LANG_CODE", "EMBEDDING_MODEL",
                     "LLM_MODEL", "LLM_TEMPERATURE", "MEMORY_RECALL_LIMIT", "SCHEDULER_ENABLED",
                     "DEBUG_MODE", "LOG_LEVEL"]
             cfg = {}

@@ -8,9 +8,12 @@ import numpy as np
 _DEFAULT_PRIORITY = 2
 
 from config.voice import (
+    UTTERANCE_MIN_VOICED,
+    UTTERANCE_TRAILING_KEEP,
     UTTERANCE_VAD_MAX_FRAMES,
     UTTERANCE_VAD_MIN_MEAN,
     UTTERANCE_VAD_MIN_RATIO,
+    VAD_PRE_ROLL,
 )
 from voice.audio_buffer import AudioBuffer
 from voice.microphone import Microphone
@@ -86,9 +89,14 @@ class VoiceManager:
 
     def set_speaking(self, speaking, interrupt_manager=None):
         with self._lock:
+            was_speaking = self._speaking
             self._speaking = speaking
         if interrupt_manager:
             self._interrupt_manager = interrupt_manager
+        if speaking and not was_speaking and self._recorder is not None:
+            # Drop anything the mic caught before playback began, so her own
+            # voice never reaches the next user turn (live log 2026-10-27).
+            self._recorder.stop()
 
     def is_speaking(self):
         with self._lock:
@@ -127,6 +135,8 @@ class VoiceManager:
                 min_recording=self.min_recording,
                 max_recording=self.max_recording,
                 vad=self._vad,
+                pre_roll=VAD_PRE_ROLL,
+                trailing_keep=UTTERANCE_TRAILING_KEEP,
             )
             self._recorder.set_callback(self._on_utterance)
         if self._microphone is None:
@@ -225,7 +235,10 @@ class VoiceManager:
                 logger.warning("[VoiceManager] audio_buffer is None in callback")
                 return
             self._audio_buffer.add(processed)
-            if self._recorder:
+            # Never record while Mai is talking: there is no echo cancellation
+            # (send_playback_audio is never called), so her own TTS reaches the
+            # mic and would be transcribed as the user's words.
+            if self._recorder and not _speaking:
                 self._recorder.add_chunk(processed)
         return mic_callback
 
@@ -327,10 +340,17 @@ class VoiceManager:
             logger.warning("[VoiceManager] VAD unavailable — utterance gate skipped")
             return True, 0.0, 0.0
         mean, ratio = score
-        ok = mean >= UTTERANCE_VAD_MIN_MEAN and ratio >= UTTERANCE_VAD_MIN_RATIO
+        voiced = ratio * len(audio) / self.sample_rate
+        ok = (mean >= UTTERANCE_VAD_MIN_MEAN
+              and ratio >= UTTERANCE_VAD_MIN_RATIO
+              and voiced >= UTTERANCE_MIN_VOICED)
         if ok:
             logger.info("[Gate] Accepted speech (mean=%.2f ratio=%.2f samples=%d)",
                         mean, ratio, len(audio))
+        elif voiced < UTTERANCE_MIN_VOICED:
+            logger.info("[Gate] Rejected short speech (voiced=%.2fs < %.2fs, "
+                        "mean=%.2f ratio=%.2f samples=%d)",
+                        voiced, UTTERANCE_MIN_VOICED, mean, ratio, len(audio))
         return ok, mean, ratio
 
     def _wake_loop(self):
@@ -358,7 +378,7 @@ class VoiceManager:
         """
         ok, mean, ratio = self._gate_utterance(audio)
         if not ok:
-            logger.info("[WakeThread] Rejected non-speech (mean=%.2f ratio=%.2f samples=%d)",
+            logger.info("[WakeThread] Rejected utterance (mean=%.2f ratio=%.2f samples=%d)",
                         mean, ratio, len(audio))
             return False
 
@@ -380,9 +400,13 @@ class VoiceManager:
         latency = (time.perf_counter() - t0) * 1000
 
         if not text:
+            # Accepted speech transcribing to nothing must be visible — it is
+            # the signature of in-range content corruption, not silence.
+            logger.info("[WakeThread] Empty transcription (mean=%.2f ratio=%.2f samples=%d, %.0fms)",
+                        mean, ratio, len(audio), latency)
             return False
 
-        logger.info("[WakeThread] Heard: %s (Whisper: %.0fms, samples=%d)", text, latency, len(audio))
+        logger.info("[WakeThread] Heard: %s (STT: %.0fms, samples=%d)", text, latency, len(audio))
 
         # Check for wake word
         if self.wake_detector and self.wake_detector.detect_in_text(text):
@@ -521,11 +545,25 @@ class VoiceManager:
         with ensure_correlation("voice"):
             return self._listen_impl(wake_required=wake_required, timeout=timeout)
 
+    def _discard_stale_utterances(self):
+        """Drop utterances recorded before this turn started.
+
+        The recorder is always running, so audio captured during playback (or
+        between turns) can sit in the queue. Consuming it would answer Mai's
+        own voice or a previous turn's tail (live log 2026-10-27).
+        """
+        while True:
+            try:
+                self._utterance_queue.get_nowait()
+            except queue.Empty:
+                return
+
     def _listen_impl(self, wake_required=True, timeout=None):
         logger.info("[VoiceManager] listen() entered (wake_required=%s)", wake_required)
         self._ensure_components()
 
         self._stop_wake_detection()
+        self._discard_stale_utterances()
 
         self._set_state(VoiceState.LISTENING)
         if self.event_bus:
@@ -586,6 +624,7 @@ class VoiceManager:
     def _listen_raw_impl(self, timeout=None, wake_required=True):
         self._ensure_components()
         self._stop_wake_detection()
+        self._discard_stale_utterances()
         try:
             try:
                 audio = self._utterance_queue.get(timeout=timeout)
@@ -632,7 +671,7 @@ class VoiceManager:
 
         ok, mean, ratio = self._gate_utterance(audio)
         if not ok:
-            logger.info("[VoiceManager] Rejected non-speech utterance (mean=%.2f ratio=%.2f samples=%d)",
+            logger.info("[VoiceManager] Rejected utterance (mean=%.2f ratio=%.2f samples=%d)",
                         mean, ratio, len(audio))
             return VoiceEvent(
                 text="",

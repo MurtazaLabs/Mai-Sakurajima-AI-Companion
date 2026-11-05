@@ -50,7 +50,12 @@ def build(app):
         logger.warning("    VoiceRenderer failed to build: %s", e)
         app.voice_renderer = None
 
-    app.stt = FasterWhisperSTT()
+    if getattr(cfg.voice_config, "STT_BACKEND", "whisper") == "kyutai":
+        from voice.stt_kyutai import KyutaiSTT
+        app.stt = KyutaiSTT()
+        logger.info("    ✓ STT: Kyutai (streams, falls back to faster-whisper on any failure)")
+    else:
+        app.stt = FasterWhisperSTT()
 
     try:
         if cfg.voice_config.ADAPTIVE_NOISE_ENABLED:

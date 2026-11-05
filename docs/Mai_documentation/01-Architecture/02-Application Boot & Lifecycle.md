@@ -9,8 +9,8 @@
 | Entry | Mode |
 |-------|------|
 | `run.py` | CLI / interactive / server / daemon select |
-| `run_daemon.py` | native daemon (tray, hotkeys, uvicorn) |
-| `MaiAPI.bootstrap()` | REST bootstrap (calls `run.bootstrap_system()`) |
+| `run_daemon.py` | native desktop app (M14, Oct 2026): tray, hotkeys, pywebview `AppWindow` (close→hide-to-tray), single-instance focus, install-app shortcut |
+| `MaiAPI.bootstrap()` | REST bootstrap (module-level `app` for `run_daemon.py`; sets `mai.app` / `mai.kernel`) |
 
 All converge on `ApplicationBuilder.build()` → `AIApplication`.
 
@@ -49,6 +49,7 @@ Infrastructure → Core/Cognition → Memory → Knowledge → Reasoning → Age
 - Vault migration idempotent (MD5-keyed dedup of replayed writes).
 - Plugins load in phase 8 (after brain exists).
 - DirectoryWatcher + DreamEngine start post-boot, non-blocking.
+- `HealthRegistry.heartbeat_all()` runs at end of `build()` (post-validation) — boot-end stall-timer reset; with ≥2-heartbeat stalling rule (Aug 9), construction-only components can never be flagged STALLED.
 
 ## Shutdown (Reverse Order, With Timeouts)
 

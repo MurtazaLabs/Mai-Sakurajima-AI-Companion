@@ -477,7 +477,6 @@ E:\Mai_ai\
         metrics.py
         microphone.py
         noise_filter.py
-        porcupine_detector.py
         prosody.py
         realtime.py
         recorder.py

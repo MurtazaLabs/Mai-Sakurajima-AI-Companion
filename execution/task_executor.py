@@ -8,6 +8,7 @@ logger = logging.getLogger(__name__)
 
 from app.config_loader import Settings
 from execution.handlers import CommandActions, DesktopActions, SystemActions
+from execution.handlers import _result as _shared_result
 
 
 class TaskExecutor:
@@ -373,25 +374,9 @@ class TaskExecutor:
     # 📦 RESULT OBJECT
     # ==================================================
 
-    def _result(
-
-        self,
-
-        success,
-
-        output,
-
-        duration
-    ):
-
-        return {
-
-            "success": bool(success),
-
-            "output": str(output),
-
-            "duration": float(duration)
-        }
+    def _result(self, success, output, duration):
+        # delegates to execution.handlers._result — single shared helper
+        return _shared_result(success, output, duration)
 
     # ==================================================
     # 📊 STATS

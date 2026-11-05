@@ -146,6 +146,16 @@ def bootstrap_system():
 # ==================================================
 # 🚀 MODE HANDLERS
 # ==================================================
+def _daemon_quit(app):
+    """Tray Quit — graceful: stop subsystems (drains the WriteJournal batch
+    queue, ordered teardown) before the process exits (audit Oct 25 2026)."""
+    try:
+        app.shutdown()
+    except Exception as e:
+        logger.warning("[Daemon] Graceful shutdown failed: %s", e)
+    os._exit(0)
+
+
 def run_cli_mode():
     """Foreground CLI with interactive kernel FSM."""
     logger.info("Starting Mai AI in CLI mode...")
@@ -200,7 +210,7 @@ def run_daemon_mode(window=True):
             host=host, port=port,
             voice_manager=mai.voice_manager, brain=mai.brain,
             on_open=app_window.show if app_window else None,
-            on_quit=lambda: os._exit(0),
+            on_quit=lambda: _daemon_quit(mai.app),
         )
         tray.start()
         logger.info("[Daemon] System tray started")

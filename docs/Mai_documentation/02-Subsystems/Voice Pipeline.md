@@ -15,10 +15,13 @@ Full-duplex voice: wake word → listen → transcribe → understand → respon
 ## Pipeline Flow
 
 ```
-WakeWord / hotkey → Mic capture (16k) → VAD → STT → IntentCore
-    → Brain.think → KokoroTTS (emotion=) → StreamPlayer
+WakeWord / hotkey → Mic capture (16k) → Recorder
+    → whole-utterance VAD gate (Phase 0, Oct 2026) → STT (full clip) → IntentCore
+    → Brain.think / think_stream → KokoroTTS (emotion=) → StreamPlayer
     → InterruptManager (barge-in: mic RMS > threshold breaks speak_stream)
 ```
+
+**Whole-utterance VAD gate (Phase 0, Oct 2026):** before *any* `stt.transcribe()`, the clip is scored by `VAD.utterance_score()` (Silero mean over ≤256 frames). Reject when `mean < 0.15` or `speech_ratio < 0.10` (`UTTERANCE_VAD_*` in `config/voice.py`, live-calibrated). Fail-open if VAD unavailable. Enforced in `VoiceManager._handle_wake_audio()` + `_transcribe()` and on the kernel's `return_audio` conversation path — this killed Whisper's hallucinated transcriptions of fan/hiss noise. Diarization (when active) only labels the dominant speaker on the **full clip** — regions are never sliced before STT.
 
 ---
 

@@ -1,6 +1,7 @@
 import logging
 import threading
 import time
+from collections import deque
 from collections.abc import Callable
 from typing import Any
 
@@ -39,6 +40,8 @@ class Recorder:
         speech_onset_frames: int = 3,
         energy_threshold: float = 0.02,
         min_chunk_amplitude: float = 0.001,
+        pre_roll: float = 0.4,
+        trailing_keep: float = 0.2,
     ):
         self.sample_rate = sample_rate
         self.silence_timeout = silence_timeout
@@ -49,6 +52,13 @@ class Recorder:
         self._callback: Callable[[np.ndarray | None], None] | None = None
         self._state = STATE_LISTENING
         self._audio: list[NDArray[np.float32]] = []
+        # Onset frames belong to the utterance: without this the first
+        # 100-200ms of every phrase was dropped, so short wake words reached
+        # STT as mid-word fragments and decoded to "" (live log 2026-10-27).
+        self._pre_roll_max = max(0, int(pre_roll * sample_rate))
+        self._pre_roll: deque[NDArray[np.float32]] = deque()
+        self._pre_roll_samples = 0
+        self._trailing_keep = trailing_keep
         self._silence_start: float | None = None
         self._recording_start: float | None = None
         self._speech_frames = 0
@@ -68,7 +78,22 @@ class Recorder:
 
     def add_chunk(self, chunk: NDArray[np.float32]) -> None:
         with self._lock:
+            # Hardware/driver glitches and unstable DSP stages (AEC weights,
+            # FFT filter) can emit |values| > 1.0 (observed: 30.4, 1.17e11).
+            # Recorder audio is float32 in [-1, 1] by contract — sanitize once
+            # here so every upstream producer is covered.
+            chunk = np.asarray(chunk)
+            if not np.all(np.isfinite(chunk)):
+                # NaN breaks every comparison — the peak clamp missed it (live
+                # log 12:10:49: max=nan utterance reached the VAD gate).
+                logger.warning("[Recorder] Non-finite chunk sanitized (nan/inf -> 0)")
+                chunk = np.nan_to_num(chunk, nan=0.0, posinf=1.0, neginf=-1.0)
+            if chunk.size and np.max(np.abs(chunk)) > 1.0:
+                logger.warning("[Recorder] Corrupt chunk clamped (peak=%.4f)", np.max(np.abs(chunk)))
+                chunk = np.clip(chunk, -1.0, 1.0)
+            chunk = chunk.astype(np.float32)
             if self._state == STATE_LISTENING:
+                self._push_pre_roll(chunk)
                 self._update_noise_floor(chunk)
                 # Skip VAD for near-silent chunks — prevents noise-triggered
                 # recording cycles from ambient mic hiss / fan noise.
@@ -81,7 +106,9 @@ class Recorder:
                     if self._speech_frames >= self._speech_onset_frames:
                         logger.info("[Recorder] Speech onset detected — starting recording")
                         self._state = STATE_RECORDING
-                        self._audio = [np.copy(chunk)]
+                        self._audio = list(self._pre_roll)
+                        self._pre_roll.clear()
+                        self._pre_roll_samples = 0
                         self._silence_start = None
                         self._recording_start = time.time()
                         self._speech_frames = 0
@@ -117,6 +144,8 @@ class Recorder:
         with self._lock:
             self._state = STATE_LISTENING
             self._audio = []
+            self._pre_roll.clear()
+            self._pre_roll_samples = 0
             self._speech_frames = 0
             self._silence_start = None
         self._recording_start = None
@@ -145,6 +174,35 @@ class Recorder:
         elif volume < self._noise_floor * 2.0:
             self._noise_floor = self._noise_floor * (1 - _ADAPTIVE_RATE * 0.1) + volume * (_ADAPTIVE_RATE * 0.1)
 
+    def _push_pre_roll(self, chunk):
+        """Keep the most recent ~pre_roll seconds so the utterance can start
+        before the onset sample instead of after it. pre_roll=0 keeps exactly
+        the current chunk (the onset frame itself must never be dropped)."""
+        self._pre_roll.append(np.copy(chunk))
+        self._pre_roll_samples += chunk.size
+        cap = max(0, self._pre_roll_max)
+        while len(self._pre_roll) > 1 and (
+                self._pre_roll_samples - self._pre_roll[0].size >= cap):
+            self._pre_roll_samples -= self._pre_roll.popleft().size
+
+    def _trim_trailing_silence(self, audio):
+        """Drop the silence tail the recorder waits through (silence_timeout),
+        keeping a short guard so word endings are not clipped. Shorter audio is
+        directly less STT work: kyutai decode time scales with clip length."""
+        if not self._trailing_keep or not len(audio):
+            return audio
+        frame = 160  # 10 ms
+        floor = max(float(np.max(np.abs(audio))) * 0.02, 1e-4)
+        end = len(audio)
+        min_len = int(self.sample_rate * 0.2)
+        while end - frame > min_len:
+            seg = audio[end - frame:end]
+            if float(np.sqrt(np.mean(seg * seg))) < floor:
+                end -= frame
+            else:
+                break
+        return audio[:min(len(audio), end + int(self._trailing_keep * self.sample_rate))]
+
     def _finalize(self, reason=""):
         self._state = STATE_FINALIZING
         result = self._build_result(reason=reason)
@@ -167,6 +225,7 @@ class Recorder:
         if elapsed < self.min_recording:
             logger.debug("[Recorder] Discarded short (%.3fs < %.3fs)", elapsed, self.min_recording)
             return None
+        audio = self._trim_trailing_silence(audio)
         max_val = np.max(np.abs(audio))
         logger.info("[Recorder] Utterance: reason=%s elapsed=%.2fs samples=%d max=%.4f",
                     reason, elapsed, len(audio), max_val)
