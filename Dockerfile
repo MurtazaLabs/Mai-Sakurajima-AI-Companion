@@ -8,6 +8,11 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
     ffmpeg \
     && rm -rf /var/lib/apt/lists/*
 
+# Install CPU-only PyTorch wheels before the application requirements.
+# The default PyPI wheels can pull large NVIDIA CUDA runtimes, which are
+# unnecessary for this CPU container and exhaust disk during ARM64 builds.
+RUN pip install --no-cache-dir torch torchvision --index-url https://download.pytorch.org/whl/cpu
+
 COPY requirements-docker.txt .
 RUN pip install --no-cache-dir -r requirements-docker.txt
 
