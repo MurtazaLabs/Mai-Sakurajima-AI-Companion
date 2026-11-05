@@ -8,6 +8,7 @@ Pins the plan §4 requirements:
   voice never dies;
 - STT_BACKEND config honors the env var ("whisper" default).
 """
+
 import sys
 from types import ModuleType
 
