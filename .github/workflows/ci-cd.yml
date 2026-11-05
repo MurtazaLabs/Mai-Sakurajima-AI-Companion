@@ -131,6 +131,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     needs: security-scan
+    permissions:
+      contents: read
+      packages: write
     outputs:
       image-tag: ${{ steps.meta.outputs.tags }}
       image-digest: ${{ steps.build.outputs.digest }}
