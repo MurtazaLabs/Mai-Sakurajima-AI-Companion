@@ -168,7 +168,8 @@ jobs:
         uses: docker/build-push-action@v5
         with:
           context: .
-          push: true
+          # Pull requests (especially fork PRs) must not publish to GHCR.
+          push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
           cache-from: type=gha
@@ -198,6 +199,8 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     needs: build
+    # The PR build is intentionally not pushed, so there is no image to pull.
+    if: github.event_name != 'pull_request'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
