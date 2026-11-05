@@ -8,6 +8,7 @@ Pins the plan §4 requirements:
   voice never dies;
 - STT_BACKEND config honors the env var ("whisper" default).
 """
+
 import sys
 from types import ModuleType
 
@@ -15,8 +16,7 @@ import numpy as np
 import pytest
 import torch
 
-import voice.stt_kyutai as stt_mod
-from voice.stt_kyutai import KyutaiSTT
+from voice import stt_kyutai as stt_mod
 
 
 # ── stubs ────────────────────────────────────────────────────────────────
@@ -88,7 +88,7 @@ def loaded_stt(monkeypatch):
     """KyutaiSTT whose transformers import hits fakes; model pre-'loaded'."""
     registry = {"generate_calls": [], "fail_generate": False}
     monkeypatch.setitem(sys.modules, "transformers", _fake_transformers(registry))
-    stt = KyutaiSTT()
+    stt = stt_mod.KyutaiSTT()
     assert stt._ensure_model() is True
     assert stt.model is not None  # voice_manager.py:157 gate needs this
     assert stt._processor is not None
@@ -98,7 +98,7 @@ def loaded_stt(monkeypatch):
 # ── interface parity ─────────────────────────────────────────────────────
 
 def test_public_surface_matches_faster_whisper():
-    stt = KyutaiSTT()  # constructor is import-light (lazy loaders)
+    stt = stt_mod.KyutaiSTT()  # constructor is import-light (lazy loaders)
     for name in ("transcribe", "stats", "sample_rate", "model", "_ensure_model"):
         assert hasattr(stt, name), f"KyutaiSTT missing {name}"
 
@@ -128,7 +128,7 @@ def test_dynamo_disabled_when_triton_missing():
     # 2-9s on a cold shape (measured). The backend turns torch.compile off.
     import importlib.util
 
-    stt = KyutaiSTT()
+    stt = stt_mod.KyutaiSTT()
     saved = torch._dynamo.config.disable
     try:
         stt._disable_dynamo(torch)
@@ -165,10 +165,9 @@ def test_load_failure_permanently_falls_back(monkeypatch):
 
     fake.KyutaiSpeechToTextForConditionalGeneration = _broken_loader
     monkeypatch.setitem(sys.modules, "transformers", fake)
-    stub = monkeypatch.setattr(stt_mod, "FasterWhisperSTT", _StubWhisper)
-    from voice.stt import FasterWhisperSTT as _unused
+    monkeypatch.setattr(stt_mod, "FasterWhisperSTT", _StubWhisper)
 
-    stt = KyutaiSTT()
+    stt = stt_mod.KyutaiSTT()
     assert stt._ensure_model() is False
     out = stt.transcribe(np.zeros(1600, dtype=np.float32))
     assert out == "whisper says hi"
@@ -221,9 +220,9 @@ def test_stt_backend_default_whisper(monkeypatch):
 
 def test_stt_backend_env_switch(monkeypatch):
     monkeypatch.setenv("STT_BACKEND", "kyutai")
-    import config
-    import config.voice as cv
     import importlib
+
+    import config.voice as cv
     importlib.reload(cv)
     try:
         assert cv.STT_BACKEND == "kyutai"

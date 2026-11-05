@@ -16,6 +16,10 @@ extend-exclude = [
     "docs",
 ]
 
+[tool.ruff.lint.isort]
+# Ensure the repository package is consistently treated as first-party in CI.
+known-first-party = ["voice"]
+
 [tool.ruff.lint]
 # Style backlog: deferred cleanup, not concealment (ruff check must exit 0).
 ignore = [

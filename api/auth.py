@@ -9,13 +9,12 @@ for enterprise single sign-on.
 import base64
 import ipaddress
 import logging
-import os
 import re
 import secrets
 import time
 from datetime import datetime, timedelta, timezone
-from typing import Any
 from pathlib import Path
+from typing import Any
 from urllib.parse import urlencode
 
 import bcrypt
