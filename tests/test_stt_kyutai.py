@@ -166,7 +166,6 @@ def test_load_failure_permanently_falls_back(monkeypatch):
     fake.KyutaiSpeechToTextForConditionalGeneration = _broken_loader
     monkeypatch.setitem(sys.modules, "transformers", fake)
     stub = monkeypatch.setattr(stt_mod, "FasterWhisperSTT", _StubWhisper)
-    from voice.stt import FasterWhisperSTT as _unused
 
     stt = KyutaiSTT()
     assert stt._ensure_model() is False
@@ -221,9 +220,9 @@ def test_stt_backend_default_whisper(monkeypatch):
 
 def test_stt_backend_env_switch(monkeypatch):
     monkeypatch.setenv("STT_BACKEND", "kyutai")
-    import config
-    import config.voice as cv
     import importlib
+
+    import config.voice as cv
     importlib.reload(cv)
     try:
         assert cv.STT_BACKEND == "kyutai"
