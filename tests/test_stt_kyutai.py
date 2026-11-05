@@ -15,8 +15,8 @@ import numpy as np
 import pytest
 import torch
 
-from voice.stt_kyutai import KyutaiSTT
 import voice.stt_kyutai as stt_mod
+from voice.stt_kyutai import KyutaiSTT
 
 
 # ── stubs ────────────────────────────────────────────────────────────────
