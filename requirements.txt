@@ -107,7 +107,7 @@ sympy==1.14.0
 tenacity==9.1.4
 threadpoolctl==3.6.0
 tiktoken==0.13.0
-tokenizers==0.21.4
+tokenizers==0.22.1
 tomli==2.4.1
 # torch/torchaudio: CPU builds from the PyTorch index (added by requirements-ci.txt).
 # torchaudio 2.x pins exact torch versions in wheel metadata — these two must
