@@ -63,6 +63,10 @@ class TestBuildDashboardState:
         assert state["goals"]["active"] == 3
         assert state["world"]["total_entities"] == 5
         assert state["personality"]["openness"] == 0.6
+        # A lightweight MagicMock brain must not synthesize a graph_manager
+        # and trigger graph reflection during the dashboard state request.
+        assert "graph_reflection" not in state
+        assert "graph_manager" not in brain._mock_children
 
     def test_without_brain(self):
         with _patch_mai(brain=None, goal_manager=None, world_model=None, _ready=False):
