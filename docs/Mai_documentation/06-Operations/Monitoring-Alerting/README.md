@@ -8,9 +8,9 @@
 
 | Component          | Purpose                       | Status         |
 | ------------------ | ----------------------------- | -------------- |
-| **Prometheus**     | Metrics collection & storage  | 🟡 Planned     |
-| **Grafana**        | Dashboards & visualization    | 🟡 Planned     |
-| **Alertmanager**   | Alert routing & deduplication | 🟡 Planned     |
+| **Prometheus**     | Metrics collection & storage  | 🟡 Exporter live (`/metrics`), server not deployed |
+| **Grafana**        | Dashboards & visualization    | 🟡 Assets in `monitoring/`, not deployed |
+| **Alertmanager**   | Alert routing & deduplication | 🔴 Not Started |
 | **Loki**           | Log aggregation               | 🔴 Not Started |
 | **HealthRegistry** | In-process health metrics     | 🟢 Active      |
 
@@ -22,6 +22,7 @@
 |----------|---------|----------|
 | `GET /api/health` | Liveness probe | `{"status": "ok"}` if all core subsystems healthy |
 | `GET /api/status` | Readiness probe | Emotion, goals, world model stats |
+| `GET /metrics` | **Prometheus text exposition** (live) | auth-gated in production; 503 `metrics_unavailable` if the metrics module is absent |
 | `GET /api/inspector/events` | Live event stream | Event Inspector feed |
 | `GET /api/inspector/traces` | Tracer | Recent traces |
 
@@ -80,21 +81,21 @@ health_registry.stats()  # {"component_name": {"status": "ok|warn|error|stalled"
 ## Integration Points
 
 - **EventBus** → `EventInspector` → `/api/inspector/events` (real-time)
-- **HealthRegistry** → Prometheus exporter (planned)
+- **Metrics** → `/metrics` Prometheus text exporter (live; see `api/routes_system.py` / metrics module)
+- **HealthRegistry** → surfaced through `/api/health` + dashboard; direct Prometheus scrape is available via `/metrics`
 - **Structured Logs** → Loki (planned) — `logs/` JSON format
-- **Tracer** → `data/traces/` — PII-redacted cognitive traces
+- **Tracer** → `logs/cognitive_audit/*.json` — PII-redacted cognitive traces
 
 ---
 
 ## Next Steps
 
-- [ ] Deploy Prometheus + Grafana stack (Docker Compose)
-- [ ] Add Prometheus exporter to HealthRegistry
+- [ ] Deploy Prometheus + Grafana stack (Docker Compose, visualize the live `/metrics` endpoint)
 - [ ] Define alert rules in Alertmanager
-- [ ] Build Grafana dashboards
+- [ ] Build Grafana dashboards from `monitoring/` assets
 - [ ] Configure Loki for log aggregation
 - [ ] Set up notification channels (Discord, email, PagerDuty)
 
 ---
 
-*Last updated: 2026-09-03*
+*Last updated: 2026-11-08 — `/metrics` Prometheus exporter verified live; alerting/dashboards still planned.*

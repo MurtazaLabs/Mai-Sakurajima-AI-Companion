@@ -8,12 +8,12 @@
 
 | Area | Description | Status |
 |------|-------------|--------|
-| [[Monitoring-Alerting]] | Prometheus/Grafana, alert rules, health endpoints | 🟡 Planned |
-| [[Backup-Disaster-Recovery]] | Backup/restore procedures, DR testing | 🟡 Planned |
-| [[Deployment]] | Docker, native daemon installer, rollback | 🟢 Partial |
-| [[Troubleshooting]] | Common issues, debugging guides, performance | 🟢 Partial |
-| [[Maintenance]] | Log rotation, vault janitor, model updates | 🟢 Partial |
-| [[Incident-Response]] | Runbooks, escalation, post-mortems | 🔴 Not Started |
+| [[Monitoring-Alerting/README\|Monitoring & Alerting]] | Prometheus/Grafana, alert rules, health endpoints | 🟢 Partial — `/metrics` live, stack planned |
+| [[Backup-Disaster-Recovery/README\|Backup & Disaster Recovery]] | Backup/restore procedures, DR testing | 🟡 Planned |
+| [[Deployment/README\|Deployment]] | Docker, native daemon installer, rollback | 🟢 Partial |
+| [[Troubleshooting/README\|Troubleshooting]] | Common issues, debugging guides, performance | 🟢 Partial |
+| [[Maintenance/README\|Maintenance]] | Log rotation, vault janitor, model updates | 🟢 Partial |
+| [[Incident-Response/README\|Incident Response]] | Runbooks, escalation, post-mortems | 🔴 Not Started |
 
 ---
 
@@ -21,7 +21,8 @@
 
 - **Health Check**: `GET /api/health` — liveness probe
 - **Status**: `GET /api/status` — readiness, emotion, goals, world model
-- **Metrics**: `GET /api/inspector/events` — live event stream
+- **Metrics**: `GET /metrics` — Prometheus text exposition (live; auth-gated in production)
+- **Event stream**: `GET /api/inspector/events` — live event inspector feed
 - **Logs**: `logs/` — structured JSON, cognitive audit, orchestrator transitions
 
 ---
@@ -41,7 +42,7 @@
 - [[01-Architecture/10-Status & Debt]] — Subsystem maturity, technical debt register
 - [[04-Development/Deployment Guide]] — Docker, daemon installer, hardening checklist
 - [[01-Architecture/02-Application Boot & Lifecycle]] — 8-phase boot, validation, shutdown
-- [[01-Architecture/09-Events & Data Flow]] — Event fabric, 67 specs, 4 data paths
+- [[01-Architecture/09-Events & Data Flow]] — Event fabric (72 specs: 50 data.* + 22 state.*), 4 data paths
 
 ---
 

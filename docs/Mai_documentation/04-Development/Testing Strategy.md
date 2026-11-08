@@ -4,22 +4,24 @@
 
 ---
 
-## Test Suite Overview (Oct 2026)
+## Test Suite Overview (Nov 2026)
 
 | Metric | Value |
 |--------|-------|
-| **Total tests** | 1,990 passing + 2 skipped, 0 failures (live-verified Oct 25 2026 under mai_env, ~4 min) |
-| **Test modules** | 72 `test_*.py` (83 py files under `tests/`, ~19,300 lines) |
+| **Total tests** | 2,035 collected; 2,033 passing + 2 skipped, 0 failures (live-verified Nov 8 2026 under mai_env, 3m05s) |
+| **Test modules** | 77 `test_*.py` (88 py files under `tests/`, 23,658 lines) |
 | **Coverage** | Core subsystems well-covered; api/, knowledge/ improving |
 | **Framework** | pytest with asyncio, fixtures, parametrize |
 | **Interpreter** | `mai_env/` is the real runtime (voice stack: kokoro, faster-whisper, speechbrain, webview, pystray…) — base Python only runs a wounded subset |
+
+> The 2 skips are environment-gated: `tests/test_doc_system.py` requires the developer-local OpenCode/Obsidian config and is **not** a documentation validator.
 
 ## Test Organization
 
 ```
 tests/
 ├── conftest.py              # shared fixtures, async event loop
-├── test_*.py                # subsystem test files (~50)
+├── test_*.py                # subsystem test files (77 modules)
 │   ├── test_brain.py        # + TestBrainNoResponseCache, stream-guard, think_stream action path
 │   ├── test_desktop_app.py  # M14: AppWindow, tray, autostart, single-instance, MaiAPI wiring
 │   ├── test_voice_gating.py # Phase 0: utterance VAD gate + diarization full-clip
@@ -159,7 +161,7 @@ pytest --cov=. --cov-report=html
 - Behavior harness runs in stub mode (fast, deterministic)
 - Real-mode evaluation runs on schedule / manual trigger
 
-> Gate numbers per milestone are tracked in [[01-Architecture/10-Status & Debt]]. Latest verified gate: **1,990 passed / 2 skipped, Oct 25 2026**.
+> Gate numbers per milestone are tracked in [[01-Architecture/10-Status & Debt]]. Latest verified gate: **2,033 passed / 2 skipped (2,035 collected), Nov 8 2026**.
 
 ---
 

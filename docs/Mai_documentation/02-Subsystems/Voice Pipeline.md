@@ -1,6 +1,7 @@
 # Voice Pipeline Reference
 
-> Complete reference for the full-duplex voice pipeline — `voice/voice_manager.py`, `voice/vad.py`, `voice/stt.py`, `voice/kokoro_tts.py`, `voice/stream_player.py`, `voice/interrupt.py`, `voice/speaker/`, `voice/emotion_detector.py`, `voice/full_aec.py`.
+> Complete reference for the full-duplex voice pipeline — `voice/voice_manager.py`, `voice/vad.py`, `voice/stt.py`, `voice/stt_kyutai.py`, `voice/kokoro_tts.py`, `voice/stream_player.py`, `voice/interrupt.py`, `voice/speaker/`, `voice/emotion_detector.py`, `voice/full_aec.py`.
+> Capability status: [[00-Overview/CURRENT_STATE]].
 
 ---
 
@@ -54,14 +55,17 @@ WakeWord / hotkey → Mic capture (16k) → Recorder
 | Component | File | Details |
 |-----------|------|---------|
 | `AdaptiveNoiseFilter` | `adaptive_noise_filter.py` | adaptive spectral subtraction |
-| `FullAEC` | `full_aec.py` | **vectorized** acoustic echo cancellation (O(n + filter_length) per block) |
+| `FullAEC` | `full_aec.py` | vectorized acoustic echo cancellation, **strict pass-through until playback is fed** — no production caller feeds it (`send_playback_audio()` is test-only) |
 | `NoiseFilter` | `noise_filter.py` | legacy static filter (deprecated) |
+
+**Echo mitigation in production:** the recorder is not fed while `VoiceManager._speaking` is true, the recorder buffer is cleared when speech starts, and `_discard_stale_utterances()` drains the queue at listen entry. Trade-off: the first syllable of an interruption may be lost.
 
 ### Speech-to-Text (STT)
 
 | Component | File | Details |
 |-----------|------|---------|
 | `FasterWhisperSTT` | `stt.py` | Faster-Whisper; RLock; lazy load; typed; TranscriptionUnavailable exception |
+| `KyutaiSTT` | `stt_kyutai.py` | optional Kyutai 1B backend (`STT_BACKEND=kyutai`); lazy load; auto device (cuda/bf16 or cpu/fp32); **permanent whisper fallback** on load or runtime failure; dynamo disabled when Triton is absent |
 
 ### Text-to-Speech (TTS)
 
@@ -91,7 +95,7 @@ WakeWord / hotkey → Mic capture (16k) → Recorder
 | Component | File | Details |
 |-----------|------|---------|
 | `VoiceEmotionDetector` | `emotion_detector.py` | emotion from prosody + text |
-| `DiarizationEngine` | `diarization.py` | who spoke when (pyannote) |
+| `DiarizationEngine` | `diarization.py` | VAD-based region detection + dominant-speaker labelling (no pyannote) |
 
 ---
 
@@ -102,9 +106,10 @@ WakeWord / hotkey → Mic capture (16k) → Recorder
 | Method | Behavior |
 |--------|----------|
 | `toggle()` | flip start/stop listening |
-| `listen()` | main hot path (refactored, <80 lines) |
+| `listen()` | thin wrapper (5 lines) over `_listen_impl()` |
 | `speak(text, emotion)` | TTS → StreamPlayer with interrupt monitoring |
 | `stop()` | immediate stop, clears state |
+| `set_speaking(bool)` | marks playback (mutes recorder, clears its buffer) |
 
 **Constructor:** `VoiceConfig` (single param) + `**kwargs` backward compat.
 
@@ -136,13 +141,21 @@ WakeWord / hotkey → Mic capture (16k) → Recorder
 
 ## Resolved Issues (Previously "Known Issues")
 
-- ✅ `listen()` refactored from 124-line method to <80 lines (P2 fixed)
+- ✅ `listen()` refactored — now 5-line wrapper over a 51-line `_listen_impl()` (P2 fixed)
 - ✅ `_valid_audio()` enhanced with header validation (P2 fixed)
 - ✅ Dead `noise_filter` param in `VoiceManager` removed (P2 fixed)
-- ✅ AEC now has live feed call sites (P2 fixed)
+- ✅ Self-hearing loop fixed (Oct 2026) — recorder muted while speaking, queue drained, greeting playback marked as speaking
+- ✅ FullAEC divergence fixed — pass-through until playback is fed, norm floors raised, weights clipped, NaN reset
 - ✅ `stt=MISSING` → `stt=ok` = lazy load on first use
 - ✅ `eval()` in sandbox replaced with `exec()` for safety
 - ✅ Type hints added to `stt.py` and `recorder.py`
+
+## Open Issues
+
+- ❌ AEC still has **no live playback feed** — `send_playback_audio()` is called only from tests; echo is handled by muting, not cancellation (see [[00-Overview/CURRENT_STATE]] §4)
+- ❌ Wake word costs a full STT pass; openWakeWord is installed but unwired (no "hey mai" model)
+- ❌ Kyutai RTF (1.17–2.97) is above the 0.7 promotion gate — opt-in only
+- ❌ True streaming STT is blocked by hardware (RTF < 1 required)
 
 ---
 

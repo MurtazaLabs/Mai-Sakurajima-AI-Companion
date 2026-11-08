@@ -1,6 +1,14 @@
 # Bug Summary & Fix Plan — Mai AI v2.0.0
 *Generated from Full Ecosystem Audit (2026-09-21)*
 
+> **Historical record — kept as-is.** The bugs and counts below describe the
+> codebase on 2026-09-21 and are **not** current. Companion documents it links
+> (`Full_Ecosystem_Audit_2026-09-21`, `Technical Debt Heatmap`,
+> `Security Review 2026-09`, `Brain Architecture`, `Database Migration Plan`)
+> were consolidated away during vault cleanup; only this page survives.
+> For present-day status see [[00-Overview/CURRENT_STATE]] and
+> [[01-Architecture/10-Status & Debt]].
+
 ---
 
 ## 🔴 CRITICAL BLOCKERS (Fix This Week)

@@ -1,6 +1,21 @@
 # Discord Integration — Product Plan & Architecture
 
-> **Date:** 2026-07-22 | **Author:** AI Product Manager + Integration Specialist | **Status:** Approved — ready for implementation
+> **Date:** 2026-07-22 | **Author:** AI Product Manager + Integration Specialist | **Status:** Approved — **not implemented beyond a relay prototype**
+>
+> **Status update (2026-11-08):** the original "Problems Identified" assessment is
+> outdated and is kept only as history. Corrected facts:
+> - `Brain` is a facade over injected subsystems (`BrainDeps`), not a god class.
+> - HTTPS (auto dev certs) and JWT/static-token auth with a `/api/*` middleware
+>   gate **exist** and are enforced whenever `API_HOST` is not loopback.
+> - Test suite is **2,035 tests** (2,033 passing / 2 skipped), not "8 tests".
+> - The web UI is a 15-page PWA with a working login flow.
+> - `gateways/` was renamed to `integrations/`.
+> - The bot file exists (`integrations/discord_bot.py`, 82 lines) but `discord`
+>   is **not installed** and nothing is wired as a channel. Real Discord work is
+>   roadmap **M24/M25** (text, then voice) and must use the shared
+>   `ChannelAdapter` contract. WhatsApp (M26, official Agent Platform only)
+>   comes **after** Discord. See [[00-Overview/CURRENT_STATE]] and
+>   [[03-Features/future-vision-roadmap]].
 
 ---
 
@@ -137,7 +152,7 @@ Discord ──► Discord Bot ──► Brain.think() (direct import)
 
 | File | Purpose |
 |------|---------|
-| `gateways/discord_bot.py` | Single-file bot (created 2026-07-22) — connect, listen, relay |
+| `integrations/discord_bot.py` | Single-file bot (created 2026-07-22, now at `integrations/`) — connect, listen, relay |
 
 ### Modified Files
 
@@ -151,8 +166,8 @@ Discord ──► Discord Bot ──► Brain.think() (direct import)
 
 ### Completed (2026-07-22)
 
-- `discord.py` 2.7.1 installed in venv
-- `gateways/discord_bot.py` created — single file, ~60 lines
+- `discord.py` was installed at the time; **it is not installed in `mai_env` today** (verified Nov 2026)
+- `integrations/discord_bot.py` created — single file, 82 lines
   - Prefix command `!mai <message>`
   - Calls `POST /api/chat` via `urllib` (no extra deps)
   - Splits responses >2000 chars for Discord's limit
@@ -165,7 +180,7 @@ Discord ──► Discord Bot ──► Brain.think() (direct import)
 2. Create Bot, copy token
 3. Set `DISCORD_TOKEN` env var
 4. Add bot to server with Send Messages + Read Message History permissions
-5. Run: `python -m gateways.discord_bot`
+5. Run: `python -m integrations.discord_bot`
 
 ---
 
@@ -183,6 +198,8 @@ Discord ──► Discord Bot ──► Brain.think() (direct import)
 ## 9. Project Assessment Summary
 
 ### Problems Identified
+
+> **Historical snapshot (2026-07-22).** Several of these are now resolved: #1 Brain is a facade (BrainDeps; dead wrappers extracted), #3 suite is 2,035 tests / 77 modules, #4 web UI is a 15-page PWA with login, #5 HTTPS dev certs ship, #6 JWT login/refresh/register exist, #7 `/metrics` + health registry + tracer exist, #8 `ProfileStore` + `SessionManager` exist (chat path still single-user), #10 semantic chunking shipped, #12 embedding cache is model-fingerprinted. #2, #9, #11 remain open.
 
 | # | Problem | Severity | Subsystem |
 |---|---------|----------|-----------|
@@ -271,4 +288,4 @@ The single most important decision before continuing: **What is the target deplo
 
 ## Wiki Links
 
-**Related:** [[01-Architecture/08-API Native & Surface]] — API surface detail • [[03-Features/Native OS Bridge Architecture]] — daemon architecture (deployment model dependency) • [[04-Development/Deployment Guide]] — HTTPS, JWT, production hardening • [[05-Reference/Complete Folder Structure]] — gateways/ folder detail
+**Related:** [[01-Architecture/08-API Native & Surface]] — API surface detail • [[03-Features/Native OS Bridge Architecture]] — daemon architecture (deployment model dependency) • [[04-Development/Deployment Guide]] — HTTPS, JWT, production hardening • [[05-Reference/Complete Folder Structure]] — integrations/ folder detail

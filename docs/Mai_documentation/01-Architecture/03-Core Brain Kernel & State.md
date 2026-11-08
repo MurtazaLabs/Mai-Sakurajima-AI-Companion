@@ -1,12 +1,12 @@
 # 03 — Core: Brain, Kernel & State
 
-> Digest of `SUBSYSTEM_DOCUMENTATION/core.md`. Full detail: [[SUBSYSTEM_DOCUMENTATION/core]], [[CLASS_REFERENCE]] §2.
+> Source docs `SUBSYSTEM_DOCUMENTATION/core.md` / `CLASS_REFERENCE.md` were merged and deleted; this page is the surviving reference. Capability status: [[00-Overview/CURRENT_STATE]].
 
 ---
 
 ## Package Stats
 
-`core/` — 66 files, 13,729 lines (**~21% of codebase** — the center of gravity).
+`core/` — 66 files, 16,030 lines (**~28% of codebase** — the center of gravity).
 
 ## The Brain (`core/brain.py`)
 
@@ -74,4 +74,4 @@ Deliberately a **facade** — heavy lifting is in injected subsystems (`BrainDep
 
 **Previous:** [[02-Application Boot & Lifecycle]]  
 **Next:** [[04-Memory Subsystem]] — the memory pipeline  
-**Related:** [[01-Architecture/09-Events & Data Flow]] — event fabric detail • [[02-Subsystems/Emotion System]] — emotion detail • [[02-Subsystems/Identity & Canon]] — canon volumes
+**Related:** [[01-Architecture/09-Events & Data Flow]] — event fabric detail • [[02-Subsystems/Identity & Canon]] — canon volumes (emotion detail lives in §Emotion & Personality above)

@@ -32,9 +32,10 @@ docker compose down
 - `./logs:/app/logs` — application logs
 
 **Auth note:** the container binds `API_HOST=0.0.0.0`, so auth is *enforced* on
-`/api/*` (JWT/static token via `Authorization: Bearer …`). The web UI has no
-browser login flow yet — REST clients work today; the Java M14 client wires the
-login/token flow. Locally (desktop daemon, loopback) auth stays off by design.
+`/api/*` (JWT/static token via `Authorization: Bearer …`). The web UI ships a
+working browser login flow (`api/static/login.html` + `js/login.js` →
+`/api/auth/login`, `/register`, `/refresh`, `/me`). Locally (desktop daemon,
+loopback) auth stays off by design unless `API_REQUIRE_AUTH=true`.
 
 **Ports:** `8000:8000` (FastAPI)
 
@@ -79,11 +80,11 @@ iscc scripts/installer.iss
 # Interactive CLI (blocks terminal)
 python run.py
 
-# REST API only
-python -m api.server
+# REST API only (no kernel FSM, no mic)
+python run.py --mode api
 
-# With custom config
-MAI_API_HOST=0.0.0.0 MAI_API_PORT=8080 python run.py
+# With custom bind (env names verified Nov 2026)
+API_HOST=0.0.0.0 API_PORT=8080 python run.py --mode api
 ```
 
 ---
@@ -107,8 +108,9 @@ MAI_API_HOST=0.0.0.0 MAI_API_PORT=8080 python run.py
 - [x] **Oct-19 security fixes** — SSRF-guarded scraper (public-target + connected-peer + proxy bypass), sandbox eval lockdown, marketplace signature enforcement, auth cookie flags, redirect-target allowlist, XSS escape in chat.js
 
 ### 🟡 In Progress / Partial
-- [ ] Multi-session / user profiles (memory scoping, profile CRUD)
-- [ ] Cloud sync (S3/Backblaze B2 periodic backup)
+- [x] Multi-session / user profiles — `core/profile_store.py` (SQLite, tenant-aware) + `core/session_manager.py`; chat path remains single-user
+- [ ] Memory scoping per profile on the chat path (retriever `user_id` filter exists)
+- [ ] Cloud sync (S3/Backblaze B2 periodic backup) — not started
 - [ ] Structured logging pipeline (JSON, Loki/ELK compatible)
 - [ ] Let's Encrypt certs for public deployments (dev HTTPS auto-generated is done)
 
@@ -124,43 +126,54 @@ MAI_API_HOST=0.0.0.0 MAI_API_PORT=8080 python run.py
 
 ### Environment Variables
 
+**Names verified against `config/settings.py` + `.env` (Nov 8 2026).** The
+`MAI_API_*` / `JWT_SECRET_KEY` names used in earlier revisions of this guide do
+not exist in the codebase.
+
 ```bash
 # API
-MAI_API_HOST=0.0.0.0
-MAI_API_PORT=8000
-MAI_API_WORKERS=4
+API_HOST=0.0.0.0            # non-loopback forces auth on /api/*
+API_PORT=8000
+API_REQUIRE_AUTH=true       # force auth even on loopback
+API_CORS_ORIGINS=<comma-separated origins>
+API_TRUSTED_HOSTS=<comma-separated hosts>
+API_RATE_LIMIT_PER_MINUTE=60
+API_RATE_LIMIT_CHAT=60
+API_RATE_LIMIT_AUTH=10
+API_RATE_LIMIT_INGEST=30
+API_RATE_LIMIT_HEALTH=300
 
-# Auth
-JWT_SECRET_KEY=<strong-random-64-char>
-JWT_ALGORITHM=HS256
-JWT_ACCESS_TOKEN_EXPIRE_MINUTES=15
-JWT_REFRESH_TOKEN_EXPIRE_DAYS=7
-STATIC_API_TOKEN=<fallback-token>
+# Auth (JWT secret auto-generated + persisted to data/jwt_secret if unset)
+API_JWT_SECRET=<strong-random>
+API_JWT_ACCESS_EXPIRE_MINUTES=15
+API_JWT_REFRESH_EXPIRE_DAYS=7
 
 # LLM
 OPENROUTER_API_KEY=<key>
-OLLAMA_HOST=http://localhost:11434
 LLM_PROVIDER=openrouter            # or "ollama" for local-first ordering (Oct 2026)
 OPENROUTER_DEFAULT_MODEL=openrouter/free   # sanitized failover list; default router (free, no 402)
+LLM_MODEL=qwen2.5:3b-instruct-q4_k_m       # Ollama model name (only used when Ollama is reachable)
+LLM_MAX_CONTEXT=4096
+LLM_TIMEOUT=120
 
 # Paths
-OBSIDIAN_VAULT=E:/MaiMemory
-ROOT_DIR=E:/Murtaza project/Mai_ai
-LOG_DIR=E:/Murtaza project/Mai_ai/logs
+ROOT_DIR=E:/Mai_ai
+MAI_OBSIDIAN_VAULT=E:/MaiMemory   # env override read by config/paths.py
 
 # Voice
-KOKORO_MODEL=hexgrad/Kokoro-82M
-VAD_MODEL_URL=<checksummed-url>
-SPEAKER_EMBEDDING_MODEL=<path>
-
-# Native
-MAI_DAEMON_MODE=1
-MAI_STARTUP_REGISTER=1
+STT_BACKEND=whisper         # or "kyutai" (opt-in; above the RTF gate)
+KYUTAI_STT_DIR=<path to stt-1b-en_fr>   # only for kyutai
 ```
 
 ### Settings Files (config/)
 
-All settings in `config/settings.py` with per-module configs in `config/*.py`. Override via env vars (prefix `MAI_`).
+All settings live as plain constants in `config/*.py`, re-exported through
+`config/settings.py`. There is **no blanket `MAI_` env prefix** — each module
+reads its own exact key (`API_HOST`, `LLM_PROVIDER`, `STT_BACKEND`, `ROOT_DIR`,
+…). A few security/sandbox opt-ins are `MAI_`-prefixed by design:
+`MAI_OBSIDIAN_VAULT`, `MAI_ALLOW_UNSIGNED_PLUGINS=1`, `MAI_SCRAPER_ALLOW_PRIVATE=1`,
+`MAI_PLUGIN_ALLOW_EVAL=1`. Desktop autostart is a CLI flag, not an env var:
+`python run_daemon.py --install-startup` / `--uninstall-startup`.
 
 ---
 
@@ -188,7 +201,7 @@ All settings in `config/settings.py` with per-module configs in `config/*.py`. O
 - Structured JSON logs in `logs/`
 - Cognitive audit logs in `logs/cognitive_audit/`
 - Orchestrator transitions in `logs/orchestrator/transitions.jsonl`
-- Tracer PII-redacted traces in `data/traces/`
+- Tracer PII-redacted traces in `logs/cognitive_audit/*.json`
 
 ---
 
@@ -198,18 +211,21 @@ All settings in `config/settings.py` with per-module configs in `config/*.py`. O
 
 | Data | Location | Frequency |
 |------|----------|-----------|
-| Vector DB | `data/vector_db/chroma.sqlite3` | Daily |
-| Knowledge graph | `data/graph/graph.json` | Daily |
+| Vector DB | `vector_memory/` (ChromaDB) | Daily |
+| SQLite state | `memory/mai.db` | Daily |
+| Knowledge graph | `OBSIDIAN_VAULT/graph/graph.json` | Daily |
 | Profiles | `data/profiles/profiles.db` | Daily |
-| Obsidian vault | `OBSIDIAN_VAULT/` | Hourly (incremental) |
-| Embedding cache | `data/cache/` | Weekly |
+| Obsidian vault | `OBSIDIAN_VAULT/` (default `~/MaiMemory`, override `MAI_OBSIDIAN_VAULT`) | Hourly (incremental) |
+| Experience / journal JSONL | `data/experiences.jsonl`, per-store JSONL | Daily |
 | Logs | `logs/` | Daily (rotate) |
 
-### Cloud Sync (Planned)
+The embedding cache is **in-process LRU only** (model-fingerprinted) — nothing to back up.
 
-- `sync/cloud_sync.py` — S3/B2 periodic sync
-- Conflict resolution: last-writer-wins + timestamp logging
-- Configurable interval (default 300s)
+### Cloud Sync (Not Started)
+
+- No `sync/` package exists. The plan (S3/B2 periodic sync, last-writer-wins
+  conflict resolution, ~300 s interval) is roadmap work only — see
+  [[00-Overview/CURRENT_STATE]] §4.
 
 ---
 

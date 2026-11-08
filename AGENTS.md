@@ -1554,6 +1554,19 @@ Whisper → Kyutai 1B STT replacement plan written to `docs/stt-kyutai-replaceme
 
 ---
 
+## Channel Decision — Discord then WhatsApp (Nov 8 2026)
+
+Planning + documentation only; **no runtime code touched**. User: *"i am not willing to risk a number and we will make discord first then whatsapp"*.
+
+- **WhatsApp transport decided: official only.** Meta's Agent Platform REST API (`api.whatsapp.com/agent/v1`, token auth, long-poll `GET /updates`) — as implemented in nanobot's `channels/whatsapp_agent/`. **Rejected:** nanobot's `channels/whatsapp/` (Neonize over `whatsmeow`) because Meta bans numbers using unofficial clients and the ban lands on the account. Accepted cost: creator-only DMs, no groups, no E2EE.
+- **Order fixed: Discord (M24/M25) before WhatsApp (M26).** The second adapter is what proves the shared `ChannelAdapter` contract; building WhatsApp first bakes its quirks into the interface.
+- **Roadmap updated** (`docs/Mai_documentation/03-Features/future-vision-roadmap.md`): Date header → 2026-11-08; three Locked-decisions rows (phone presence, WhatsApp transport, channel order); T6 rewritten as "Pocket Presence: Discord, then WhatsApp"; **M26 row added** to §4 + a paragraph explaining the ordering; two §6 risk-register rows (unofficial-client ban; Agent Platform access gating); §8 decisions-log entry.
+- Milestone range fixed in three docs that still said M14–M25 → M14–M26: `00-Overview/README.md`, `00-Overview/Project Charter.md`, `01-Architecture/10-Status & Debt.md`.
+- Contract shape adapted from nanobot `channels/base.py` (MIT — adaptation, not import). nanobot is asyncio on Python ≥3.11; Mai is threads on 3.10, so the channel layer is an adaptation (~1–2 weeks), not a merge.
+- Still open from the earlier work: nanobot's Discord channel is **text-only** (no voice/opus), so M25 voice still needs `songbird`-class Rust or equivalent; `discord` package absent in `mai_env`; `neonize` installability on 3.10/Windows never verified (no longer needed).
+
+---
+
 ## Future Vision Roadmap Documented (Oct 10 2026)
 
 User's long-term vision for Mai written to the roadmap (plan mode — no implementation yet; relocated to `docs/Mai_documentation/03-Features/future-vision-roadmap.md`). Locked decisions: local-first brain, ambient+rituals presence, autonomous-agent level, **custom original voice** (calm/mature/teasing, not anime clone), **3D VRM avatar** (VRoid-built), **on-demand screen+camera share** (explicit toggles only), **Discord instead of a custom phone app** (text V1 → voice channels V2, outbound-only security win), **file create/read** with policy tiers, and **self-code-awareness** (T7 — code index + health feeds + proactive self-diagnosis, propose-only self-modification boundary). Seven workstreams T0–T7 (T0 = Model Scheduler keystone for the 4GB-VRAM constraint), milestones **M14–M23** (M14 = scheduler + TTS bake-off first; M19 = GPU upgrade window). Next: user go for M14.

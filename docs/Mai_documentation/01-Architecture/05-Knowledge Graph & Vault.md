@@ -1,12 +1,12 @@
 # 05 — Knowledge, Graph & Vault
 
-> Digest of `SUBSYSTEM_DOCUMENTATION/knowledge.md`. Full detail: [[SUBSYSTEM_DOCUMENTATION/knowledge]], [[FILE_REFERENCE]] §5.
+> Source docs `SUBSYSTEM_DOCUMENTATION/knowledge.md` / `FILE_REFERENCE.md` were merged and deleted; this page is the surviving reference. Capability status: [[00-Overview/CURRENT_STATE]].
 
 ---
 
 ## Package Stats
 
-`knowledge/` — 29 files, 5,144 lines.
+`knowledge/` — 29 files, 5,853 lines.
 
 ## Mission
 

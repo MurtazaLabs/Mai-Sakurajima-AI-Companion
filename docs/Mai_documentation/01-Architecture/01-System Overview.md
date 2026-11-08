@@ -1,6 +1,7 @@
 # 01 — System Overview
 
-> Digest of `SYSTEM_ARCHITECTURE.md`. Full detail: [[SYSTEM_ARCHITECTURE]], [[DIRECTORY_STRUCTURE]].
+> Source docs `SYSTEM_ARCHITECTURE.md` / `DIRECTORY_STRUCTURE.md` were merged and deleted; this page is the surviving reference.
+> Authoritative capabilities list: [[00-Overview/CURRENT_STATE]].
 
 ---
 
@@ -8,15 +9,14 @@
 
 A production-oriented, modular AI companion (inspired by Mai Sakurajima) built for **long-term personal companionship**: conversational intelligence, persistent memory, voice interaction, emotional consistency, knowledge management, and extensible tooling — designed as a *platform*, not a chatbot. Every subsystem is expected to evolve independently over a multi-year timeline.
 
-## Scale (measured Oct 25 2026)
+## Scale (measured Nov 8 2026)
 
 | Metric | Value |
 |--------|-------|
-| Python files | 376 (incl. tests/profiling/integrations) |
-| Lines | 66,767 |
+| Python files | 383 — 80,024 lines incl. tests; 295 / 56,366 excl. tests |
 | Packages | 19 + 2 root entry points |
-| Subsystems | core, memory, knowledge, voice, api, agency, app, config, llm, observability, execution, reasoning, native, plugins, scripts, prompt, gateways/integrations, evaluation, profiling |
-| Tests | 1,990 passing + 2 skipped (0 failures — live-verified) |
+| Subsystems | core, memory, knowledge, voice, api, agency, app, config, llm, observability, execution, reasoning, native, plugins, scripts, prompt, integrations, evaluation, profiling |
+| Tests | 2,035 collected; 2,033 passing + 2 skipped (0 failures — live-verified Nov 8 2026) |
 
 ## Character Layer (M0–M13, complete Aug 9 2026)
 
@@ -25,7 +25,7 @@ The companion layer built on top of the core platform:
 - **Canon book** — 4 volumes at `core/identity/character/volume-0X-*.md`: identity, speech/emotion, relationships, rule-resolution (7-tier conflict priority). Registered in `canonical.py` + drift-checked by tests.
 - **Behavioral validation harness** — `tests/behavior/` (ScenarioDriver, virtual clock, causal traces, deterministic ThoughtPacket fixtures; LLM stubbed).
 - **Milestone gates** — M0 canon → M1 identity → M2 relationship → M3 needs → M4 emotion → M5 greeting-first → M6 experience & preference evolution → M7 behavioral spec → M8 consumers → M9 real-world evaluation (`evaluation/`) → M10 relationship on chat path → M11 envelope-leak guard → M12 experience in speech → M13 conflict coherence.
-- **Real-mode evidence** — transcripts + rubric reports in `docs/evaluation/session-*/`.
+- **Real-mode evidence** — transcripts + rubric reports were produced during the Aug 2026 runs (praise 4.57/5, jealousy 4.67/5, emotional 4.71/5). The generated `session-*/` folders are artifacts, not checked into the repo.
 - **No separate appraisal engine** — "emotion ≠ behavior" is enforced by distributed normative gating (emotion thresholds, prompt-injected canon, `ThoughtPacket.decision`).
 
 ## Design Principles
@@ -61,13 +61,14 @@ The application is a **composition root**: `AIApplication` is a plain container;
 
 | Store | Location | Writer |
 |-------|----------|--------|
-| Vector store | `data/memory/` (+ ChromaDB) | VectorStore |
-| Knowledge graph | `data/graph/` | BrainGraph |
-| Compiled vault | `OBSIDIAN_VAULT/` | StateDumper / VaultCompiler |
+| SQLite state DB | `memory/mai.db` | `core/state/database.py` |
+| Vector store | `vector_memory/` (ChromaDB) with JSON/SQLite fallback | VectorStore |
+| Knowledge graph | `OBSIDIAN_VAULT/graph/graph.json` (+ entity notes) — rebuilt from the vault on boot; `BrainGraph.save()` has no production caller | GraphExporter / VaultCompiler |
+| Compiled vault | `OBSIDIAN_VAULT/` (default `~/MaiMemory`, override `MAI_OBSIDIAN_VAULT`) | StateDumper / VaultCompiler |
 | Raw conversations | `…/conversation/` | MemoryWriter |
-| Profiles | `data/profiles/` | ProfileStore |
-| Logs / traces | `logs/`, `data/traces/` | logging + Tracer |
-| Embedding cache | `data/cache/` | EmbeddingService |
+| Profiles | `data/profiles/profiles.db` | ProfileStore |
+| Logs / traces | `logs/`, `logs/cognitive_audit/*.json` | logging + Tracer |
+| Embedding cache | **in-process LRU** (no on-disk cache) | EmbeddingService |
 
 ---
 

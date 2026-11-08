@@ -1,8 +1,21 @@
 # Mai Sakurajima — Future Vision Roadmap
 
 Status: **Planning — direction approved, implementation pending go**
-Date: 2026-10-19 (Java desktop client plan; feature-review fold-in 2026-10-13; original 2026-10-10)
+Date: 2026-11-08 (channel decision: Discord → WhatsApp; Java desktop client plan 2026-10-19; feature-review fold-in 2026-10-13; original 2026-10-10)
 Owner: Syed Murtaza / Mai AI Suite
+
+> **Truth anchor:** [[00-Overview/CURRENT_STATE]] is the verified list of what
+> Mai can do today. This roadmap is forward-looking; nothing below is claimed as
+> built unless the status table says so.
+
+## 0. Roadmap status (verified 2026-11-08)
+
+| Bucket | Items |
+|---|---|
+| ✅ **Completed** | Companion stage (M0–M13) · Desktop app shell — pywebview (M14, Oct 13) · VAD noise gate + self-hearing fix · OpenRouter hardening + `LLM_PROVIDER` preference · Oct-19 security audit remediation · Porcupine removal · `openwakeword` installed (unwired) · plugin platform (manifest/lifecycle/signing/sandbox/marketplace) |
+| 🟡 **In development / partial** | AEC playback feed · openWakeWord "hey mai" model · Kyutai STT (opt-in, above RTF gate) · multi-session profile scoping on chat path · entity web interface (`api/web/state/` only) · Discord relay prototype (`integrations/discord_bot.py`) |
+| 🔜 **Planned next** | **M15** Model Scheduler + TTS bake-off · **M16–M19** custom voice, VRM face, eyes, silent research + file tools · **M21** Continuity Engine · **M22** Self (code-awareness) · **M23–M25** Partner + Discord V1/V2 · **M26** WhatsApp |
+| 🔮 **Future possibilities** | Java/JavaFX client (successor to pywebview) · cloud sync · documentation site · load/chaos testing · plugin marketplace public registry · true streaming STT (needs GPU upgrade) |
 
 ## 1. North star
 
@@ -24,7 +37,9 @@ Shared life → Immortality. This roadmap covers Presence through Shared life.
 | Voice identity | **Custom original** — calm, mature, slightly teasing; Mai's personality, not the anime voice |
 | Avatar | **3D VRM model** |
 | Screen/camera vision | **On-demand click-to-share** — screen AND camera; image understanding; she never sees uninvited |
-| Phone presence | **Discord** (replaced custom mobile app) |
+| Phone presence | **Discord first, then WhatsApp** (replaced custom mobile app) |
+| WhatsApp transport | **Official Agent Platform only** — unofficial WhatsApp Web clients (Neonize/whatsmeow) rejected: account-ban risk on the real number |
+| Channel order | **Discord before WhatsApp** — the Discord adapter validates the shared channel contract first |
 | Files | She can **create and read files** |
 | Self-knowledge | She is **aware of her own code** and reports her own problems proactively |
 | Hardware | Current machine (T1000 4GB / 16GB) now; **GPU upgrade assumed mid-roadmap** |
@@ -95,25 +110,51 @@ Reference: AI Infrastructure Expert (model lifecycle, GPU/VRAM management).
   trust is high.
 - Milestone: she has her own day and reports on it.
 
-### T6 — Discord Presence (replaces custom phone app)
-- **discord.py bot** as a second front-end into the same Brain — parallel to
-  `os_kernel` and the REST API, single process, shared memory/emotion/relationship state.
-- **V1 (M24)**: text DMs + private server, push notifications via Discord
-  mobile app, presence status ("researching forex…"), her Discord avatar,
-  research reports and files posted directly in chat.
-- **V2 (M25)**: voice channels — she joins, speaks with her TTS voice, and
-  hears you (opus receive → resample 16kHz → existing VAD gate → STT) = two-way
-  voice calls from your phone. Ritual voice briefings.
+### T6 — Pocket Presence: Discord, then WhatsApp (replaces custom phone app)
+- **Shared channel contract first.** Both channels implement one
+  `ChannelAdapter` ABC — `start/stop/send/send_delta/transcribe_audio/is_allowed` —
+  backed by the existing EventBus + `MaiMessage` envelope (not nanobot's
+  `MessageBus`). Shape adapted from nanobot's `channels/base.py` (MIT); its
+  Discord and WhatsApp runtimes are **reference implementations, not imports**
+  (nanobot is asyncio, Mai is threads — porting is an adaptation, not a merge).
+  Build the contract once; the second channel then costs ~1 week instead of
+  a channel-shaped abstraction baked in from day one.
+- **Discord (M24/M25)** — `discord.py bot` as a second front-end into the same
+  Brain — parallel to `os_kernel` and the REST API, single process, shared
+  memory/emotion/relationship state.
+  - **V1 (M24)**: text DMs + private server, push notifications via Discord
+    mobile app, presence status ("researching forex…"), her Discord avatar,
+    research reports and files posted directly in chat.
+  - **V2 (M25)**: voice channels — she joins, speaks with her TTS voice, and
+    hears you (opus receive → resample 16kHz → existing VAD gate → STT) = two-way
+    voice calls from your phone. Ritual voice briefings.
+  - **Security win**: outbound-only WebSocket — no inbound ports, no Tailscale,
+    no public exposure. The local REST/daemon path remains the core; Discord is a
+    swappable front-end.
+  - Assumptions: private server (just you); bot account only (Discord ToS
+    forbids self-bots); Discord opus quality acceptable for conversation.
+- **WhatsApp (M26) — official transport only.** The user is **unwilling to risk
+  banning a real number**, so unofficial WhatsApp Web clients (Neonize /
+  `whatsmeow`, as used by nanobot's `channels/whatsapp/`) are **rejected**. It
+  lands instead via Meta's **Agent Platform REST API** (token auth,
+  long-polling `GET /updates`).
+  - **Accepted constraints:** she can talk **only to her creator**, cannot join
+    groups, and **conversations are not end-to-end encrypted** (content and
+    metadata pass through Meta). Group access and E2EE exist only on the
+    rejected unofficial path — this is the price of not risking the number.
+  - **Discord is built first**, deliberately: the second adapter is what proves
+    the contract is right. Building WhatsApp first bakes WhatsApp's quirks into
+    the interface.
+  - **Voice notes are the feature that justifies this channel.** Incoming audio
+    → existing utterance VAD gate → STT (Kyutai) → `Brain.think()` → text reply,
+    with optional Kokoro voice-note reply. Every piece already exists; this is
+    wiring, not new subsystems.
 - **Turn-taking discipline** — reuses the existing `InterruptManager`
-  barge-in + VAD gate; Discord-specific polish: comfortable pause thresholds
+  barge-in + VAD gate; channel-specific polish: comfortable pause thresholds
   before she continues, topic change mid-response handled as interruption
   rather than completed monologue.
-- **Security win**: outbound-only WebSocket — no inbound ports, no Tailscale,
-  no public exposure. The local REST/daemon path remains the core; Discord is a
-  swappable front-end.
-- Assumptions: private server (just you); bot account only (Discord ToS
-  forbids self-bots); Discord opus quality acceptable for conversation.
-- Milestone: Mai in your pocket, two-way voice, zero mobile-app development.
+- Milestone: Mai in your pocket on two channels, two-way voice on Discord, voice
+  notes on WhatsApp, zero mobile-app development.
 
 ### T7 — Self (self-code-awareness) ★ new pillar
 She knows her own code and tells you herself when something is wrong.
@@ -272,7 +313,7 @@ pattern).
 
 | # | Name | Contents | Hardware |
 |---|---|---|---|
-| M14 | **Desktop App** | JavaFX client — streaming chat, expression avatar, live status, tray/hotkey, `Mai.exe` (pywebview shell kept as fallback) | current |
+| M14 | **Desktop App** | **pywebview shell shipped (Oct 13)** — JavaFX client remains the planned revision (streaming chat, expression avatar, live status, tray/hotkey, `Mai.exe`; pywebview kept as fallback) | current |
 | M15 | Scheduler + TTS bake-off | T0 + engine evaluation | current |
 | M16 | Voice | custom original voice live, emotion-driven | current |
 | M17 | Face | VRM avatar desktop, expressions, lip-sync (+ Discord avatar asset) | current |
@@ -284,12 +325,20 @@ pattern).
 | M23 | Partner | email, calendar, presence policy, verified actions, autonomous cycles, initiative | either |
 | M24 | **Discord V1** | text DMs, notifications, presence, avatar, reports/files in chat | either |
 | M25 | **Discord V2** | voice channels, two-way voice, turn-taking polish, ritual voice briefings | either |
+| M26 | **WhatsApp** | official Agent Platform channel, creator-only DMs, voice notes → STT | either |
 
 Continuity Engine deliberately lands **before** Partner cycles and Discord —
 the second interface and autonomous actions are exactly what break continuity
 without it. Parallel-safe: T2 (avatar) and T4/T7 (research, self — mostly CPU)
 do not conflict with the GPU-heavy tracks. Discord client work can start
 against the existing Brain/REST surface at any time.
+
+**WhatsApp follows Discord, deliberately.** The second adapter is what proves
+the shared `ChannelAdapter` contract is right; building WhatsApp first would
+bake its quirks (long-poll updates, creator-only peers, no groups) into the
+interface. WhatsApp also lands on the **official** Agent Platform only — the
+unofficial Neonize/`whatsmeow` route is rejected because a ban would take the
+real number, and that risk is not accepted.
 
 ## 5. Existing foundations this builds on
 
@@ -309,6 +358,11 @@ against the existing Brain/REST surface at any time.
 - HealthRegistry / orchestrator health checks → T7 health feeds
 - FileSystemActions (sandboxed) → base for the file-tools expansion
 
+> **Caveat (verified Nov 2026):** AEC is **not** live — `FullAEC` is a pass-through
+> until `send_playback_audio()` is fed, and echo is currently mitigated by muting
+> the recorder while speaking. T1/T6 turn-taking work must wire the playback feed
+> first or inherit the "first syllable of an interruption is lost" trade-off.
+
 ## 6. Risk register
 
 | Risk | Mitigation |
@@ -317,6 +371,8 @@ against the existing Brain/REST surface at any time.
 | Community Mai VRM licensing | VRoid-built model; personal use only either way |
 | Discord platform dependency | Discord is a front-end only; local daemon + REST remain the core and stay swap-able |
 | Discord voice receive latency | ~100–500ms buffering acceptable for conversation; not for perfect barge-in |
+| WhatsApp unofficial client bans the number | Unofficial clients (Neonize/whatsmeow) **not used**; official Agent Platform only — accepted cost is creator-only DMs, no groups, no E2EE |
+| Agent Platform access/rate limits gate WhatsApp | WhatsApp is M26, behind a finished Discord adapter; nothing else depends on it. If access is refused, pocket presence still ships on Discord |
 | Self-modification danger | Propose-only boundary; code index read-only for autonomous cycles; you approve every fix |
 | File access abuse | Sandbox default; needs-approval tier for personal folders |
 | Exposing daemon for remote access | Discord path is outbound-only; any future inbound access via Tailscale + JWT (pending hardening), no public ports |
@@ -378,6 +434,15 @@ against the existing Brain/REST surface at any time.
   leave as-is — anger stays folded into `annoyed` (canon: emotionally
   mature); the frozen `sad/angry/anxious/neutral` fields in
   `core/state/models.py` recorded as known drift, untouched.
+- 2026-11-08: **WhatsApp adopted as M26, behind Discord.** Two transports were
+  weighed: unofficial Neonize/`whatsmeow` (nanobot's `channels/whatsapp/`) vs
+  Meta's official Agent Platform REST API (nanobot's `channels/whatsapp_agent/`).
+  **Unofficial rejected** — Meta bans numbers that use unofficial clients, and
+  the ban lands on the account, so the real number is not risked. Agent Platform
+  accepted with its constraints written down: creator-only DMs, no groups,
+  no E2EE. Discord ships first because it validates the shared channel contract.
+  Contract shape adapted from nanobot's `channels/base.py` (MIT — adaptation,
+  not import; nanobot is asyncio on Python ≥3.11, Mai is threads on 3.10).
 - Pending: JDK install go + P1 go (Java client skeleton + streaming chat);
   M15 (scheduler + TTS bake-off) follows after P3.
 

@@ -1,6 +1,6 @@
 # 02 — Application Boot & Lifecycle
 
-> Digest of `STARTUP_SEQUENCE.md`. Full detail: [[STARTUP_SEQUENCE]], [[DEPENDENCY_GRAPH]].
+> Source docs `STARTUP_SEQUENCE.md` / `DEPENDENCY_GRAPH.md` were merged and deleted; this page is the surviving reference. Capability status: [[00-Overview/CURRENT_STATE]].
 
 ---
 

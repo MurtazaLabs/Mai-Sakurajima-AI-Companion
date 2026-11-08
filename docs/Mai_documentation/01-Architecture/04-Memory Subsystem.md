@@ -1,12 +1,12 @@
 # 04 — Memory Subsystem
 
-> Digest of `SUBSYSTEM_DOCUMENTATION/memory.md`. Full detail: [[SUBSYSTEM_DOCUMENTATION/memory]], [[DATA_FLOW]] §2–3.
+> Source doc `SUBSYSTEM_DOCUMENTATION/memory.md` was merged and deleted; this page is the surviving reference. Capability status: [[00-Overview/CURRENT_STATE]].
 
 ---
 
 ## Package Stats
 
-`memory/` — 28 files, 5,886 lines.
+`memory/` — 28 files, 7,378 lines.
 
 ## Mission
 
@@ -16,10 +16,10 @@ Persist, rank, retrieve, and consolidate user + world memories across sessions �
 
 | Store | Purpose | Owner |
 |-------|---------|-------|
-| SQLite (`data/memory/`) | durable metadata | `VectorStore` |
-| ChromaDB | vector index (optional) | `VectorStore` |
+| SQLite (`memory/mai.db`) | durable state DB | `core/state/database.py` |
+| ChromaDB (`vector_memory/`) | vector index (optional) | `VectorStore` |
 | JSON memory objects | fallback / export | `VectorStore` |
-| Embedding cache | model outputs | `EmbeddingService` |
+| Embedding cache | in-process LRU keyed by model fingerprint | `EmbeddingService` |
 | Vault raw records | human-readable archive | `MemoryWriter` ([[05-Knowledge Graph & Vault]]) |
 
 ## Store Path

@@ -1,6 +1,6 @@
 # 09 — Events & Data Flow
 
-> Digest of `EVENT_REFERENCE.md` + `DATA_FLOW.md`. Full detail: [[EVENT_REFERENCE]], [[DATA_FLOW]]. Design spec: [[03-Features/Event Fabric Architecture]] (v2.1).
+> Source docs `EVENT_REFERENCE.md` / `DATA_FLOW.md` were merged and deleted; this page is the surviving reference. Design spec: [[03-Features/Event Fabric Architecture]] (v2.1). Capability status: [[00-Overview/CURRENT_STATE]].
 
 ---
 

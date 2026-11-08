@@ -8,13 +8,14 @@
 
 | Symptom | Likely Cause | Check |
 |---------|--------------|-------|
-| `stt=MISSING` in logs | FasterWhisper not installed or model not cached | `pip install faster-whisper` |
+| `stt=MISSING` in logs | No STT backend loaded yet (lazy) — or the backend failed to load | `/api/voice/status`; check `STT_BACKEND` |
 | `VAD model checksum mismatch` | Silero model updated at source | Delete `~/.cache/silero_vad/silero_vad.jit` and restart |
 | `stt=MISSING` → `stt=ok` on first use | Lazy loading (expected) | First transcription triggers load |
 | `Speaker unknown` every time | SpeechBrain embeddings failing | Check `voice/speaker/speaker_encoder.py` torch compat |
 | `401 Unauthorized` OpenRouter | `OPENROUTER_API_KEY` not set | Set env var or `.env` file |
 | `Circuit OPEN — failing fast` | Too many LLM failures | Wait 30s or check API key |
-| `stt=MISSING` then `stt=ok` | Lazy load on first use | Normal behavior |
+| `Rejected utterance` in logs | Whole-utterance VAD gate refused the clip | Normal for noise; if real speech, tune `UTTERANCE_VAD_MIN_MEAN`/`_RATIO` |
+| Fluent text for silence / her own voice transcribed | Self-hearing regression | Check the recorder is muted while `_speaking` (see Voice Pipeline)
 
 ---
 
@@ -25,10 +26,11 @@
 **Symptoms:** Mic shows activity, but no text appears
 
 **Checklist:**
-1. `python -c "from faster_whisper import WhisperModel; WhisperModel('tiny', device='cpu')"` — verify install
+1. Check `STT_BACKEND` — `whisper` (default) or `kyutai` (opt-in); `/api/voice/status` shows the live backend and whether a fallback happened
 2. Check `stt` status in `/api/voice/status` — should show `ok` after first use
 3. Check microphone device: `python -c "import sounddevice as sd; print(sd.query_devices())"`
 4. Check VAD: `python -c "from voice.vad import VAD; v=VAD(); v._load_model(); print(v._model is not None)"`
+5. If the log says `Rejected utterance`, the gate refused the clip (noise or < 0.2 s voiced); if `Empty transcription` after an accepted gate, the audio is corrupted — look for `Corrupt chunk clamped` / `non-finite` warnings upstream (AEC/noise filter)
 
 ### VAD Fails to Load
 
@@ -80,9 +82,10 @@ echo "OPENROUTER_API_KEY=sk-or-xxxx..." > .env
 ### Ollama Failover Not Working
 
 **Checklist:**
-1. `ollama serve` running?
+1. `ollama serve` running? (not installed on this machine as of Nov 2026 — the live path is OpenRouter cloud)
 2. `curl http://localhost:11434/api/tags` returns 200?
-2. Model pulled: `ollama pull qwen2.5:7b-instruct-q4_k_m`
+3. Model pulled: `ollama pull qwen2.5:3b-instruct-q4_k_m` (must match `LLM_MODEL`)
+4. Preference set: `LLM_PROVIDER=ollama` when you want local-first ordering
 
 ---
 
@@ -100,9 +103,10 @@ echo "OPENROUTER_API_KEY=sk-or-xxxx..." > .env
 ### Memory Not Persisting
 
 **Checklist:**
-1. `VectorStore` using ChromaDB at `data/vector_db/chroma.sqlite3`
+1. `VectorStore` using ChromaDB at `vector_memory/chroma.sqlite3` (`VECTOR_DB_DIR` in `config/paths.py`); `data/vector_db/` is a legacy leftover from before the rename
 2. `WriteJournal` flushes every 5s or 100 entries
 3. Shutdown flushes on `app.shutdown()`
+4. SQLite state DB is `memory/mai.db`
 
 ---
 
@@ -148,7 +152,7 @@ echo "OPENROUTER_API_KEY=sk-or-xxxx..." > .env
 | Application | `logs/` (structured JSON) |
 | Cognitive audit | `logs/cognitive_audit/` |
 | Orchestrator transitions | `logs/orchestrator/transitions.jsonl` |
-| Tracer (PII-redacted) | `data/traces/` |
+| Cognitive audit / Tracer (PII-redacted) | `logs/cognitive_audit/*.json` |
 | Voice metrics | `logs/` (via `VoiceMetrics`) |
 
 ---
@@ -163,4 +167,4 @@ If issue persists:
 
 ---
 
-*Last updated: 2026-09-03*
+*Last updated: 2026-11-08 — voice diagnostics updated for the Kyutai/`STT_BACKEND` path, the whole-utterance gate, and the self-hearing fix.*

@@ -105,7 +105,7 @@ Mai AI is organized into **modular subsystems**:
 | `plugins/` | Runtime-loaded plugin system |
 | `evaluation/` | M9 real-world evaluation harness |
 | `scripts/` | Maintenance tooling |
-| `gateways/` | External platform bots (Discord) |
+| `integrations/` | External platform bots (Discord relay prototype; formerly `gateways/`) |
 
 **Always understand subsystem boundaries before modifying code.**
 
@@ -509,7 +509,7 @@ BrainGraph facade with 7 typed node types, full bridge to all 8 knowledge stores
 
 ### Roadmap + M14 Desktop App + STT Plan (Oct 9–13)
 - STT replacement plan (Kyutai 1B; Phase 0 model download complete, Phase 1 pending go)
-- **Future roadmap** documented ([[future-vision-roadmap]] — T0–T8 workstreams, M14–M25 milestones, locked decisions); feature-review fold-in (all 7 recommendations adopted/merged)
+- **Future roadmap** documented ([[future-vision-roadmap]] — T0–T8 workstreams, M14–M26 milestones, locked decisions); feature-review fold-in (all 7 recommendations adopted/merged)
 - **M14 Desktop App** — `run_daemon.py` rewritten (single bootstrap fixes double-boot + missing kernel), `native/app_window.py` pywebview (close→tray), `scripts/install_app.py` shortcut/autostart with voiceless-interpreter guard, `build_daemon.py` `--add-data` fix
 - **1,930 tests pass**
 
@@ -518,11 +518,18 @@ BrainGraph facade with 7 typed node types, full bridge to all 8 knowledge stores
 - **Independent verification pass** closed all 5 channels; DNS-peer hardening added same day
 - **1,986 → 1,990 tests pass, 2 skipped** — re-verified live Oct 25 (mai_env, 4m04s)
 
+### Documentation Realignment (Nov 8)
+- **[[00-Overview/CURRENT_STATE]] created** — the authoritative, code-verified capability reference (identity, architecture, implemented, partial, stack, stage, issues, next priorities)
+- All vault docs realigned to it: corrected AEC (not wired), Kyutai/`STT_BACKEND`, self-hearing fix, openWakeWord (installed/unwired), plugin platform maturity, event catalog 72 topics, env var names (`API_*`, not `MAI_API_*`), `gateways/`→`integrations/`, regenerated folder structure, roadmap split (Completed / In development / Planned next / Future)
+- **2,033 tests pass, 2 skipped (2,035 collected)** — live-verified Nov 8 (mai_env, 3m05s)
+
 ---
 
-## Active File Count (Oct 25 2026)
-- **376 py files / 66,767 lines** | **19 packages** + `run.py`/`run_daemon.py` | tests: 83 py files / 19,281 lines (72 test modules)
+## Active File Count (Nov 8 2026)
+- **383 py files / 80,024 lines** (295 files / 56,366 lines excluding tests) | **19 packages** + `run.py`/`run_daemon.py` | tests: 88 py files / 23,658 lines (77 test modules, 2,035 collected)
 - Packages: core/, memory/, knowledge/, reasoning/, agency/, voice/, llm/, execution/, api/, app/, native/, config/, observability/, prompt/, plugins/, evaluation/, scripts/, profiling/, integrations/ (ex-gateways)
+
+**Capability truth:** [[00-Overview/CURRENT_STATE]] — the authoritative list of what is implemented, partial, planned, and removed.
 
 ---
 

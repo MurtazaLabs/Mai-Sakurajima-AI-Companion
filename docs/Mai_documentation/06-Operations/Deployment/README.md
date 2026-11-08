@@ -72,11 +72,11 @@ iscc scripts/installer.iss
 # Interactive CLI (blocks terminal)
 python run.py
 
-# REST API only
-python -m api.server
+# REST API only (no kernel FSM, no mic)
+python run.py --mode api
 
-# With custom config
-MAI_API_HOST=0.0.0.0 MAI_API_PORT=8080 python run.py
+# With custom bind (verified Nov 2026)
+API_HOST=0.0.0.0 API_PORT=8080 python run.py --mode api
 ```
 
 ---
@@ -85,43 +85,46 @@ MAI_API_HOST=0.0.0.0 MAI_API_PORT=8080 python run.py
 
 ### Environment Variables
 
+**Names verified against `config/settings.py` + `.env` (Nov 8 2026).** The
+`MAI_API_*` / `JWT_SECRET_KEY` names used in earlier revisions do not exist.
+
 ```bash
 # API
-MAI_API_HOST=0.0.0.0
-MAI_API_PORT=8000
-MAI_API_WORKERS=4
+API_HOST=0.0.0.0
+API_PORT=8000
+API_REQUIRE_AUTH=true
+API_CORS_ORIGINS=<comma-separated origins>
+API_TRUSTED_HOSTS=<comma-separated hosts>
+API_RATE_LIMIT_PER_MINUTE=60
 
-# Auth
-JWT_SECRET_KEY=<strong-random-64-char>
-JWT_ALGORITHM=HS256
-JWT_ACCESS_TOKEN_EXPIRE_MINUTES=15
-JWT_REFRESH_TOKEN_EXPIRE_DAYS=7
-STATIC_API_TOKEN=<fallback-token>
+# Auth (JWT secret auto-generated + persisted to data/jwt_secret if unset)
+API_JWT_SECRET=<strong-random>
+API_JWT_ACCESS_EXPIRE_MINUTES=15
+API_JWT_REFRESH_EXPIRE_DAYS=7
 
 # LLM
 OPENROUTER_API_KEY=<key>
 LLM_PROVIDER=openrouter              # or "ollama" for local-first; failover chain preserved
 OPENROUTER_DEFAULT_MODEL=openrouter/free
-OLLAMA_HOST=http://localhost:11434
+LLM_MODEL=qwen2.5:3b-instruct-q4_k_m
 
 # Paths
-OBSIDIAN_VAULT=E:/MaiMemory
-ROOT_DIR=E:/Murtaza project/Mai_ai
-LOG_DIR=E:/Murtaza project/Mai_ai/logs
+ROOT_DIR=E:/Mai_ai
+MAI_OBSIDIAN_VAULT=E:/MaiMemory   # env override read by config/paths.py
 
 # Voice
-KOKORO_MODEL=hexgrad/Kokoro-82M
-VAD_MODEL_URL=<checksummed-url>
-SPEAKER_EMBEDDING_MODEL=<path>
-
-# Native
-MAI_DAEMON_MODE=1
-MAI_STARTUP_REGISTER=1
+STT_BACKEND=whisper          # or "kyutai" (opt-in, above the RTF gate)
+KYUTAI_STT_DIR=<path to stt-1b-en_fr>
 ```
+
+Desktop autostart is a CLI flag, not an env var:
+`python run_daemon.py --install-startup` / `--uninstall-startup`.
 
 ### Settings Files (`config/`)
 
-All settings in `config/settings.py` with per-module configs in `config/*.py`. Override via env vars (prefix `MAI_`).
+All settings are plain constants in `config/*.py`, re-exported through
+`config/settings.py`. There is **no `MAI_` env prefix** — each module reads its
+exact key (`API_HOST`, `LLM_PROVIDER`, `STT_BACKEND`, `ROOT_DIR`, …).
 
 ---
 
@@ -136,16 +139,18 @@ All settings in `config/settings.py` with per-module configs in `config/*.py`. O
 - [x] App whitelist (20+ apps in `SystemActions.open_app()`)
 - [x] Keystroke filter (blocks Alt+F4, Ctrl+W, etc.)
 - [x] SHA-256 VAD model verification
-- [x] JWT auth infrastructure (`auth.py`, `get_current_user`)
+- [x] JWT auth (`auth.py` — login/refresh/register, static token, OIDC/SAML scaffolding; auto secret persisted to `data/jwt_secret`)
+- [x] Auth enforced on every `/api/*` route when `API_REQUIRE_AUTH=true` **or** the bind host is not loopback (`api_auth_middleware`)
+- [x] HTTPS dev certificates auto-generated (`api/certs.py`); Let's Encrypt still manual for public deployments
+- [x] Prometheus `/metrics` exporter (auth-gated in production)
 - [x] Health registry with fail-safe telemetry
+- [x] Security headers + trusted hosts middleware
 
 ### 🟡 In Progress / Partial
-- [ ] HTTPS certificates (auto-gen via `cryptography`/`trustme` for dev; Let's Encrypt for prod)
-- [ ] JWT auth enforced on all routes (currently optional)
-- [ ] Multi-session / user profiles (memory scoping, profile CRUD)
-- [ ] Cloud sync (S3/Backblaze B2 periodic backup)
-- [ ] Structured logging pipeline (JSON, Loki/ELK compatible)
-- [ ] Metrics endpoint (`/metrics` for Prometheus)
+- [ ] Let's Encrypt automation for public deployments (dev HTTPS is done)
+- [ ] Multi-session / user profiles — `ProfileStore` (SQLite, tenant-aware) + `SessionManager` exist; memory scoping per profile on the chat path is not wired
+- [ ] Cloud sync (S3/Backblaze B2) — not started
+- [ ] Log shipping pipeline (Loki/ELK compatible) — JSON logs exist, no shipper
 
 ### ❌ Not Started
 - [ ] Alerting (PagerDuty, email, Discord webhook)
@@ -161,18 +166,20 @@ All settings in `config/settings.py` with per-module configs in `config/*.py`. O
 
 | Data | Location | Frequency |
 |------|----------|-----------|
-| Vector DB | `data/vector_db/chroma.sqlite3` | Daily |
-| Knowledge graph | `data/graph/graph.json` | Daily |
+| Vector DB | `vector_memory/` (ChromaDB) | Daily |
+| SQLite state | `memory/mai.db` | Daily |
+| Knowledge graph | `OBSIDIAN_VAULT/graph/graph.json` (exported into the vault) | Daily |
 | Profiles | `data/profiles/profiles.db` | Daily |
-| Obsidian vault | `OBSIDIAN_VAULT/` | Hourly (incremental) |
-| Embedding cache | `data/cache/` | Weekly |
+| Obsidian vault | `OBSIDIAN_VAULT/` (default `~/MaiMemory`, override `MAI_OBSIDIAN_VAULT`) | Hourly (incremental) |
+| Experience / journal JSONL | `data/experiences.jsonl`, per-store JSONL | Daily |
 | Logs | `logs/` | Daily (rotate) |
 
-### Cloud Sync (Planned)
+The embedding cache is **in-process LRU only** — nothing to back up (`cache/` holds temp artifacts, not model outputs).
 
-- `sync/cloud_sync.py` — S3/B2 periodic sync
-- Conflict resolution: last-writer-wins + timestamp logging
-- Configurable interval (default 300s)
+### Cloud Sync (Not Started)
+
+- No `sync/` package exists. S3/B2 periodic sync, last-writer-wins conflict
+  resolution and a configurable interval are roadmap items only.
 
 ---
 

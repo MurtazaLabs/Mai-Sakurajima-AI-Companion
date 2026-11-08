@@ -24,7 +24,7 @@ The document contains all of the following merged sections:
 - Voice pipeline (full duplex, interruption, speaker ID)
 - API surface (REST, SSE, WS, security)
 - Native OS bridge (daemon, tray, hotkeys, clipboard, FS)
-- Event fabric (67 specs, data.* vs state.*)
+- Event fabric (72 specs: 50 data.* + 22 state.*)
 - Prompt architecture
 - Plugin system
 
@@ -59,9 +59,9 @@ The document contains all of the following merged sections:
 
 ## How to Use
 
-1. **For quick navigation** — Use the vault's organized summaries ([[01-Architecture]] folder) which link to relevant sections
-2. **For deep dives** — Open `docs/MERGED_COMPLETE.md` directly in your editor/IDE and search
-3. **For AI-assisted work** — Feed relevant sections to your AI assistant as context
+1. **Current truth** — read [[00-Overview/CURRENT_STATE]] first; it is the verified capabilities reference.
+2. **For quick navigation** — use the vault's organized summaries ([[01-Architecture/01-System Overview|01-Architecture]] folder).
+3. **For history** — the session log in [[00-Overview/Project Charter]] mirrors `AGENTS.md` and carries the dated record (M-series gates, audit scores, sprint outcomes). This digest only lists what the deleted master document used to contain.
 
 ## Wiki Links
 
@@ -86,10 +86,11 @@ The document contains all of the following merged sections:
 
 ## Note on Vault Organization
 
-The vault contains **curated, linked summaries** for daily navigation. The `MERGED_COMPLETE.md` remains the authoritative reference for:
-- Historical audit trails
-- Complete implementation status
-- Detailed session progress
-- Cross-cutting concerns that span multiple subsystems
+The vault contains **curated, linked summaries** for daily navigation. This digest is **historical only** — it records what the Jul 2026 master document covered.
 
-When in doubt, **search MERGED_COMPLETE.md first** — it has everything.
+For anything current, use:
+- [[00-Overview/CURRENT_STATE]] — what is implemented / partial / planned
+- [[01-Architecture/10-Status & Debt]] — maturity, debt, gates
+- [[00-Overview/Project Charter]] — dated session history
+
+Do not cite this page as the authority for present-day behaviour.

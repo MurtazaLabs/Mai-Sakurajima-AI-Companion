@@ -8,13 +8,16 @@
 
 | Data | Location | Type | Frequency | Priority |
 |------|----------|------|-----------|----------|
-| Vector DB | `data/vector_db/chroma.sqlite3` | SQLite | Daily | Critical |
-| Knowledge Graph | `data/graph/graph.json` | JSON | Daily | Critical |
+| Vector DB | `vector_memory/` (ChromaDB dir) | Chroma | Daily | Critical |
+| SQLite state | `memory/mai.db` | SQLite | Daily | Critical |
+| Knowledge Graph | `OBSIDIAN_VAULT/graph/graph.json` (exported into vault) | JSON | Daily | Critical |
 | Profiles | `data/profiles/profiles.db` | SQLite | Daily | Critical |
-| Obsidian Vault | `OBSIDIAN_VAULT/` | Markdown | Hourly (inc) | Critical |
-| Embedding Cache | `data/cache/` | Binary | Weekly | High |
-| Logs | `logs/` | JSON | Daily (rotate) | Medium |
+| Obsidian Vault | `OBSIDIAN_VAULT/` (default `~/MaiMemory`, override `MAI_OBSIDIAN_VAULT`) | Markdown | Hourly (inc) | Critical |
+| Experience / journal | `data/experiences.jsonl`, per-store JSONL | JSONL | Daily | High |
+| Logs | `logs/` (incl. `logs/cognitive_audit/`) | JSON | Daily (rotate) | Medium |
 | Config | `config/` + `.env` | Python/env | On change | Critical |
+
+The embedding cache is **in-process LRU only** (keyed by model fingerprint) — there is nothing on disk to back up. `cache/` holds temp artifacts.
 
 ---
 
@@ -39,11 +42,14 @@ VAULT_DIR="/path/to/MaiMemory"
 
 mkdir -p "$BACKUP_DIR"
 
-# Vector DB
-cp "$MAI_DIR/data/vector_db/chroma.sqlite3" "$BACKUP_DIR/"
+# Vector DB (ChromaDB persistence dir)
+cp -r "$MAI_DIR/vector_memory" "$BACKUP_DIR/vector_memory"
 
-# Knowledge Graph
-cp "$MAI_DIR/data/graph/graph.json" "$BACKUP_DIR/"
+# SQLite state
+cp "$MAI_DIR/memory/mai.db" "$BACKUP_DIR/"
+
+# Knowledge Graph (lives inside the vault)
+cp "$VAULT_DIR/graph/graph.json" "$BACKUP_DIR/graph.json"
 
 # Profiles
 cp "$MAI_DIR/data/profiles/profiles.db" "$BACKUP_DIR/"
@@ -69,12 +75,12 @@ echo "Backup completed: ${BACKUP_DIR}.tar.gz"
 ```bash
 # Quick full backup
 tar -czf mai_backup_$(date +%F_%H-%M).tar.gz \
-  data/vector_db/chroma.sqlite3 \
-  data/graph/graph.json \
+  vector_memory/ \
+  memory/mai.db \
   data/profiles/profiles.db \
   config/ \
   .env \
-  MaiMemory/
+  "$HOME/MaiMemory/"    # or $MAI_OBSIDIAN_VAULT (contains graph/graph.json)
 ```
 
 ---
@@ -92,14 +98,16 @@ docker compose down
 tar -xzf mai_backup_2026-09-03_03-00-00.tar.gz
 
 # 3. Restore files
-cp -r backup/data/* data/
+cp -r backup/vector_memory ./
+cp backup/mai.db memory/
+cp -r backup/data ./data/
 cp -r backup/config/* config/
 cp backup/.env .env 2>/dev/null || true
 
 # 4. Restore vault (rsync for incremental safety)
 rsync -a --delete backup/MaiMemory/ MaiMemory/
 
-# 4. Restart
+# 5. Restart
 docker compose up -d
 # or python run.py --mode daemon
 ```
@@ -108,7 +116,7 @@ docker compose up -d
 
 **Vector DB only:**
 ```bash
-cp backups/vector_db_2026-09-01.sqlite3 data/vector_db/chroma.sqlite3
+cp -r backups/vector_memory/ vector_memory/
 ```
 
 **Vault only:**
@@ -157,9 +165,9 @@ cp backups/.env .env
 **RTO:** 1 hour | **RPO:** 24 hours
 
 1. Stop services
-2. Restore `chroma.sqlite3` from backup
-3. Verify: `python -c "import chromadb; c=chromadb.PersistentClient(path='data/vector_db'); print(c.list_collections())"`
-4. If embeddings incompatible: Clear cache `rm -rf data/cache/*`, restart (re-embeds on demand)
+2. Restore the `vector_memory/` directory from backup
+3. Verify: `python -c "import chromadb; c=chromadb.PersistentClient(path='vector_memory'); print(c.list_collections())"`
+4. If embeddings are incompatible (model changed): delete `vector_memory/` and restart — memories re-embed on demand from the source records. The embedding cache is in-process, so nothing on disk needs clearing.
 
 ---
 
@@ -239,7 +247,7 @@ rclone config  # Name: b2_remote, Type: b2, KeyID, AppKey
 rclone sync /path/to/MaiMemory b2_remote:mai-backup/vault --progress
 
 # Sync DBs daily
-rclone copy /path/to/Mai_ai/data/vector_db/chroma.sqlite3 b2_remote:mai-backup/db/
+rclone copy /path/to/Mai_ai/vector_memory b2_remote:mai-backup/vector_memory/
 rclone copy /path/to/Mai_ai/data/profiles/profiles.db b2_remote:mai-backup/db/
 ```
 

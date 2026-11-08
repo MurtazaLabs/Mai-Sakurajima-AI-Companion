@@ -1,16 +1,16 @@
 # 06 — Agency, Reasoning, LLM & Execution
 
-> Digest of `SUBSYSTEM_DOCUMENTATION/core.md` (Agency/Reasoning/LLM/Execution section). Full: [[CLASS_REFERENCE]] §6.
+> Source docs `SUBSYSTEM_DOCUMENTATION/core.md` / `CLASS_REFERENCE.md` were merged and deleted; this page is the surviving reference. Capability status: [[00-Overview/CURRENT_STATE]].
 
 ---
 
 ## Agency — Autonomous Capability Layer
 
-Packages: `agency/` 12 files, 2,499 lines.
+Packages: `agency/` 12 files, 2,540 lines.
 
 ### Tools (`agency/tools.py` + `registry.py`)
 
-- 12+ built-in tools (search, calculate, open_url, run_command, …).
+- 16 built-in tools (`get_brain_state`, `set_emotion`, `set_topic`, `store_memory`, `search_memories`, `recall`, `retrieve_knowledge`, `get_beliefs`, `update_belief`, `reason`, `execute_action`, `get_execution_stats`, `graph_query`, `graph_search`, `graph_reason`, `obsidian_sync`).
 - `ToolRegistry.dispatch()` — RLock-guarded.
 - `_safe_execute()` character whitelist (blocks shell metacharacters; URL chars supported).
 
@@ -34,7 +34,7 @@ Packages: `agency/` 12 files, 2,499 lines.
 - `PreferenceEvolution` (`preference_evolution.py`) — evidence windows, N≥3 threshold, weekly cadence, direction flip via effective-list (canon + overlay), decision trail, `revert()`, `overlay_map()`, publishes `PREFERENCE_EVOLVED`.
 - `WorldModel` — 11 entity categories, bridges to BrainGraph.
 
-## Reasoning (5 files, 900 lines)
+## Reasoning (5 files, 895 lines)
 
 | Component | File | Role |
 |-----------|------|------|
@@ -44,7 +44,7 @@ Packages: `agency/` 12 files, 2,499 lines.
 | `LearningEngine` | `learning.py` | behavior adjustment from outcomes |
 | `ThoughtPacket` | `thought_packet.py` | structured thought envelope; leak-strip guard (M11) |
 
-## LLM (4 files, 1,262 lines)
+## LLM (4 files, 1,489 lines)
 
 | Component | File | Role |
 |-----------|------|------|
@@ -52,9 +52,11 @@ Packages: `agency/` 12 files, 2,499 lines.
 | `OpenRouterProvider` | `providers/openrouter.py` | bounded retry budget (45s default); permanent HTTP status codes (400/401/403/404/422) break the per-model attempt loop immediately; default model `openrouter/free` with sanitized failover list (drop None/empty/dup) |
 | `OllamaProvider` | `providers/ollama.py` | local inference; top-level `think: false` in every chat payload (single choke point, all 4 paths) |
 
-Config: `LLM_PROVIDER` (env, Oct 9), `OPENROUTER_DEFAULT_MODEL` (default `openrouter/free`).
+Config: `LLM_PROVIDER` (env, Oct 9), `OPENROUTER_DEFAULT_MODEL` (default `openrouter/free`), `LLM_MODEL` (Ollama model name).
 
-## Execution (3 files, 850 lines)
+> **Live deployment note (verified Nov 8 2026):** OpenRouter cloud is the only working backend on this machine — Ollama is not installed and no local model server is running. The Ollama failover path is implemented but currently dead weight until a local model is pulled.
+
+## Execution (4 files, 987 lines)
 
 | Component | File | Role |
 |-----------|------|------|

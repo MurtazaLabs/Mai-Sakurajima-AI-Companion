@@ -13,12 +13,12 @@
             "state": {
               "type": "markdown",
               "state": {
-                "file": "03-Features/stt-kyutai-replacement-plan.md",
+                "file": "02-Subsystems/Voice Pipeline.md",
                 "mode": "source",
                 "source": false
               },
               "icon": "lucide-file",
-              "title": "stt-kyutai-replacement-plan"
+              "title": "Voice Pipeline"
             }
           }
         ]
@@ -185,11 +185,14 @@
       "bases:Create new base": false
     }
   },
-  "active": "45fab934ca758a45",
+  "active": "e5b4f3596beb254f",
   "lastOpenFiles": [
+    "05-Reference/Complete Folder Structure.md",
+    "01-Architecture/06-Agency Reasoning LLM & Execution.md",
+    "03-Features/stt-kyutai-replacement-plan.md",
+    "00-Overview/CURRENT_STATE.md",
     "03-Features/future-vision-roadmap.md",
     "01-Architecture/Bug_Audit_Report_2026-10-19.md",
-    "03-Features/stt-kyutai-replacement-plan.md",
     "01-Architecture/Bug_Summary_and_Fix_Plan_2026-09-21.md",
     "01-Architecture/ADR Presentation Layer Restructure.md",
     "00-Overview/Project Charter.md",
@@ -210,9 +213,6 @@
     "06-Operations/Monitoring-Alerting/README.md",
     "06-Operations/Troubleshooting/README.md",
     "01-Architecture/07-Voice Subsystem.md",
-    "02-Subsystems/Vault Compilation.md",
-    "05-Reference/Complete Folder Structure.md",
-    "SUBSYSTEM_DOCUMENTATION/voice.md",
     "SUBSYSTEM_DOCUMENTATION"
   ]
 }

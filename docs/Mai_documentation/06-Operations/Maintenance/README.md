@@ -14,7 +14,7 @@
 
 ### Weekly
 - [ ] Run vault janitor: `python scripts/sweep_graph_junk.py --apply`
-- [ ] Check embedding cache size: `du -sh data/cache/`
+- [ ] Check vector store size: `du -sh vector_memory/` and `du -sh memory/mai.db` (embedding cache is in-process only)
 - [ ] Review consolidation runs: `logs/` for `ConsolidationEngine`
 - [ ] Check LLM provider costs (OpenRouter dashboard)
 - [ ] Rotate logs if not automated
@@ -94,11 +94,12 @@ rm ~/.cache/silero_vad/silero_vad.jit
 
 ### Embedding Model
 ```bash
-# Current: all-MiniLM-L6-v2 (sentence-transformers)
+# Current: all-MiniLM-L6-v2 (sentence-transformers, local)
 # Update:
 pip install --upgrade sentence-transformers
-# Clear cache to force re-embed
-rm -rf data/cache/*
+# The in-process cache is tag-keyed by a SHA-256 model fingerprint, so a model
+# change invalidates it automatically. If stored vectors must be rebuilt,
+# delete vector_memory/ and restart (memories re-embed on demand).
 ```
 
 ---
@@ -111,7 +112,7 @@ rm -rf data/cache/*
 | Application | `logs/*.log` (JSON) |
 | Cognitive Audit | `logs/cognitive_audit/` |
 | Orchestrator | `logs/orchestrator/transitions.jsonl` |
-| Tracer | `data/traces/` (PII-redacted) |
+| Tracer | `logs/cognitive_audit/*.json` (PII-redacted) |
 
 ### Log Rotation (Manual)
 ```bash
@@ -141,13 +142,20 @@ grep '"component": "voice"' logs/*.log | grep '"level": "ERROR"'
 ### Vector Store (ChromaDB)
 ```bash
 # Check size
-du -sh data/vector_db/
+du -sh vector_memory/
 
 # Compact (if supported)
 # Note: ChromaDB doesn't auto-compact; monitor size
 
-# Backup
-cp data/vector_db/chroma.sqlite3 backups/vector_db_$(date +%F).sqlite3
+# Backup (the whole persistence directory)
+cp -r vector_memory backups/vector_memory_$(date +%F)/
+```
+
+### SQLite State
+```bash
+# Backup + vacuum
+cp memory/mai.db backups/mai_$(date +%F).db
+sqlite3 memory/mai.db "VACUUM;"
 ```
 
 ### Profiles (SQLite)
@@ -161,11 +169,11 @@ sqlite3 data/profiles/profiles.db "VACUUM;"
 
 ### Knowledge Graph
 ```bash
-# Backup
-cp data/graph/graph.json backups/graph_$(date +%F).json
+# Backup (the graph lives inside the vault)
+cp "$HOME/MaiMemory/graph/graph.json" backups/graph_$(date +%F).json
 
 # Validate
-python -c "import json; json.load(open('data/graph/graph.json')); print('Valid JSON')"
+python -c "import json,os; json.load(open(os.path.expanduser('~/MaiMemory/graph/graph.json'))); print('Valid JSON')"
 ```
 
 ---
@@ -183,8 +191,8 @@ rm -rf .pytest_cache/
 # Clean temp audio
 rm -rf temp/*
 
-# Clean embedding cache (force rebuild)
-rm -rf data/cache/*
+# Clean embedding cache (force rebuild) — it is in-process; delete stored vectors
+rm -rf vector_memory/
 
 # Clean Silero VAD cache (force re-download)
 rm -rf ~/.cache/silero_vad/
@@ -217,8 +225,8 @@ curl -s http://localhost:8000/api/inspector/events | head -5
 # Daily at 3 AM: Vault janitor
 0 3 * * * cd /path/to/Mai_ai && python scripts/sweep_graph_junk.py --apply >> logs/janitor.log 2>&1
 
-# Daily at 4 AM: Backup vector DB
-0 4 * * * cp /path/to/Mai_ai/data/vector_db/chroma.sqlite3 /backups/vector_db_$(date +\%F).sqlite3
+# Daily at 4 AM: Backup vector DB (whole Chroma persistence dir)
+0 4 * * * cp -r /path/to/Mai_ai/vector_memory /backups/vector_memory_$(date +\%F)
 
 # Weekly Sunday 2 AM: Log compression
 0 2 * * 0 find /path/to/Mai_ai/logs -name "*.log" -mtime +7 -exec gzip {} \;
