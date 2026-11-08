@@ -15,6 +15,20 @@ import soundfile as sf
 logger = logging.getLogger(__name__)
 
 
+def _resample_to(data, sr, target_sr):
+    """Resample mono audio for the AEC reference (only the reference needs it;
+    playback always uses the file's own rate)."""
+    data = np.asarray(data, dtype=np.float32)
+    if len(data) == 0 or int(sr) == int(target_sr):
+        return data
+    from fractions import Fraction
+
+    from scipy.signal import resample_poly
+
+    ratio = Fraction(int(target_sr), int(sr)).limit_denominator(200)
+    return resample_poly(data, ratio.numerator, ratio.denominator).astype(np.float32)
+
+
 class StreamPlayer:
 
     def __init__(
@@ -43,6 +57,13 @@ class StreamPlayer:
         self.state = "idle"
 
         self._lock = threading.RLock()
+
+        # AEC far-end reference: receives exactly the audio sent to the DAC,
+        # block by block, so echo cancellation has a sample-aligned reference.
+        self.reference_tap = None
+        self.reference_end = None
+        self.reference_sample_rate = 16000
+        self._playback_stream = None
 
     # ▶️ START PLAYER
     def play_async(self):
@@ -130,23 +151,7 @@ class StreamPlayer:
 
                 logger.info("Playing: %s", path)
 
-                # use chosen device
-                if self.output_device is not None:
-
-                    sd.play(
-                        data,
-                        sr,
-                        device=self.output_device,
-                        blocking=True
-                    )
-
-                else:
-
-                    sd.play(
-                        data,
-                        sr,
-                        blocking=True
-                    )
+                self._play(data, sr)
 
                 with self._lock:
                     self.current_audio = None
@@ -164,6 +169,78 @@ class StreamPlayer:
                 logger.exception("StreamPlayer error: %s", e)
                 time.sleep(0.5)
 
+    # 🎧 PLAY (with optional AEC reference tap)
+    def _play(self, data, sr):
+
+        if self.reference_tap is None:
+            if self.output_device is not None:
+                sd.play(data, sr, device=self.output_device, blocking=True)
+            else:
+                sd.play(data, sr, blocking=True)
+            return
+
+        # Stream the clip ourselves instead of sd.play(): the block that goes to
+        # the DAC is then exactly the block fed to the echo canceller, with no
+        # drift and no latency guesswork. stream.write() blocks, which paces the
+        # loop in real time.
+        tap_data = _resample_to(data, sr, self.reference_sample_rate)
+        block = 512
+        total = len(data)
+        pos = 0
+        tap_pos = 0
+        try:
+            with sd.OutputStream(
+                samplerate=sr,
+                channels=1,
+                dtype="float32",
+                device=self.output_device,
+            ) as stream:
+                self._playback_stream = stream
+                while pos < total and not self.stop_flag.is_set():
+                    n = min(block, total - pos)
+                    try:
+                        stream.write(
+                            np.ascontiguousarray(data[pos:pos + n], dtype=np.float32)
+                        )
+                    except Exception as e:
+                        # abort() from pause()/stop() surfaces here as a PortAudio
+                        # error; a real device failure must still be visible.
+                        if not self.stop_flag.is_set():
+                            logger.warning("[StreamPlayer] write failed: %s", e)
+                        break
+                    pos += n
+                    tap_end = int(pos * len(tap_data) / total) if total else 0
+                    if tap_end > tap_pos:
+                        self.reference_tap(tap_data[tap_pos:tap_end])
+                        tap_pos = tap_end
+        finally:
+            self._playback_stream = None
+            # Leaving the context manager drains queued audio (Pa_StopStream).
+            if self.reference_end is not None:
+                try:
+                    self.reference_end()
+                except Exception as e:
+                    logger.warning("AEC reference end error: %s", e)
+
+    def _abort_playback_stream(self):
+        stream = self._playback_stream
+        if stream is not None:
+            try:
+                stream.abort()
+            except Exception as e:
+                logger.debug("[StreamPlayer] abort: %s", e)
+
+    # 🎧 SET AEC REFERENCE TAP
+    def set_reference_tap(self, tap, on_end=None, sample_rate=16000):
+        """Route played audio into an echo-cancellation reference.
+
+        tap(block) receives float32 mono blocks at `sample_rate`; on_end() fires
+        once the clip (or a stopped clip) finishes playing.
+        """
+        self.reference_tap = tap
+        self.reference_end = on_end
+        self.reference_sample_rate = int(sample_rate or 16000)
+
     # ➕ ENQUEUE AUDIO
     def enqueue(
         self,
@@ -179,6 +256,8 @@ class StreamPlayer:
     def pause(self):
 
         self.pause_flag.set()
+
+        self._abort_playback_stream()
 
         if sd is not None:
             sd.stop()
@@ -200,6 +279,8 @@ class StreamPlayer:
         self.stop_flag.set()
 
         self.pause_flag.clear()
+
+        self._abort_playback_stream()
 
         if sd is not None:
             sd.stop()

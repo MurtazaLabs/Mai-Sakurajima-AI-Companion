@@ -8,8 +8,8 @@
 
 | Metric | Value |
 |--------|-------|
-| **Total tests** | 2,035 collected; 2,033 passing + 2 skipped, 0 failures (live-verified Nov 8 2026 under mai_env, 3m05s) |
-| **Test modules** | 77 `test_*.py` (88 py files under `tests/`, 23,658 lines) |
+| **Total tests** | 2,047 collected; 2,045 passing + 2 skipped, 0 failures (live-verified Nov 8 2026 under mai_env, ~2m30s) |
+| **Test modules** | 78 `test_*.py` (89 py files under `tests/`, 23,894 lines) |
 | **Coverage** | Core subsystems well-covered; api/, knowledge/ improving |
 | **Framework** | pytest with asyncio, fixtures, parametrize |
 | **Interpreter** | `mai_env/` is the real runtime (voice stack: kokoro, faster-whisper, speechbrain, webview, pystray…) — base Python only runs a wounded subset |
@@ -21,7 +21,7 @@
 ```
 tests/
 ├── conftest.py              # shared fixtures, async event loop
-├── test_*.py                # subsystem test files (77 modules)
+├── test_*.py                # subsystem test files (78 modules)
 │   ├── test_brain.py        # + TestBrainNoResponseCache, stream-guard, think_stream action path
 │   ├── test_desktop_app.py  # M14: AppWindow, tray, autostart, single-instance, MaiAPI wiring
 │   ├── test_voice_gating.py # Phase 0: utterance VAD gate + diarization full-clip
@@ -161,7 +161,7 @@ pytest --cov=. --cov-report=html
 - Behavior harness runs in stub mode (fast, deterministic)
 - Real-mode evaluation runs on schedule / manual trigger
 
-> Gate numbers per milestone are tracked in [[01-Architecture/10-Status & Debt]]. Latest verified gate: **2,033 passed / 2 skipped (2,035 collected), Nov 8 2026**.
+> Gate numbers per milestone are tracked in [[01-Architecture/10-Status & Debt]]. Latest verified gate: **2,045 passed / 2 skipped (2,047 collected), Nov 8 2026**.
 
 ---
 

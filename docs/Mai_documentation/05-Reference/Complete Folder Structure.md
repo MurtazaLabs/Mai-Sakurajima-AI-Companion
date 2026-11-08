@@ -33,11 +33,11 @@
 | `integrations/` | 1 | 82 |
 | root (`run.py`, `run_daemon.py`) | 2 | 383 |
 | **Source subtotal** | **295** | **56,366** |
-| `tests/` | 88 | 23,658 |
-| **Total** | **383** | **80,024** |
+| `tests/` | 89 | 23,894 |
+| **Total** | **384** | **80,260** |
 
-**Tests:** 88 py files, 77 `test_*.py` modules, 2,035 tests collected
-(2,033 passing + 2 skipped).
+**Tests:** 89 py files, 78 `test_*.py` modules, 2,047 tests collected
+(2,045 passing + 2 skipped).
 
 ---
 
@@ -155,7 +155,7 @@ plugins/
 ```text
 tests/
 ├── conftest.py
-├── test_*.py                 # 77 modules
+├── test_*.py                 # 78 modules
 ├── behavior/                 # M7 harness (ScenarioDriver, fixtures, parity, conflict)
 └── evaluation/               # M9 helpers
 ```

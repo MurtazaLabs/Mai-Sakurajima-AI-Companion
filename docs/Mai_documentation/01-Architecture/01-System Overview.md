@@ -13,10 +13,10 @@ A production-oriented, modular AI companion (inspired by Mai Sakurajima) built f
 
 | Metric | Value |
 |--------|-------|
-| Python files | 383 — 80,024 lines incl. tests; 295 / 56,366 excl. tests |
+| Python files | 384 — 80,260 lines incl. tests; 295 / 56,366 excl. tests |
 | Packages | 19 + 2 root entry points |
 | Subsystems | core, memory, knowledge, voice, api, agency, app, config, llm, observability, execution, reasoning, native, plugins, scripts, prompt, integrations, evaluation, profiling |
-| Tests | 2,035 collected; 2,033 passing + 2 skipped (0 failures — live-verified Nov 8 2026) |
+| Tests | 2,047 collected; 2,045 passing + 2 skipped (0 failures — live-verified Nov 8 2026) |
 
 ## Character Layer (M0–M13, complete Aug 9 2026)
 

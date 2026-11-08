@@ -13,7 +13,7 @@ Owner: Syed Murtaza / Mai AI Suite
 | Bucket | Items |
 |---|---|
 | ✅ **Completed** | Companion stage (M0–M13) · Desktop app shell — pywebview (M14, Oct 13) · VAD noise gate + self-hearing fix · OpenRouter hardening + `LLM_PROVIDER` preference · Oct-19 security audit remediation · Porcupine removal · `openwakeword` installed (unwired) · plugin platform (manifest/lifecycle/signing/sandbox/marketplace) |
-| 🟡 **In development / partial** | AEC playback feed · openWakeWord "hey mai" model · Kyutai STT (opt-in, above RTF gate) · multi-session profile scoping on chat path · entity web interface (`api/web/state/` only) · Discord relay prototype (`integrations/discord_bot.py`) |
+| 🟡 **In development / partial** | AEC continuous capture (playback feed wired; recorder still muted) · openWakeWord "hey mai" model · Kyutai STT (opt-in, above RTF gate) · multi-session profile scoping on chat path · entity web interface (`api/web/state/` only) · Discord relay prototype (`integrations/discord_bot.py`) |
 | 🔜 **Planned next** | **M15** Model Scheduler + TTS bake-off · **M16–M19** custom voice, VRM face, eyes, silent research + file tools · **M21** Continuity Engine · **M22** Self (code-awareness) · **M23–M25** Partner + Discord V1/V2 · **M26** WhatsApp |
 | 🔮 **Future possibilities** | Java/JavaFX client (successor to pywebview) · cloud sync · documentation site · load/chaos testing · plugin marketplace public registry · true streaming STT (needs GPU upgrade) |
 
@@ -358,10 +358,13 @@ real number, and that risk is not accepted.
 - HealthRegistry / orchestrator health checks → T7 health feeds
 - FileSystemActions (sandboxed) → base for the file-tools expansion
 
-> **Caveat (verified Nov 2026):** AEC is **not** live — `FullAEC` is a pass-through
-> until `send_playback_audio()` is fed, and echo is currently mitigated by muting
-> the recorder while speaking. T1/T6 turn-taking work must wire the playback feed
-> first or inherit the "first syllable of an interruption is lost" trade-off.
+> **Caveat (updated Nov 2026):** the AEC playback feed is **wired** — `StreamPlayer`
+> streams the real DAC output into `FullAEC` (18 dB measured on a synthetic room),
+> and the double-talk threshold was corrected 0.3 → 1.0. What remains for T1/T6
+> turn-taking is **continuous capture**: the recorder is still muted while she
+> speaks, so an interruption's first syllable can be lost. Unmuting is a one-line
+> change in `voice_manager.py` that needs live validation (the 2048-tap filter
+> spans ~128 ms — Bluetooth-class latency would not be cancelled).
 
 ## 6. Risk register
 

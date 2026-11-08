@@ -117,6 +117,10 @@ def build(app):
         tag_service(app, "voice_manager", "VoiceManager", "Voice", active=True)
         app.health_registry.register("voice_manager", component=app.voice_manager)
         app.health_registry.heartbeat("voice_manager")
+        # AEC far-end reference: without this the echo canceller never sees
+        # what Mai is playing and stays a pass-through.
+        if getattr(app, "voice", None) is not None:
+            app.voice_manager.attach_playback_tap(app.voice.player)
         logger.info("    ✓ VoiceManager")
     except Exception as e:
         logger.warning("    Voice manager failed to load: %s", e)

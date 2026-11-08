@@ -169,6 +169,19 @@ class FullAEC:
     def is_double_talk(self):
         return self._double_talk
 
+    def end_playback(self):
+        """Playback finished — flush the far-end reference so idle mic frames
+        pass through again (a stale reference would keep adapting the filter
+        against audio that is no longer audible). Weights are kept."""
+        with self._lock:
+            self._playback_buffer[:] = 0.0
+            self._playback_write = 0
+            self._has_playback = False
+            self._near_end_power = 0.0
+            self._far_end_power = 0.0
+            self._double_talk = False
+            self._hangover = 0
+
     def reset(self):
         with self._lock:
             buf_size = self.max_echo_delay_samples + self.filter_length

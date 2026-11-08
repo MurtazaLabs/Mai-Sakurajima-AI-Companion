@@ -1,17 +1,17 @@
 # 10 — Implementation Status & Open Debt
 
-> Source docs `IMPLEMENTATION_STATUS.md` / `TECHNICAL_DEBT.md` were merged and deleted; this page is the surviving reference. Refreshed against verified ground truth **Nov 8 2026** (2,033 tests passing / 2 skipped, 383 py files / 80,024 lines). Capability status: [[00-Overview/CURRENT_STATE]].
+> Source docs `IMPLEMENTATION_STATUS.md` / `TECHNICAL_DEBT.md` were merged and deleted; this page is the surviving reference. Refreshed against verified ground truth **Nov 8 2026** (2,045 tests passing / 2 skipped, 384 py files / 80,260 lines). Capability status: [[00-Overview/CURRENT_STATE]].
 
 ---
 
-## Subsystem Maturity (counts Nov 8 2026, 2,033 tests passing)
+## Subsystem Maturity (counts Nov 8 2026, 2,045 tests passing)
 
 | Subsystem | Files | Lines | Maturity | Notes |
 |-----------|-------|-------|----------|-------|
 | core/ | 66 | 16,030 | 88% | Brain/kernel/fabric mature; P0 deadlock + belief drift resolved; stream guard on `think_stream`; Attention RLock added |
 | memory/ | 28 | 7,378 | 82% | strong pipeline; layer breach narrowed (3 lazy imports, 2 files); embedding cache now model-fingerprinted |
 | knowledge/ | 29 | 5,853 | 82% | vault pipeline strong; D-1 belief drift **resolved**; graph 3-layer overlap remains |
-| voice/ | 33 | 4,665 | 84% | full duplex + Phase 0 utterance gate; Kyutai opt-in; self-hearing fixed; **AEC still unwired** |
+| voice/ | 33 | 4,665 | 84% | full duplex + Phase 0 utterance gate; Kyutai opt-in; self-hearing fixed; AEC feed wired (recorder still muted) |
 | api/ | 24 | 4,952 | 88% | 103 route sites; HTTPS dev certs, metrics endpoint, Oct-19 security fixes |
 | agency/ | 12 | 2,540 | 92% | cleanest subsystem; dreaming TOCTOU fixed; dead wrappers removed |
 | app/ | 18 | 2,329 | 96% | builder pattern gold standard |
@@ -33,7 +33,7 @@
 
 | Priority | Items |
 |----------|-------|
-| Fix this sprint | **AEC live feed** (no production caller of `send_playback_audio()` — echo is mitigated by muting, not cancellation), D-2 `memory/→knowledge/` breach (3 lazy imports, 2 files), P-3 belief fan-out in retriever, P-4 age-cap flattening, prompt token budgeting (no compaction; turn-count truncation only) |
+| Fix this sprint | ~~**AEC live feed**~~ (Nov 2026 — `StreamPlayer` taps the DAC stream into `FullAEC`; threshold 0.3 → 1.0 corrected), **AEC continuous capture** (recorder still muted while speaking — needs live validation), D-2 `memory/→knowledge/` breach (3 lazy imports, 2 files), P-3 belief fan-out in retriever, P-4 age-cap flattening, prompt token budgeting (no compaction; turn-count truncation only) |
 | Next quarter | D-3 graph 3-layer collapse, X-2 import-time side effects, openWakeWord "hey mai" model |
 | Backlog | M-1 dead `MemoryObject.lock`, M-2 unused `embeddings` field, M-3 `MemoryNode` duplication, M-4 `_text_overlap`, K-3 MD5→SHA-256, O-3 `stats.md` reflections, X-4 `_result()` duplication |
 | **Resolved since Sep** | ~~D-1 belief drift~~ (Aug 12 — BrainGraph delegates to BeliefEngine), ~~P-5 embedding cache fingerprinting~~ (SHA-256 model fingerprint + LRU), ~~P-3 journal quadratic rewrites~~ (JSONL append), ~~V-1 `listen()` refactor~~ (5-line wrapper / 51-line `_listen_impl`), ~~Legacy Memory `Lock()`~~ (RLock verified), ~~L-1 `generate_with_tools()` dead passthrough~~ (was mislabeled — live on the Brain path), ~~Attention zero locking~~ (RLock added), ~~rate-limiter unbounded buckets~~ (bounded LRU) |
@@ -46,7 +46,7 @@ Key pillars to avoid regressions: RLock discipline everywhere, HealthRegistry fa
 
 ✅ **Complete** — **character layer M0–M13** (canon volumes I–IV, behavioral validation harness, experience store + preference evolution, real-world evaluation harness + rubric, relationship dynamics on chat path, envelope-leak guard, experience-in-speech, conflict coherence).
 
-🟡 **Partial** — echo cancellation (unwired), Kyutai STT (opt-in, above latency gate), openWakeWord (installed, unwired), plugins (marketplace requires trusted keys; no public registry), multi-session profiles (`ProfileStore` + `SessionManager` exist; chat path single-user), entity web interface (state adapter only), Discord (relay prototype).
+🟡 **Partial** — AEC fed but recorder still muted during playback, Kyutai STT (opt-in, above latency gate), openWakeWord (installed, unwired), plugins (marketplace requires trusted keys; no public registry), multi-session profiles (`ProfileStore` + `SessionManager` exist; chat path single-user), entity web interface (state adapter only), Discord (relay prototype).
 
 ❌ **Not started** — cloud sync, WhatsApp (M26), Continuity Engine (M21), Java/JavaFX client, screen/camera share, documentation site, roadmap M15+ (see [[03-Features/future-vision-roadmap]]).
 
@@ -70,7 +70,7 @@ Key pillars to avoid regressions: RLock discipline everywhere, HealthRegistry fa
 | Voice stabilisation (Oct 27–29) | pre-roll capture, trailing-silence trim, dynamo off, self-hearing fix, greeting speaking flag | 25 |
 | Wake / packaging (Oct 31) | Porcupine vestige removal, openWakeWord installed (unwired, requirements only) | 0 |
 
-Cumulative: **2,033 tests pass + 2 skipped, 0 failures** — live-verified Nov 8 2026 (2,035 collected; pre-M5 baseline 1,594 + ~439).
+Cumulative: **2,045 tests pass + 2 skipped, 0 failures** — live-verified Nov 8 2026 (2,047 collected; pre-M5 baseline 1,594 + ~451).
 
 ## Audit Trajectory
 
@@ -94,7 +94,7 @@ The live plan is [[03-Features/future-vision-roadmap]] (M14–M26, decisions loc
 3. **M16–M19** — custom voice, VRM face, eyes (screen/camera), silent research + file tools.
 4. **M21–M22** — Continuity Engine (project memory, commitments, checkpoints) + Self (code-awareness).
 5. **M23–M26** — Partner (email/calendar/presence) + Discord V1/V2 + WhatsApp (official Agent Platform only).
-6. Parallel backlog — AEC feed wiring, openWakeWord model, prompt token budgeting, multi-session profiles / cloud sync, performance profiling, documentation site.
+6. Parallel backlog — AEC continuous capture (feed is wired), openWakeWord model, prompt token budgeting, multi-session profiles / cloud sync, performance profiling, documentation site.
 
 ---
 

@@ -55,10 +55,10 @@ WakeWord / hotkey → Mic capture (16k) → Recorder
 | Component | File | Details |
 |-----------|------|---------|
 | `AdaptiveNoiseFilter` | `adaptive_noise_filter.py` | adaptive spectral subtraction |
-| `FullAEC` | `full_aec.py` | vectorized acoustic echo cancellation, **strict pass-through until playback is fed** — no production caller feeds it (`send_playback_audio()` is test-only) |
+| `FullAEC` | `full_aec.py` | vectorized acoustic echo cancellation — **fed from the real playback stream** (`StreamPlayer` → `VoiceManager.attach_playback_tap()`, reference cleared by `end_playback()` at clip end); 18 dB measured on a synthetic room |
 | `NoiseFilter` | `noise_filter.py` | legacy static filter (deprecated) |
 
-**Echo mitigation in production:** the recorder is not fed while `VoiceManager._speaking` is true, the recorder buffer is cleared when speech starts, and `_discard_stale_utterances()` drains the queue at listen entry. Trade-off: the first syllable of an interruption may be lost.
+**Echo mitigation in production:** the AEC now receives the true playback reference, but the recorder is still not fed while `VoiceManager._speaking` is true; the recorder buffer is cleared when speech starts, and `_discard_stale_utterances()` drains the queue at listen entry. Trade-off: the first syllable of an interruption may be lost. Unmuting (continuous capture) is the next step and needs live validation; also note the 2048-tap filter spans ~128 ms, so device latency beyond that (Bluetooth) would not be cancelled.
 
 ### Speech-to-Text (STT)
 
@@ -146,13 +146,14 @@ WakeWord / hotkey → Mic capture (16k) → Recorder
 - ✅ Dead `noise_filter` param in `VoiceManager` removed (P2 fixed)
 - ✅ Self-hearing loop fixed (Oct 2026) — recorder muted while speaking, queue drained, greeting playback marked as speaking
 - ✅ FullAEC divergence fixed — pass-through until playback is fed, norm floors raised, weights clipped, NaN reset
+- ✅ AEC playback feed wired (Nov 2026) — `StreamPlayer` taps the real DAC stream into `FullAEC`; double-talk threshold corrected 0.3 → 1.0 (at 0.3 the detector latched permanently and the filter never adapted)
 - ✅ `stt=MISSING` → `stt=ok` = lazy load on first use
 - ✅ `eval()` in sandbox replaced with `exec()` for safety
 - ✅ Type hints added to `stt.py` and `recorder.py`
 
 ## Open Issues
 
-- ❌ AEC still has **no live playback feed** — `send_playback_audio()` is called only from tests; echo is handled by muting, not cancellation (see [[00-Overview/CURRENT_STATE]] §4)
+- ❌ AEC is wired but not exploited — the reference is real, yet the recorder stays muted during playback, so cancellation is not used. Unmute `voice_manager.py` and validate live (needs echo cancellation better than the mute guard on the actual mic/speaker path) (see [[00-Overview/CURRENT_STATE]] §4)
 - ❌ Wake word costs a full STT pass; openWakeWord is installed but unwired (no "hey mai" model)
 - ❌ Kyutai RTF (1.17–2.97) is above the 0.7 promotion gate — opt-in only
 - ❌ True streaming STT is blocked by hardware (RTF < 1 required)

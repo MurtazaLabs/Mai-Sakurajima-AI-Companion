@@ -42,9 +42,9 @@
 
 | Metric | Value |
 |--------|-------|
-| **Python files** | 383 — 80,024 lines incl. tests; 295 files / 56,366 lines excl. tests (measured Nov 8 2026) |
+| **Python files** | 384 — 80,260 lines incl. tests; 295 files / 56,366 lines excl. tests (measured Nov 8 2026) |
 | **Subsystems** | 19 packages + 2 entry points |
-| **Tests** | 2,035 collected; 2,033 passing + 2 skipped, 0 failures (live-verified Nov 8 2026, mai_env) |
+| **Tests** | 2,047 collected; 2,045 passing + 2 skipped, 0 failures (live-verified Nov 8 2026, mai_env) |
 | **Overall maturity** | ~83% (B+) |
 
 ### ✅ Complete Milestones
@@ -89,4 +89,4 @@
 
 ---
 
-*Last updated: November 8 2026 — refreshed against verified ground truth (2,033 tests passing / 2 skipped live, 383 py files / 80,024 lines). Covers post-M13 sprints through the Oct 31 voice/packaging changes. See [[00-Overview/CURRENT_STATE]] for the authoritative capabilities list.*
+*Last updated: November 8 2026 — refreshed against verified ground truth (2,045 tests passing / 2 skipped live, 384 py files / 80,260 lines). Covers post-M13 sprints through the Oct 31 voice/packaging changes plus the Nov-8 AEC playback feed. See [[00-Overview/CURRENT_STATE]] for the authoritative capabilities list.*

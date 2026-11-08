@@ -50,7 +50,7 @@ character, voice conversation, and growing autonomy over a multi-year timeline.
 
 ## 2. Current Architecture
 
-**Verified inventory:** 383 Python files / 80,024 lines; excluding `tests/`,
+**Verified inventory:** 384 Python files / 80,260 lines; excluding `tests/`,
 295 files / 56,366 lines. 19 packages + 2 entry points (`run.py`,
 `run_daemon.py`). 103 API route decorator sites. 72 catalog event topics
 (50 `data.*` + 22 `state.*`).
@@ -91,7 +91,7 @@ run.py  |  run_daemon.py  |  uvicorn api.server:app
 | `scripts/` | 8 / 997 | Benchmarks, installers, backfills, junk sweep, migrations |
 | `integrations/` | 1 / 82 | Discord relay prototype only |
 | `profiling/` | 4 / 108 | Dev-only profiling scripts (not imported by runtime) |
-| `tests/` | 88 / 23,658 | 77 test modules, 2,035 tests collected |
+| `tests/` | 89 / 23,894 | 78 test modules, 2,047 tests collected |
 
 ### Data and state
 
@@ -149,7 +149,8 @@ run.py  |  run_daemon.py  |  uvicorn api.server:app
   (dominant-speaker labelling; never slices the clip).
 - Self-hearing fix: recorder is muted while `_speaking`, queue drained at
   listen entry, greeting playback marks speaking.
-- `VoiceManager.toggle()` start/stop flip; `FullAEC` present (see §4).
+- `VoiceManager.toggle()` start/stop flip; `FullAEC` fed from the real playback
+  stream (see §4 — wired, not yet used for continuous capture).
 
 ### Memory & knowledge
 - Unified memory pipeline, importance scoring, decay/consolidation cycle,
@@ -217,7 +218,7 @@ run.py  |  run_daemon.py  |  uvicorn api.server:app
 
 | Capability | State | Evidence |
 |------------|-------|----------|
-| **AEC (echo cancellation)** | **Partial — not wired** | `FullAEC` works and is strict pass-through until playback is fed; `VoiceManager.send_playback_audio()` has **no production caller** (only tests). Live mitigation is muting the recorder while speaking. |
+| **AEC (echo cancellation)** | **Wired — recorder still muted** | `StreamPlayer` streams playback through an `OutputStream` and feeds each block to `FullAEC` (`VoiceManager.attach_playback_tap()`, wired in `app/builders/voice.py`); `end_playback()` clears the reference between clips. Verified 18 dB on a synthetic two-path room; `FULL_AEC_DOUBLE_TALK_THRESHOLD` corrected 0.3 → 1.0. Not yet used to keep the mic live during playback — that needs live validation. |
 | **Kyutai STT** | **Partial — opt-in** | Runs (RTF 1.17–2.97 on the 4 GB T1000), above the 0.7 promotion gate. `.env` on this machine sets `STT_BACKEND=kyutai`; config default stays `whisper`. |
 | **openWakeWord** | **Installed, not wired** | `openwakeword==0.6.0` in `requirements.txt`; no import under `voice/`. No pretrained “hey mai” model exists — needs a custom verifier or synthetic training. |
 | **Discord** | **Prototype** | `integrations/discord_bot.py` (82 lines) relays to `POST /api/chat`; `discord` package not installed; no `ChannelAdapter`, no voice, not M24. |
@@ -253,7 +254,7 @@ run.py  |  run_daemon.py  |  uvicorn api.server:app
 | Desktop | pywebview 6.x (Edge WebView2), pystray, Pillow, keyboard, pyperclip, plyer, pywin32 |
 | Frontend | Vanilla ES modules + CSS (no framework, no bundler), Three.js only for the graph view |
 | Deployment | Docker (CPU torch, single replica), GitHub Actions CI, Inno/PyInstaller scripts |
-| Testing | pytest (77 modules, 2,035 tests), M7 behavior harness, M9 evaluation harness |
+| Testing | pytest (78 modules, 2,047 tests), M7 behavior harness, M9 evaluation harness |
 
 **Hardware envelope:** 4 GB VRAM (Quadro T1000) — constrains local LLM and
 Kyutai throughput; no Triton on Windows, so `torch.compile` is disabled for
@@ -278,9 +279,13 @@ Latest commits: `2cd6181 deployment passed` and `37584f5 new update`
 
 ## 7. Known Issues
 
-1. **Echo cancellation is not live.** Without a playback reference feed,
-   `FullAEC` is a pass-through; the only echo defense is muting the mic while
-   she speaks — an interruption's first syllable can be lost.
+1. **Echo cancellation is fed but not yet exploited.** `StreamPlayer` now routes
+   the real playback stream into `FullAEC` (verified: 18 dB echo cancellation on
+   a synthetic room) and `FULL_AEC_DOUBLE_TALK_THRESHOLD` was fixed from 0.3 to
+   1.0 — at 0.3 the detector latched into permanent double-talk and the filter
+   never adapted. The recorder is still muted while she speaks, so continuous
+   capture during playback (barge-in without losing the first syllable) is a
+   one-line change that needs live hardware validation.
 2. **Wake word is a transcription check, not a wake model.** Every wake attempt
    costs an STT pass (measured ~1.7 s floor on this GPU); openWakeWord would cut
    that but has no “hey mai” model.

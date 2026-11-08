@@ -768,3 +768,27 @@ class VoiceManager:
                 self.full_aec.add_playback(audio)
             except Exception as e:
                 logger.warning("[VoiceManager] send_playback_audio error: %s", e)
+
+    def end_playback_audio(self):
+        if self.full_aec:
+            try:
+                self.full_aec.end_playback()
+            except Exception as e:
+                logger.warning("[VoiceManager] end_playback_audio error: %s", e)
+
+    def attach_playback_tap(self, player):
+        """Feed the real playback stream into the AEC as its far-end reference.
+
+        Without this the AEC has nothing to cancel and stays a pass-through.
+        """
+        if not self.full_aec or player is None:
+            return False
+        if not hasattr(player, "set_reference_tap"):
+            logger.warning("[VoiceManager] player has no reference tap — AEC unfed")
+            return False
+        player.set_reference_tap(
+            self.send_playback_audio,
+            on_end=self.end_playback_audio,
+            sample_rate=self.sample_rate,
+        )
+        return True

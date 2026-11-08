@@ -83,7 +83,12 @@ ADAPTIVE_NOISE_MIN_FRAMES = 10
 FULL_AEC_FILTER_LENGTH = 2048
 FULL_AEC_ADAPTATION_RATE = 0.01
 FULL_AEC_MAX_DELAY = 0.5
-FULL_AEC_DOUBLE_TALK_THRESHOLD = 0.3
+# near/far power ratio that counts as double talk. Measured with a 0.35/0.15
+# two-path echo: the ratio sits around 0.15-0.4 with echo alone, so the old 0.3
+# latched into permanent double-talk and the filter never adapted (1.2 dB, all
+# from clipping). At 1.0 the same room cancels 18 dB with the user's speech
+# untouched. Raise it if soft speech over her voice gets filtered.
+FULL_AEC_DOUBLE_TALK_THRESHOLD = 1.0
 FULL_AEC_RESIDUAL_TAIL = 256
 FULL_AEC_HANGOVER = 20
 

@@ -1860,3 +1860,29 @@ Gate: full suite **2,033 passed / 2 skipped / 0 failures** (unchanged baseline -
 - Nothing in `voice/` imports openwakeword; `wake_detector.py` STT phrase matching remains the live wake path.
 
 Gate: no runtime code changed - full suite unchanged at **2,033 passed / 2 skipped / 0 failures**.
+
+---
+
+## AEC Playback Feed Wired + Double-Talk Threshold Fix - Nov 8 2026
+
+Closes the standing "AEC is a pass-through" gap. `FullAEC.add_playback()` had no production caller, so echo cancellation never ran; the only echo defence was muting the recorder while `_speaking`. Measured first, then fixed three things.
+
+### Measured (synthetic two-path room: 0.35 @ 2.5 ms + 0.15 @ 19 ms, 16 kHz)
+- **Fed reference + shipped threshold 0.3: 1.2 dB ERLE** - and all of it from the clip guard; `_filter_weights` stayed **exactly zero**. Root cause: the near/far EMA ratio sits at 0.15-0.4 with echo alone, so `ratio > 0.3` latched into permanent double-talk, the filter never adapted, and nothing was cancelled.
+- **Fed reference + threshold 1.0: 18.4 dB ERLE**, user speech in the double-talk window preserved (-0.1 dB). mu ladder 0.01 / 0.003 / 0.001 -> 18.4 / 14.9 / 9.9 dB, so the shipped 0.01 is correct.
+- Unfed (today's production): pass-through by design - unchanged.
+
+### Fixes
+1. **`voice/stream_player.py`** - real playback tap. With a tap installed the clip is no longer played by `sd.play()`; it is streamed through `sd.OutputStream` block by block (512 frames, `write()` blocks, so the loop is real-time paced) and each block is handed to the tap **as it goes to the DAC** - no drift, no latency guesswork, no extra thread. `_resample_to()` (scipy `resample_poly`) converts to the tap rate (Kokoro 24 kHz -> AEC 16 kHz). `set_reference_tap(tap, on_end, sample_rate)` installs it; the finally block fires `on_end` and the context-manager exit drains queued audio (`Pa_StopStream`). `pause()`/`stop()` now `abort()` the stream (only `sd.stop()` would not reach our own stream). A write failure aborts that clip and is logged at WARNING unless the player was being stopped (abort noise stays at debug).
+2. **`voice/full_aec.py`** - `end_playback()`: zeroes the far-end ring buffer, resets `_has_playback` and the power/double-talk state, keeps the filter weights. Without it the reference stays audible-but-stale after the clip and idle mic frames would keep adapting against it.
+3. **`config/voice.py`** - `FULL_AEC_DOUBLE_TALK_THRESHOLD` **0.3 -> 1.0** with the measurement in a comment (raise it if soft speech over her voice gets filtered).
+4. **`voice/voice_manager.py`** - `attach_playback_tap(player)` (wires `send_playback_audio` + `end_playback_audio` at `self.sample_rate`, returns False without an AEC or a tap-capable player) and `end_playback_audio()`.
+5. **`app/builders/voice.py`** - calls `app.voice_manager.attach_playback_tap(app.voice.player)` right after VoiceManager construction. This is the line that was missing before.
+
+### Not done (deliberate)
+- **Recorder still muted while `_speaking`.** Cancellation is now real, but continuous capture during playback (barge-in without losing the first syllable) changes live behaviour and cannot be validated without hardware. Unmute `voice_manager.py` (`if self._recorder and not _speaking:`) and test; note the 2048-tap filter spans ~128 ms, so Bluetooth-class output latency would not be cancelled.
+- Resampling is reference-only; playback keeps the file's own rate (device resampling unchanged).
+- `shortcut:` none added - the 128 ms filter span is documented in config and the roadmap caveat instead.
+
+### Gate
+New `tests/test_voice_aec.py` (12): synthetic-room cancellation at the shipped config, double-talk threshold adapts instead of latching, user speech survives, `end_playback` restores pass-through, tap receives resampled played audio (exact `resample_poly` match) and `on_end` fires, no-tap path still uses `sd.play`, `stop()` aborts the active stream, a device write failure ends the clip cleanly and still flushes the reference, `attach_playback_tap` wires bound methods / is a no-op without an AEC, and the tap reaches the AEC through VoiceManager. Suite **2,045 passed / 2 skipped / 0 failures** (2,047 collected; baseline 2,033 + 12).

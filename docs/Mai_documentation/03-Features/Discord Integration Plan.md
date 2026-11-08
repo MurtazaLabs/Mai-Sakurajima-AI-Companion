@@ -7,7 +7,7 @@
 > - `Brain` is a facade over injected subsystems (`BrainDeps`), not a god class.
 > - HTTPS (auto dev certs) and JWT/static-token auth with a `/api/*` middleware
 >   gate **exist** and are enforced whenever `API_HOST` is not loopback.
-> - Test suite is **2,035 tests** (2,033 passing / 2 skipped), not "8 tests".
+> - Test suite is **2,047 tests** (2,045 passing / 2 skipped), not "8 tests".
 > - The web UI is a 15-page PWA with a working login flow.
 > - `gateways/` was renamed to `integrations/`.
 > - The bot file exists (`integrations/discord_bot.py`, 82 lines) but `discord`
@@ -199,7 +199,7 @@ Discord ──► Discord Bot ──► Brain.think() (direct import)
 
 ### Problems Identified
 
-> **Historical snapshot (2026-07-22).** Several of these are now resolved: #1 Brain is a facade (BrainDeps; dead wrappers extracted), #3 suite is 2,035 tests / 77 modules, #4 web UI is a 15-page PWA with login, #5 HTTPS dev certs ship, #6 JWT login/refresh/register exist, #7 `/metrics` + health registry + tracer exist, #8 `ProfileStore` + `SessionManager` exist (chat path still single-user), #10 semantic chunking shipped, #12 embedding cache is model-fingerprinted. #2, #9, #11 remain open.
+> **Historical snapshot (2026-07-22).** Several of these are now resolved: #1 Brain is a facade (BrainDeps; dead wrappers extracted), #3 suite is 2,047 tests / 78 modules, #4 web UI is a 15-page PWA with login, #5 HTTPS dev certs ship, #6 JWT login/refresh/register exist, #7 `/metrics` + health registry + tracer exist, #8 `ProfileStore` + `SessionManager` exist (chat path still single-user), #10 semantic chunking shipped, #12 embedding cache is model-fingerprinted. #2, #9, #11 remain open.
 
 | # | Problem | Severity | Subsystem |
 |---|---------|----------|-----------|

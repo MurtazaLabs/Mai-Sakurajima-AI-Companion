@@ -30,7 +30,7 @@ WakeWord / hotkey → Mic capture (16k) → Recorder
 - `WakeDetector` (STT phrase matching, phonetic-close tolerance). **openWakeWord 0.6.0 is installed but not wired** — no pretrained "hey mai" model exists (needs a custom verifier or synthetic training).
 - `VAD` (Silero, SHA-256-checksummed model download, load-failure latch). Whole-utterance gate before every `transcribe()`: mean ≥ 0.15, speech ratio ≥ 0.10, voiced ≥ 0.20 s; fail-open when the model is unavailable.
 - `Microphone` (stop() clears callbacks — no accumulation), `AudioBuffer`, `Recorder` (pre-roll ring buffer, trailing-silence trim to 0.2 s, non-finite/over-range chunk sanitization), `UtteranceSegmenter`.
-- `AdaptiveNoiseFilter`, `FullAEC` (vectorized, but **strict pass-through — no playback feed is wired**; `send_playback_audio()` has no production caller).
+- `AdaptiveNoiseFilter`, `FullAEC` (vectorized NLMS + residual filter). **Fed from the real playback stream**: `StreamPlayer` streams the clip through an `OutputStream` and hands each block to `FullAEC.add_playback()` at the AEC's sample rate; `end_playback()` clears the reference when the clip ends. Measured 18 dB echo cancellation on a synthetic two-path room. The recorder is still muted during playback — continuous capture is the remaining step.
 
 ### Speech-to-Text / Text-to-Speech
 
@@ -59,7 +59,7 @@ WakeWord / hotkey → Mic capture (16k) → Recorder
 
 Former P2s resolved (listen() split, `_valid_audio` header check, dead `noise_filter` param, RLock everywhere). Open items:
 
-- **AEC is not live.** `FullAEC` works but has no playback reference (`send_playback_audio()` is called only from tests), so it is a pass-through by design. Echo is mitigated by muting the recorder while `_speaking` — accepted trade-off: the first syllable of an interruption can be lost.
+- **AEC is wired but not exploited.** The playback reference is real now (see above), but the recorder is still muted while `_speaking`, so no audio is captured during playback and the cancelled signal is unused. Unmuting `voice_manager.py` (`if self._recorder and not _speaking:`) is the one-line follow-up — it needs a live test, because poor cancellation (Bluetooth/high device latency beyond the 128 ms filter span) would reintroduce self-transcription. Current trade-off: the first syllable of an interruption can be lost.
 - **Wake word is an STT pass.** Every wake attempt costs a transcription (~1.7 s floor on this GPU). openWakeWord would cut that but has no "hey mai" model.
 - **Kyutai is opt-in.** Above the RTF ≤ 0.7 gate; whisper remains the config default.
 - **True streaming STT is hardware-blocked** — needs sustained RTF < 1; measured 1.17 at best on the T1000.
