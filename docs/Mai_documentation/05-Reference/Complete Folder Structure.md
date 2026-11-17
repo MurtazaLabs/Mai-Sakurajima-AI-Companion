@@ -132,7 +132,7 @@ core/
 voice/
 ├── voice_manager.py          # state machine, mic callback, listening, speaking
 ├── vad.py · recorder.py · microphone.py · audio_buffer.py · utterance_segmenter.py
-├── stt.py (faster-whisper) · stt_kyutai.py (opt-in)
+├── stt.py (faster-whisper fallback) · stt_kyutai.py (primary)
 ├── kokoro_tts.py · stream_player.py · realtime.py
 ├── interrupt.py · wake_detector.py · wake_word.py
 ├── speaker_identifier.py · speaker/ (manager, encoder, database, profile)

@@ -68,6 +68,15 @@ DREAM_COMPLETED = "data.dream.completed"
 DREAM_STARTED = "data.dream.started"
 DREAM_ENDED = "data.dream.ended"
 
+# ── Continuity (projects / commitments / checkpoints) ──────────────
+
+CONTINUITY_PROJECT_CREATED = "data.continuity.project_created"
+CONTINUITY_PROJECT_UPDATED = "data.continuity.project_updated"
+CONTINUITY_COMMITMENT_ADDED = "data.continuity.commitment_added"
+CONTINUITY_COMMITMENT_RESOLVED = "data.continuity.commitment_resolved"
+CONTINUITY_COMMITMENT_MISSED = "data.continuity.commitment_missed"
+CONTINUITY_CHECKPOINT_SAVED = "data.continuity.checkpoint_saved"
+
 # ── Emotion / cognition ────────────────────────────────────────────
 
 EMOTION_CHANGED = "data.emotion.changed"
@@ -110,6 +119,7 @@ STATE_AGENT_COMPLETED = "state.agent.completed"
 STATE_NEEDS_UPDATED = "state.needs.updated"
 STATE_MONOLOGUE_GENERATED = "state.monologue.generated"
 STATE_USER_SWITCHED = "state.user.switched"
+STATE_CONTINUITY_UPDATED = "state.continuity.updated"
 
 # Retrieval and tool-execution projections.
 #
@@ -232,6 +242,19 @@ VERTEX_SPECS: list[EventSpec] = [
           payload_keys=("level",)),
     _spec(DREAM_ENDED, "agency", "Dreaming cycle ended",
           payload_keys=("level",)),
+    # Continuity
+    _spec(CONTINUITY_PROJECT_CREATED, "continuity", "A tracked project was opened",
+          payload_keys=("id", "name", "status", "goal_id")),
+    _spec(CONTINUITY_PROJECT_UPDATED, "continuity", "A tracked project changed",
+          payload_keys=("id", "name", "status", "changed")),
+    _spec(CONTINUITY_COMMITMENT_ADDED, "continuity", "A promise with a due window was recorded",
+          payload_keys=("id", "promise", "due_at")),
+    _spec(CONTINUITY_COMMITMENT_RESOLVED, "continuity", "A commitment was closed",
+          payload_keys=("id", "promise", "status")),
+    _spec(CONTINUITY_COMMITMENT_MISSED, "continuity", "A commitment passed its due window unresolved",
+          payload_keys=("id", "promise", "due_at"), priority="high"),
+    _spec(CONTINUITY_CHECKPOINT_SAVED, "continuity", "A resumable checkpoint was written",
+          payload_keys=("task_id", "step")),
     # Emotion / cognition
     _spec(EMOTION_CHANGED, "cognition", "Dominant emotion changed",
           payload_keys=("type", "valence", "arousal", "confidence"), priority="high"),
@@ -304,6 +327,9 @@ VERTEX_SPECS: list[EventSpec] = [
           payload_keys=("name",), priority="normal"),
     _spec(STATE_TOOL_COMPLETED, "agency", "Tool execution finished (UI truth)",
           payload_keys=("name", "success", "duration"), priority="normal"),
+    _spec(STATE_CONTINUITY_UPDATED, "continuity", "Reconciled continuity state changed (UI truth)",
+          payload_keys=("projects", "open_commitments", "due", "missed", "checkpoints"),
+          priority="high"),
 ]
 
 

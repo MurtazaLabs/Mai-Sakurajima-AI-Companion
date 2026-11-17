@@ -127,6 +127,7 @@ def load_vault_into_memory(reader, memory_manager, vector_store, memory_hierarch
                     confidence=REPLAY_CONFIDENCE,
                     tags=[entry.topic],
                     source="vault",
+                    importance=REPLAY_IMPORTANCE,
                 )
                 summary["semantic"] += 1
             except Exception as e:
@@ -269,24 +270,32 @@ def verify_consistency(reader, vector_store, knowledge_graph, memory_hierarchy):
 
 
 def _load_entity_links_from_conversations(entries, knowledge_graph):
+    # A note keeps its [[links]] forever, so replaying one would resurrect an
+    # entity the VaultJanitor swept. Same predicate as the sweep — one rule.
+    from knowledge.vault_janitor import VaultJanitor
+
     entity_links_count = 0
     seen = set()
     for entry in entries:
         links = entry.get("entity_links") or []
-        user = entry.get("user", "")
         for link in links:
-            key = (user, link)
-            if key in seen:
+            if link in seen:
                 continue
-            seen.add(key)
+            seen.add(link)
             clean = link.strip()
             if not clean:
+                continue
+            if VaultJanitor._is_junk_name(clean):
                 continue
             if knowledge_graph.get_entity(clean) is None:
                 knowledge_graph.add_entity(clean, entity_type="entity_from_link",
                                            metadata={"source": "conversation_link"})
                 entity_links_count += 1
-            knowledge_graph.add_relation(user or "user", "mentioned_in", clean,
+            # Source is the canonical user node: add_relation auto-creates an
+            # entity for any unknown source, so passing the raw message text
+            # turned every user turn into a graph entity.
+            knowledge_graph.add_entity("user", entity_type="person")
+            knowledge_graph.add_relation("user", "mentioned_in", clean,
                                          weight=0.5, metadata={"source": "conversation_link"})
     logger.info("[VAULT LOADER] loaded %d entity links from conversation files", entity_links_count)
     return entity_links_count

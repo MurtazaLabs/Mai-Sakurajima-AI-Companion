@@ -77,6 +77,13 @@ def _check_brain(app):
     return ok
 
 
+def _check_continuity(app):
+    ok = True
+    if getattr(app, "continuity", None) is None:
+        logger.error("  ✗ ContinuityEngine: MISSING"); ok = False
+    return ok
+
+
 def _check_voice(app):
     ok = True
     if app.voice is None:
@@ -102,6 +109,7 @@ VALIDATION_ORDER = [
     ("Reasoning",       _check_reasoning),
     ("Agency",          _check_agency),
     ("Cognition",       _check_brain),
+    ("Continuity",      _check_continuity),
     ("Voice",           _check_voice),
     ("Runtime",         _check_runtime),
 ]

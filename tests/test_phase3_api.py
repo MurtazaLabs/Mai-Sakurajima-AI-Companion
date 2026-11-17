@@ -10,15 +10,17 @@ def test_phase_three_read_routes_use_auth_dependency():
 
     app.dependency_overrides[_require_auth] = deny
     try:
-        with TestClient(app) as client:
-            for path in (
-                "/api/goals",
-                "/api/graph",
-                "/api/voice/status",
-                "/api/system/health",
-                "/api/permissions",
-            ):
-                response = client.get(path)
-                assert response.status_code == 401, path
+        # No `with`: entering the context runs the lifespan, which bootstraps the
+        # real application and re-exports the live vault graph.
+        client = TestClient(app)
+        for path in (
+            "/api/goals",
+            "/api/graph",
+            "/api/voice/status",
+            "/api/system/health",
+            "/api/permissions",
+        ):
+            response = client.get(path)
+            assert response.status_code == 401, path
     finally:
         app.dependency_overrides.pop(_require_auth, None)

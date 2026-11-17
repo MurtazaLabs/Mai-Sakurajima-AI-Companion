@@ -61,7 +61,7 @@
 - **Multi-session profiles / cloud sync** — `ProfileStore` + `SessionManager` exist; cloud sync not started
 - **Discord (M24/M25)** — 82-line relay prototype only; `discord` package not installed
 - **Entity web interface (v4.0)** — only `api/web/state/visual-state-adapter.js` exists
-- **STT → Kyutai 1B** — built, but failed the RTF ≤ 0.7 gate (1.17–2.97 on the T1000); opt-in via `STT_BACKEND=kyutai`
+- **STT → Kyutai 1B** — primary backend since Nov 2026 (default `STT_BACKEND="kyutai"`). Misses the plan's RTF ≤ 0.7 ideal but measures faster than whisper on the T1000 (2.5–4.2 s vs ~3.0 s for a ~2 s clip); faster-whisper is the permanent fallback
 - Roadmap M15–M26 — see [[03-Features/future-vision-roadmap]]
 
 ### ❌ Not Started

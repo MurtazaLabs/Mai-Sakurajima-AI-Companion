@@ -16,6 +16,8 @@ class TranscriptionUnavailable(Exception):
 
 class FasterWhisperSTT:
 
+    stack = "local"
+
     def __init__(
         self,
         model_size=None,

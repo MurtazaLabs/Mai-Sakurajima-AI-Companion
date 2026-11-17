@@ -2031,6 +2031,31 @@ class TestVaultJanitor:
         assert graph.get_entity("siad") is None
         assert graph.get_entity("python") is not None
 
+    def test_sweep_apply_persists_survivors_to_graph_json(self, tmp_path):
+        """Entity removals must reach graph.json — it is what boot rebuilds from."""
+        import json
+        from knowledge.vault_janitor import VaultJanitor
+        graph = self._graph_with_junk()
+        state_file = tmp_path / "graph.json"
+        state_file.write_text(json.dumps([{"name": e.name, "type": "unknown"}
+                                          for e in graph.all_entities()]), encoding="utf-8")
+        janitor = VaultJanitor(graph=graph)
+        result = janitor.sweep(dry_run=False, persist_path=state_file)
+        saved = {row["name"] for row in json.loads(state_file.read_text(encoding="utf-8"))}
+        assert "python" in saved
+        assert "siad" not in saved and "pormise" not in saved
+        assert result["entities"]["persisted"] == len(saved)
+
+    def test_sweep_dry_run_does_not_touch_graph_json(self, tmp_path):
+        import json
+        from knowledge.vault_janitor import VaultJanitor
+        graph = self._graph_with_junk()
+        state_file = tmp_path / "graph.json"
+        original = json.dumps([{"name": e.name, "type": "unknown"} for e in graph.all_entities()])
+        state_file.write_text(original, encoding="utf-8")
+        VaultJanitor(graph=graph).sweep(dry_run=True, persist_path=state_file)
+        assert state_file.read_text(encoding="utf-8") == original
+
     def test_sweep_note_files_removes_orphan_junk_notes(self, tmp_path):
         from knowledge.vault_janitor import VaultJanitor
         graph = self._graph_with_junk()
@@ -2091,6 +2116,45 @@ class TestVaultJanitor:
         result = janitor.sweep_note_files(dry_run=False)
         assert "ai.md" not in result["files"]
         assert (graph_dir / "ai.md").exists()
+
+    def test_sentence_entity_name_is_junk(self):
+        """A whole sentence is never an entity name; a real name still is one."""
+        from knowledge.vault_janitor import VaultJanitor
+        assert VaultJanitor._is_junk_name("a kind of thing do i make my mind thinking") is True
+        assert VaultJanitor._is_junk_name("syed mohammad murtaza") is False
+
+    def test_sweep_note_files_sees_through_underscores(self, tmp_path):
+        """Note stems are underscored, so a sentence note must still be junk."""
+        from knowledge.graph import KnowledgeGraph
+        from knowledge.vault_janitor import VaultJanitor
+        graph = KnowledgeGraph()
+        graph_dir = tmp_path / "graph"
+        graph_dir.mkdir(parents=True, exist_ok=True)
+        (graph_dir / "do_you_remember_me.md").write_text("# junk", encoding="utf-8")
+        (graph_dir / "vs_code.md").write_text("# vs code", encoding="utf-8")
+        janitor = VaultJanitor(graph=graph, vault_root=tmp_path)
+        result = janitor.sweep_note_files(dry_run=False)
+        assert "do_you_remember_me.md" in result["files"]
+        assert "vs_code.md" not in result["files"]
+
+
+class TestVaultLoaderLinkGate:
+    """A note keeps its [[links]] forever, so replay must respect the junk rule."""
+
+    def test_junk_link_is_not_replayed(self):
+        from knowledge.graph import KnowledgeGraph
+        from memory.vault_loader import _load_entity_links_from_conversations
+        graph = KnowledgeGraph()
+        entries = [{"user": "murtaza",
+                    "entity_links": ["do you remember me", "Python"]}]
+        count = _load_entity_links_from_conversations(entries, graph)
+        assert count == 1
+        assert graph.get_entity("python") is not None
+        assert graph.get_entity("do you remember me") is None
+        # The turn text must never become an entity (add_relation auto-creates
+        # its source): only the canonical "user" node may be the source.
+        assert graph.get_entity("murtaza") is None
+        assert [(r.source, r.target) for r in graph.all_relations()] == [("user", "python")]
 
 
 class TestVaultPostProcessor:

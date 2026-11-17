@@ -204,7 +204,7 @@ class AdvancedRetriever:
                     score: float = 0.5
                     if isinstance(item, dict):
                         text = str(item.get("text", item.get("content", "")))
-                        raw = item.get("score", item.get("relevance", 0.5))
+                        raw = item.get("similarity", item.get("score", item.get("relevance", 0.5)))
                         if raw is None:
                             raw = 0.5
                         score = float(raw)

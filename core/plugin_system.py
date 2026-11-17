@@ -370,8 +370,17 @@ class PluginLoader:
 
     def list(self) -> dict[str, dict[str, Any]]:
         with self._lock:
-            return {n: {"name": p.name, "version": p.version, "initialized": p.initialized} 
-                    for n, p in self._plugins.items()}
+            # Manifest-style plugins (plugins/<name>/manifest.json) are plain
+            # classes with a MANIFEST dict — no .name/.version attributes.
+            out = {}
+            for n, p in self._plugins.items():
+                manifest = getattr(p, "MANIFEST", None) or {}
+                out[n] = {
+                    "name": getattr(p, "name", None) or manifest.get("name") or n,
+                    "version": getattr(p, "version", None) or manifest.get("version"),
+                    "initialized": getattr(p, "initialized", True),
+                }
+            return out
 
     def get_plugin_metadata(self, name: str) -> dict[str, Any] | None:
         """Get full plugin metadata from plugins.json manifest."""

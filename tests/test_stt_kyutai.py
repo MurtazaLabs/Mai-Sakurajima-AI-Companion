@@ -6,7 +6,7 @@ Pins the plan §4 requirements:
   .sample_rate, .model);
 - any load or runtime failure falls back to faster-whisper permanently,
   voice never dies;
-- STT_BACKEND config honors the env var ("whisper" default).
+- STT_BACKEND config honors the env var ("kyutai" default, whisper fallback).
 """
 import sys
 from types import ModuleType
@@ -206,36 +206,46 @@ def test_stats_reports_rtf_and_calls(loaded_stt):
 
 # ── config switch ────────────────────────────────────────────────────────
 
-def test_stt_backend_default_whisper(monkeypatch):
+def test_stt_backend_default_kyutai(monkeypatch):
+    """Kyutai is the primary backend; whisper is only the fallback."""
     import importlib
 
     import config.voice as cv
     monkeypatch.delenv("STT_BACKEND", raising=False)
     importlib.reload(cv)
-    assert cv.STT_BACKEND == "whisper"
+    assert cv.STT_BACKEND == "kyutai"
     assert cv.KYUTAI_STT_DIR  # path string present
     # restore ambient config (a .env may legitimately set STT_BACKEND)
     monkeypatch.undo()
     importlib.reload(cv)
 
 
-def test_stt_backend_env_switch(monkeypatch):
-    monkeypatch.setenv("STT_BACKEND", "kyutai")
-    import config
+def test_stt_backend_env_switch_to_whisper(monkeypatch):
+    monkeypatch.setenv("STT_BACKEND", "whisper")
+    import config  # noqa: F401  (reload order matters: voice imports paths)
     import config.voice as cv
     import importlib
     importlib.reload(cv)
     try:
-        assert cv.STT_BACKEND == "kyutai"
+        assert cv.STT_BACKEND == "whisper"
     finally:
         monkeypatch.undo()
         importlib.reload(cv)  # ambient env decides the restored value
 
 
-def test_builder_non_kyutai_backend_hooks_into_placeholder_build():
-    """boundary: factory branch reads the live module via getattr with a
-    'whisper' guard — a missing/typo'd attr must fall back to whisper."""
-    class _NoAttr:
-        STT_BACKEND = "whisper"
+def test_local_stack_stt_defaults_to_kyutai():
+    """The stack factory's default must agree with the shipped STT_BACKEND —
+    drifting apart is how 'kyutai is primary' silently becomes whisper."""
+    from voice.stack_switcher import build_stt
+    from voice.stt_kyutai import KyutaiSTT
 
-    assert getattr(_NoAttr(), "STT_BACKEND", "whisper") == "whisper"
+    assert isinstance(build_stt("local"), KyutaiSTT)
+
+
+def test_local_stack_stt_honours_whisper_override(monkeypatch):
+    from app.config_loader import Settings
+    from voice.stt import FasterWhisperSTT
+    from voice.stack_switcher import build_stt
+
+    monkeypatch.setattr(Settings, "STT_BACKEND", "whisper")
+    assert isinstance(build_stt("local"), FasterWhisperSTT)

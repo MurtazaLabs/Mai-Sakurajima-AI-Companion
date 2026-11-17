@@ -34,7 +34,7 @@ WakeWord / hotkey → Mic capture (16k) → Recorder
 
 ### Speech-to-Text / Text-to-Speech
 
-- `STT` — `FasterWhisperSTT` (default, RLock) and `KyutaiSTT` (opt-in via `STT_BACKEND=kyutai`, permanent whisper fallback on any load/runtime failure, dynamo disabled on Windows because Triton is absent). Measured Kyutai RTF 1.17–2.97 on the 4 GB T1000 — above the 0.7 promotion gate.
+- `STT` — `KyutaiSTT` (primary since Nov 2026 via `STT_BACKEND`, permanent whisper fallback on any load/runtime failure, dynamo disabled on Windows because Triton is absent) and `FasterWhisperSTT` (fallback; `STT_BACKEND=whisper` reverts). Measured Kyutai 2.5–4.2 s vs ~3.0 s whisper for a ~2 s clip on the 4 GB T1000 — above the plan's 0.7 RTF ideal, a deliberate override rather than a gate pass.
 - `KokoroTTS` — `generate(emotion=)` text enhancement; `StreamPlayer` playback; sentence-level streaming fed by `brain.think_stream()`.
 
 ### Identity & Analysis
@@ -61,7 +61,7 @@ Former P2s resolved (listen() split, `_valid_audio` header check, dead `noise_fi
 
 - **AEC is wired but not exploited.** The playback reference is real now (see above), but the recorder is still muted while `_speaking`, so no audio is captured during playback and the cancelled signal is unused. Unmuting `voice_manager.py` (`if self._recorder and not _speaking:`) is the one-line follow-up — it needs a live test, because poor cancellation (Bluetooth/high device latency beyond the 128 ms filter span) would reintroduce self-transcription. Current trade-off: the first syllable of an interruption can be lost.
 - **Wake word is an STT pass.** Every wake attempt costs a transcription (~1.7 s floor on this GPU). openWakeWord would cut that but has no "hey mai" model.
-- **Kyutai is opt-in.** Above the RTF ≤ 0.7 gate; whisper remains the config default.
+- **Kyutai is primary.** Promoted Nov 2026 despite missing the RTF ≤ 0.7 ideal — it is faster than whisper on the real device. `STT_BACKEND=whisper` reverts; the permanent fallback covers a missing checkpoint or any runtime failure.
 - **True streaming STT is hardware-blocked** — needs sustained RTF < 1; measured 1.17 at best on the T1000.
 
 ---

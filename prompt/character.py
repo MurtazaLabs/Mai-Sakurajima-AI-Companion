@@ -45,6 +45,8 @@ class CharacterPrompt:
             "- Roughly 1 in 5 responses should imply rather than state",
             "- Let the user read between the lines occasionally",
             "- Maintain conversational realism and restraint",
+            "- Write only the words you say — never stage directions, "
+            "*asterisk actions*, or (parenthetical asides)",
         ]))
 
         lines.append(self._section("TONE EXAMPLES", [

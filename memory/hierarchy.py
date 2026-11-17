@@ -96,7 +96,7 @@ class SemanticMemoryStore:
         with self._lock:
             return len(self._facts)
 
-    def add(self, fact_key, content, confidence=0.5, tags=None, source=None):
+    def add(self, fact_key, content, confidence=0.5, tags=None, source=None, importance=0.5):
         with self._lock:
             if fact_key in self._facts:
                 existing = self._facts[fact_key]
@@ -104,8 +104,8 @@ class SemanticMemoryStore:
                 existing.access_count += 1
                 existing.last_accessed = time.time()
                 return existing
-            code = MemoryCode(MemoryType.SEMANTIC, content,
-                              confidence=confidence, tags=tags, source=source)
+            code = MemoryCode(MemoryType.SEMANTIC, content, confidence=confidence,
+                              importance=importance, tags=tags, source=source)
             self._facts[fact_key] = code
             return code
 
@@ -301,8 +301,10 @@ class MemoryHierarchy:
             self.procedural, self.autobiographical,
         ]
 
-    def store_semantic(self, fact_key, content, confidence=0.5, tags=None, source=None, emotion=None):
-        code = self.semantic.add(fact_key, content, confidence, tags, source)
+    def store_semantic(self, fact_key, content, confidence=0.5, tags=None, source=None,
+                       emotion=None, importance=0.5):
+        code = self.semantic.add(fact_key, content, confidence, tags, source,
+                                 importance=importance)
         self._sync_to_brain_graph(code, emotion=emotion)
         return code
 
@@ -349,7 +351,8 @@ class MemoryHierarchy:
         results = []
         if is_factual and not is_identity:
             fact_key = content[:60].strip().lower()
-            code = self.store_semantic(fact_key, content, confidence, tags, source, emotion=emotion)
+            code = self.store_semantic(fact_key, content, confidence, tags, source,
+                                       emotion=emotion, importance=importance)
             results.append(code)
 
         if is_event or not (is_factual or is_identity or is_rule):

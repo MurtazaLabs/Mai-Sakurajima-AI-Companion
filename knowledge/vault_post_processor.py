@@ -39,13 +39,13 @@ Topic for knowledge: the subject of the fact (e.g. "Python", "Tokyo", "AI")
 
 Rules:
 - Extract ONLY facts explicitly stated by the user about themselves or their world
+- Never attribute anything Mai said to the user
 - Skip generic chitchat, greetings, questions
 - Each fact must be a complete, meaningful statement
 - Maximum 3 items per array
 - Return empty arrays/sections if nothing found
 
-User: {user}
-Mai: {ai}"""
+User: {user}"""
 
 
 class VaultPostProcessor:

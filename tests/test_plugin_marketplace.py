@@ -87,6 +87,18 @@ def test_loader_prefers_manifest_dir():
     assert plugin.initialized is True
 
 
+def test_list_reports_manifest_plugins_without_name_attr():
+    """Manifest plugins are plain classes (no .name/.version) — list() must not 500."""
+    loader = PluginLoader(HookRegistry(), str(PROJECT_ROOT / "plugins"))
+    plugin = loader.load("weather")
+    assert plugin is not None
+    assert not hasattr(plugin, "name")
+    entry = loader.list()["weather"]
+    assert entry["name"] == "weather"
+    assert entry["version"] == plugin.MANIFEST["version"]
+    assert entry["initialized"] is True
+
+
 # ── PluginState fixes ────────────────────────────────────────────
 
 

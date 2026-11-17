@@ -1886,3 +1886,252 @@ Closes the standing "AEC is a pass-through" gap. `FullAEC.add_playback()` had no
 
 ### Gate
 New `tests/test_voice_aec.py` (12): synthetic-room cancellation at the shipped config, double-talk threshold adapts instead of latching, user speech survives, `end_playback` restores pass-through, tap receives resampled played audio (exact `resample_poly` match) and `on_end` fires, no-tap path still uses `sd.play`, `stop()` aborts the active stream, a device write failure ends the clip cleanly and still flushes the reference, `attach_playback_tap` wires bound methods / is a no-op without an AEC, and the tap reaches the AEC through VoiceManager. Suite **2,045 passed / 2 skipped / 0 failures** (2,047 collected; baseline 2,033 + 12).
+
+---
+
+## Kyutai Promoted to Primary STT - Nov 8 2026
+
+User request: "make Kyutai the primary Stt". The backend already ran here via `.env STT_BACKEND=kyutai`, but the shipped config default was still `whisper`, so every other install (and the documented status) treated Kyutai as opt-in.
+
+### Change
+1. **`config/voice.py`** - `STT_BACKEND` default `"whisper"` -> `"kyutai"`, comment rewritten: primary backend, measured 2.5-4.2s vs ~3.0s for a ~2s clip on the T1000, still above the plan's RTF <= 0.7 ideal (deliberate override, not a gate pass), faster-whisper stays the permanent fallback. `STT_BACKEND=whisper` reverts.
+2. **`app/builders/voice.py`** - the defensive `getattr(cfg.voice_config, "STT_BACKEND", ...)` fallback string also flipped to `"kyutai"` (config always defines the attr; keeping the two defaults disagreeing is exactly the drift that silently restores whisper).
+3. **`voice/voice_manager.py`** - four hardcoded "Whisper" log labels made backend-neutral (`Starting STT transcription`, `STT result`, `STT unavailable` x2). They were already wrong on this machine (live backend is Kyutai) and would be wrong by default everywhere after this change. No test or doc referenced the old strings.
+4. `.env` left as-is (`STT_BACKEND=kyutai` is now redundant but harmless; deleting it would change nothing).
+
+### Tests
+- `tests/test_stt_kyutai.py`: `test_stt_backend_default_whisper` -> `test_stt_backend_default_kyutai` (asserts the default is kyutai with env unset); `test_stt_backend_env_switch` -> `test_stt_backend_env_switch_to_whisper` (env still overrides); the tautological `test_builder_non_kyutai_backend_hooks_into_placeholder_build` (it asserted `getattr(obj_with_attr, ...) == attr`, i.e. tested Python) replaced with `test_builder_defensive_default_is_kyutai`, which pins the builder's fallback literal to the new default.
+- Verified live: `app.config_loader.voice_config.STT_BACKEND == "kyutai"`, `Settings.STT_BACKEND == "kyutai"`, checkpoint path `E:\Mai_ai\kyutai STT\stt-1b-en_fr-trfs` exists. No caller touches whisper-only attributes (`set_model`, `input_device`, `max_record_seconds`, `silence_threshold`), so the Kyutai object satisfies every use site.
+- Focused suites (stt_kyutai, voice_gating, voice_selfhearing, deferred_v43, desktop_app): 108 passed.
+
+### Docs
+- `stt-kyutai-replacement-plan.md` - status line, build spec, risk row and decisions log (new 2026-11-08 entry; the 0.7 gate is recorded as an unmet ideal, not a pass).
+- `CURRENT_STATE.md` - voice bullet, stack table, known issue #3 (also dropped the stale "whisper is comparable or better on short clips" claim, which the Oct-27 padding/dynamo measurements disproved), and the Kyutai row **removed from §4 Incomplete Capabilities** (it is no longer partial/opt-in).
+- `07-Voice Subsystem.md`, `10-Status & Debt.md`, `Voice Pipeline.md`, `future-vision-roadmap.md`, `README.md`, `Complete Folder Structure.md` - opt-in/default language flipped.
+- `Troubleshooting/README.md` - new row for `[KyutaiSTT] Load failed ... falling back to faster-whisper` (checkpoint missing on a fresh install is now a normal failure mode), and the status check now names the real field (`stt.backend` -> `kyutai` or `kyutai(whisper fallback)` + `load_failed`).
+- `Deployment/README.md` + `Deployment Guide.md` - `.env` sample now `STT_BACKEND=kyutai`.
+- Dated historical docs (Project Charter, audit reports) keep their original wording.
+
+### Watch-outs
+- Kyutai load is lazy: the first utterance after boot pays ~2.7s (already true here).
+- CPU-only installs get RTF ~4.8 (≈ whisper-small), so the promotion is a win on GPU and neutral on CPU.
+- `WHISPER_MODEL` in the settings UI now only affects the fallback path.
+
+### Gate
+Full suite **2,045 passed / 2 skipped / 0 failures** (2,047 collected, 1m55s, mai_env) - count unchanged: three test functions were rewritten in place, none added.
+
+---
+
+## Local LLM (llama.cpp / GGUF) + Switchable Voice Stacks - BUILD COMPLETE (Nov 13 2026)
+
+User request: integrate a local GGUF model with switchable LLM providers and switchable voice stacks, two UI buttons, build first and install the model/server last. Plan: `docs/Mai_documentation/03-Features/llamacpp-local-llm-plan.md` (status "BUILD COMPLETE (steps 1-5), INSTALL PENDING (step 6)", §12 build record, §13 open items).
+
+Locked decisions (D1-D6): Stheno 8B Q5_K_M with **partial CPU offload** (GPU takes what fits); ElevenLabs for cloud voice; Mai owns its own llama-server on **port 8082** (8080/8081 belong to another project); Kyutai stays the local alternative; defaults unchanged (`LLM_PROVIDER=openrouter`, `VOICE_STACK=local`) so nothing changes for a user who never touches a switch. Q1 = cloud stack is ElevenLabs TTS **+ Scribe STT** (both built); Q2 = emoji stripped **only in the TTS layer**, the "as an AI" boundary stays a prompt/ThoughtPacket (M11) concern.
+
+The VRAM argument is what shaped the design: Kyutai bf16 holds ~2.3 GB of the T1000's 4 GB and llama-server 4B alone measured 3,283 MiB of 4,096, so they cannot coexist - which means the voice switch must move **STT**. Kokoro TTS was already CPU-only, so moving TTS alone would free nothing.
+
+### Built
+1. **LLM provider** - `llm/providers/openai_compat.py` (new): `/v1/chat/completions`, real SSE streaming via new `PooledHTTPClient.stream_lines()`, `/health` probe with `/v1/models` fallback, `generate_with_tools`, `cancel_stream`, `stats`. Yields raw deltas and **raises** on failure so `_stream_with_failover` can move providers; permanent 4xx are not retried. `LLAMACPP_BASE_URL/MODEL/API_KEY` in `config/llm.py` + settings mirror; `llm/manager.py` gained `_provider` normalisation, lazy `_ensure_llamacpp()`, llamacpp-first `generate()`/`stream()`, cooldown, `select_provider(probe=)`, `providers_status(probe=)`, `PROVIDERS`. Live smoke against the other project's `:8080`: `is_alive` True, **TTFT 0.438 s**, 10 chunks.
+2. **Voice backends** - `voice/elevenlabs_tts.py` (new): exact `KokoroTTS.generate(text, path, emotion=)` contract, `pcm_24000` (no decoder, no extra latency) written as a 24 kHz WAV, emotion -> stability, emoji strip, permanent Kokoro fallback on any failure. `voice/elevenlabs_stt.py` (new): FasterWhisperSTT surface, WAV upload to `/v1/speech-to-text`, no key or runtime failure -> permanent `FasterWhisperSTT` fallback (CPU, no VRAM). `ELEVENLABS_*` + `VOICE_STACK` keys in config with settings mirrors; local backends tagged `stack = "local"`, cloud `stack = "cloud"`.
+3. **Switcher** - `voice/stack_switcher.py` (new): `resolve_stack()` (persisted override > env, cloud refused without a key), `build_stt/build_tts` as the single construction source for boot **and** switch, `VoiceStackSwitcher.switch()` refusing `unknown_stack`/`no_api_key`/`busy`, swapping **six** injection points (`app.stt`, `voice_manager.stt`, `wake_detector.stt`, `kernel.stt`, `app.tts` + `voice.tts`, `voice_renderer.tts` - missing one leaves the old model alive and the VRAM unreleased), closing the outgoing cloud client, `del` + `gc.collect()` + `torch.cuda.empty_cache()`, reporting `vram_freed_mb`. `app/builders/voice.py` is stack-aware and builds `app.voice_stack`; `app/application.py` field added.
+4. **API + UI** - `GET /api/system/providers`, `POST /api/system/llm/provider`, `POST /api/system/voice/stack` (auth-guarded thin `SystemMixin` wrappers; `mai.llm`/`mai.voice_stack` wired in bootstrap). `api/static/js/system.js` gained a "Models & Voice" section with live-switch buttons; `LLM_PROVIDER`/`VOICE_STACK` are filtered out of the generic config list because that path only persists and waits for a restart. `api/routes_system.py` persists `LLM_PROVIDER` on a successful switch; `app/builders/infrastructure.py` restores a persisted provider at boot with `probe=False` (no network before the first request).
+5. **Launcher** - `scripts/run_llama_server.ps1`: port 8082, `--ctx-size 8192 --parallel 2 --flash-attn on --no-webui --alias stheno`, `-NGpuLayers` parameter for the sweep, `-DryRun` prints the exact command and reports what is missing (verified: reports missing binary and model). `--parallel 1` is deliberately avoided - Mai also calls the LLM from background threads and a queued dream task must not sit in front of a voice reply.
+
+### Gate
+`tests/test_voice_stacks.py` (30: TTS PCM/headers/emoji/format/fallback, STT upload/permanent fallback/no-key, construction + resolve, the six-point swap, close/busy/no-key/unknown/no-op, provider routes, stack tags) + `tests/test_llm.py` (+19) + `tests/test_stt_kyutai.py` (source-inspection test replaced by 2 behavioural ones).
+Full suite **2,095 passed, 2 failed** - both reds are the pre-existing `tests/test_horizontal_scaling.py::test_redis_state_sharing` and `::test_event_bus_pubsub`, which now execute because a real Redis 8.1.0 answers on `localhost:6379` and expose a separate state-sharing bug (files untouched, unrelated to this build).
+
+### Still open
+- **Step 6, gated on user go**: Stheno 8B Q5_K_M into `models/`, llama.cpp release into `tools/llama/`, sweep `-ngl` 16/20/24/28 at ctx 8192, lock the value in `.env`.
+- **ElevenLabs key (Q3)**: no key on this machine, so the cloud stack is mocked-tested only. Check `GET https://api.elevenlabs.io/v1/models` for the real STT model id before trusting `ELEVENLABS_STT_MODEL=scribe_v1`, then confirm the >= 2.0 GB VRAM release on a live switch.
+- **M9 evaluation** (`scripts/run_m9_evaluation.py --mode real`) local vs cloud.
+
+---
+
+## Spark-X2.5-4B Installed + Cloud Voice Validated - INSTALL COMPLETE (Nov 13 2026)
+
+Closes the "Step 6 / Q3 / VRAM gate" items of the Nov-13 build entry above. Plan doc: `docs/Mai_documentation/03-Features/llamacpp-local-llm-plan.md` §13-§14.
+
+### Model + server
+- **`qikuanz/Spark-X2.5-4B` Q4_K_M** in `models/Spark-X2.5-4B-Q4_K_M.gguf` - 2,600,224,352 B, SHA-256 `adfcfa19...09428` **verified MATCH**. D4 overridden by the user: the planned Stheno 8B Q5_K_M is superseded, and with it D1 (partial CPU offload) - a 4B fits the card whole.
+- **The GGUF embeds its own chat template** (4,647 chars, `enable_thinking` defaults true). `models/spark-chat-template.jinja` was redundant and is deleted.
+- `scripts/run_llama_server.ps1`: llama.cpp **b12212** (CUDA 12.4, `tools/llama/`) on **port 8082**, `--alias spark --ctx-size 8192 --parallel 2 --n-gpu-layers 99 --flash-attn on --no-webui --jinja --reasoning off`. `--parallel 2` splits 8192 into 4,096 per slot = `LLM_MAX_CONTEXT`. Load 37.5 s, resident **3,135 MiB of 4,096**.
+- `-ngl` sweep (warm): **99 -> 3,135 MiB, 0.40 s TTFT, 22.1 tok/s**; 20 -> 1,863 MiB, 0.92 s, 4.4 tok/s. Full offload wins 5x.
+- `scripts/fetch_spark.ps1` (new): 78 x 32 MB curl range requests into separate `.part` files with per-chunk size checks, resume, and a final SHA-256 gate. `hf_hub_download`/hf_xet **stalled with zero disk I/O for 7 minutes** on this machine's intermittent DNS resets, and an earlier parallel-seek writer passed its own size assert while leaving **110 zero-filled 16 MB blocks**. Never trust a size-only check for a model download.
+
+### Latency, honestly
+- First measurement looked fatal (**35.9 s TTFT, 0.5 tok/s**) - it was one-time CUDA warmup: the server log showed `prompt eval 35852 ms / 27 tokens`. Warm: **0.40-0.49 s TTFT, 18.8-22.1 tok/s**. `scripts/sweep_llama.ps1` now discards a warmup pass so it cannot report that artifact again.
+- The cost that matters is **prompt eval, 143.6 tok/s** (1,669 tokens = 11.6 s). M9 measured Mai's real system prompt at **8,069 chars on turn 0 (~2k tokens)** -> **~12 s to first token** on the first turn of a session, ~3.5 s once memory context empties (~2,500 chars). Generation is fine; `speak_stream` emits per sentence. Spark's prompt eval is ~1.7x faster than Qwen3-4B-Instruct (107 tok/s on 2,088 tokens).
+
+### M9 on Spark (real mode, praise, 5 turns) - `session-praise-real-1794595381`
+**4.67/5** (same as Qwen3-4B), trust monotone **0.72 -> 0.82** (Qwen3: 0.60 -> 0.70), no boundary leakage; `review_required` only for the unexercised `experience_visibility` axis. **But the rubric does not measure voice**: Spark reads as an assistant (*"I'm glad I could make a difference for you today"*), states feelings outright (*"It makes me feel valued"*), where Qwen3 produced *"Mm... you're welcome. You sounded weighed down earlier..."*. Treat the score as "mechanics hold", not "character holds".
+
+### Stage-direction leak - found by that run, fixed
+Spark opened turn 4 with `(with a warm smile) That's really sweet.` No stage-direction rule existed anywhere, so **both TTS backends would have spoken "with a warm smile" aloud**. Fixed at both ends:
+- `voice/speech_text.py` (new): `sanitize()` strips emoji and short parenthetical asides that carry no sentence punctuation of their own. Prose parentheses (`(which, as I said, took a while)`) survive; `(smiling)` and `(with a warm smile)` do not. `*asterisk actions*` deliberately untouched (as likely emphasis as action, none observed).
+- `ElevenLabsTTS._clean_text` and `KokoroTTS._enhance_text` both call it (the emoji regex moved out of `elevenlabs_tts.py`; Kokoro previously had no emoji strip at all).
+- `prompt/character.py` INTERACTION RULES: "Write only the words you say - never stage directions, *asterisk actions*, or (parenthetical asides)" - the source fix, for every model.
+
+### Cloud voice (ElevenLabs) - Q3 answered, live-validated
+- Key is **permission-scoped** (no `user_read`/`models_read`/`voices_read` => 401 on those endpoints) and **free tier**: library voices are refused over the API (Rachel => `402 paid_plan_required`); **premade voices work**. Shipped voice = **Bella** `EXAVITQu4vr4xnSDxMaL`.
+- TTS: 2.93 s of audio in **2.06 s**, peak 0.933, zero failures. STT: `ELEVENLABS_STT_MODEL=scribe_v2` (v1 heard "Hello Mai", v2 heard "Hello, Mai."), **RTF 0.311**.
+- **VRAM gate PASSED: 2,510 MB freed** (free 409 -> 2,919 MiB of 4,096) on a real Kyutai->cloud switch. The first probe reported `freed_mb: 0` because the probe itself held the Kyutai reference - build the objects inside a function so the app is the only owner.
+
+### Consequence for this 4 GB card
+llama-server (3,135 MiB) + Kyutai (2.3 GB) **cannot coexist**. The usable local-LLM combination is `LLM_PROVIDER=llamacpp` + `VOICE_STACK=cloud`.
+**This machine is set to exactly that** (`.env`, Nov 14, user-approved): `LLM_PROVIDER=llamacpp`, `VOICE_STACK=cloud`, ElevenLabs key present. Verified through the real code - `Settings.LLM_PROVIDER=llamacpp`, `resolve_stack()=cloud`, `build_tts -> ElevenLabsTTS`, `build_stt -> ElevenLabsSTT`, `LLMManager.generate()` answered from the local server (`provider=llamacpp`, `status=llamacpp`). `STT_BACKEND=kyutai` is kept because that is what the **local** stack builds, so `VOICE_STACK=local` still works. Mai now needs `scripts/run_llama_server.ps1` running; without it the provider fails over to OpenRouter. **Start it with `-Detach`** (new flag, Nov 14): the foreground mode dies with its terminal, which is exactly how the first launch here disappeared, and detached it logs to `logs/llama-server.log` and waits for `/health` before returning. Currently running detached on :8082 (pid confirmed, ~2.9 GB working set). Shipped repo defaults remain `openrouter` + `local`, so a fresh clone is unaffected. User also accepted Spark as the persona model despite the weaker voice documented above.
+
+### Gate
+`tests/test_voice_stacks.py` +3 (stage direction not spoken, prose parenthesis survives, Kokoro uses the same guard). Focused suites (voice_stacks + prompt + knowledge): 343 passed. Full suite **2,098 passed / 2 failed** - the same pre-existing Redis pair.
+
+### Still open
+- **Cloud-vs-local M9 comparison** (§7 step 5): local done, cloud not run.
+- **Human read of Spark's character voice** before it can be called the default persona model.
+- **`--no-reasoning-preserve`**: the server warns the template preserves reasoning by default. Harmless while `--reasoning off` emits none; not measured.
+
+---
+
+## Model Swap (Spark -> Qwen3-4B) + System Page Fix - Nov 14 2026
+
+Three user asks in one pass: (1) which STT is live, (2) delete Spark / use the Qwen GGUF, (3) the System page is broken.
+
+### 1. Answer: runtime STT is ElevenLabs Scribe v2
+`VOICE_STACK=cloud` means `build_stt("cloud")` returns **`ElevenLabsSTT`** (model `scribe_v2`); `STT_BACKEND=kyutai` only applies to the **local** stack, so it is inert right now. Verified by construction, not by reading config: `resolve_stack()=cloud`, `build_stt -> voice.elevenlabs_stt.ElevenLabsSTT`, `build_tts -> voice.elevenlabs_tts.ElevenLabsTTS`. The live `/api/system/providers` payload agrees (`stt.backend=ElevenLabsSTT`, `model_id=scribe_v2`).
+
+### 2. Spark deleted, Qwen3-4B-Instruct-2507 in place
+- `models/Spark-X2.5-4B-Q4_K_M.gguf` deleted; `Qwen3-4B-Instruct-2507-Q4_K_M.gguf` (2,497,281,120 B) copied from `E:\rika documentation agent\models\llm\` (local file, no download, no hash gate).
+- `scripts/run_llama_server.ps1`: `$ModelPath` default + `-Alias` default `spark` -> `qwen3-4b`; comments updated. `.env`: `LLAMACPP_MODEL=qwen3-4b` (**must equal `--alias`**).
+- Server re-launched detached on :8082 with the same flags (ctx 8192, parallel 2, ngl 99, `--jinja --reasoning off`). Verified live: `LLMManager.provider=llamacpp`, `providers.llamacpp={available:true, model:"qwen3-4b"}`, `generate()` answered in **0.67 s**. `VOICE_STACK=cloud` untouched.
+- Plan doc §15 records the swap (and §3 D4, §7 step 1-4 now point at the current model).
+
+### 3. System page: one 500 blanked the whole space
+`GET /api/system/plugins` threw `AttributeError: 'WeatherPlugin' object has no attribute 'name'`. Manifest-style plugins (`plugins/<name>/manifest.json`) are plain classes with a `MANIFEST` dict, not `Plugin` subclasses with `.name`/`.version` - `PluginLoader.list()` assumed the latter. Starlette answers an unhandled exception with **plain-text** `Internal Server Error`, so `system.js`'s `.json()` rejected inside `Promise.all` and the space rendered nothing but `Error: ...`.
+
+- `core/plugin_system.py` `list()` falls back to `MANIFEST["name"]` / `MANIFEST["version"]` / the registry key and defaults `initialized` to True.
+- `api/static/js/system.js`: fetches go through `_json()` (a dead endpoint degrades to `null` instead of blanking the page); the 15 s refresh timer is created **once** - it previously pushed a new `setInterval` on every `_init()`, so the timer count multiplied on each self-refresh (the page got progressively slower and started hammering 6 endpoints per timer per tick).
+- Regression test: `tests/test_plugin_marketplace.py::test_list_reports_manifest_plugins_without_name_attr` (loads the real `weather` plugin, asserts no `.name` attr and correct list output).
+- Verified live in the browser: 6 plugins, 10 sections, 279 config rows, no console errors, `POST /api/system/llm/provider` and `POST /api/system/voice/stack` both answer and persist (`LLM_PROVIDER=llamacpp` retained).
+
+### Environment note
+A `Start-Process` child launched from the agent shell was reaped when that shell exited (llama-server vanished once, which is why `providers.llamacpp` briefly read `available:false` - the UI shows `· offline`, it is not a stale-state bug). From a normal terminal `-Detach` survives (pid outlived the previous session).
+
+### Gate
+Full suite **2,099 passed / 2 skipped / 0 failures** in 132s (baseline 2,098 + 1 new test). The pre-existing Redis pair also went green.
+`tests/conftest.py` now pins `LLM_PROVIDER=openrouter` before any test module imports `llm.manager`: the suite specifies the repo-default provider order, and this machine's `.env` (`LLM_PROVIDER=llamacpp`) was silently redefining 19 of them (all 19 passed once pinned). Same class of bug as the earlier ambient-STT test fix.
+
+---
+
+## Memory Recall Remediation - "she does not remember me" (Nov 15 2026)
+
+User report: Mai does not remember the user, and every Memory UI row reads `importance 0.50`. Eight root causes measured first, then fixed in one pass (all previously uncommitted).
+
+### Why nothing was recalled
+1. **`config/memory.py` threshold 0.65** - measured best genuine match across 8 realistic queries was **0.639**, so the retriever returned **0 hits every time**. Now `MEMORY_SIMILARITY_THRESHOLD = MEMORY_SIMILARITY` (0.40), one knob. Live check: **0 -> 15 hits** over the same 8 queries.
+2. **`knowledge/retriever.py:207`** read `item["score"]`/`["relevance"]`, but `SearchEngine._parse_result` emits `"similarity"` - every surviving hit was scored a hardcoded 0.5. Now reads `similarity` first.
+3. **No user identity in the prompt** - `identity/user.md` parsed to `{"_updated": ...}` because `_parse_markdown` only understood `key: value` and the vault writes `- [category] fact - date` bullets; nothing rendered user identity anywhere. Parser now emits `facts` + a bounded `profile`; `ContextPrompt` gained a `USER PROFILE` section plumbed through builder -> prompt_builder -> orchestrator (`structured["identity"]["profile"]`). Profile rule: stable categories only (`name/age/work/study/location/background`), dedupe, newest first, interleaved per category so one chatty category cannot crowd out name/age/work, cap 12 lines / 700 chars, and assistant lines dropped (`"mai"` in the fact - the extractor misfiles her self-introduction as user facts).
+4. **`memory/memory.py` recall replayed Mai's own replies** (often her denials: "I don't have anything stored from before"). New `_user_half()` keeps only the user side; `_emotionally_related` no longer emits the `Mai:` half either.
+
+### Why every importance was 0.50
+5. **`knowledge/obsidian_reader.py:_extract_entries`** split on `"\n---"`, so the frontmatter block (`importance/id/tags/emotion`) landed in a segment with no `### User` header and was discarded - every replayed entry fell back to 0.5. Now the frontmatter segment is carried into the entry that follows. Verified on real files: 0.34/0.73/0.79/0.85/0.94/0.98/1.0 now survive (was 0.5 across all 25 entries of 2026-07-18).
+6. **`memory/pipeline.py`** built its `MemoryObject` without the score and wrote `getattr(node, "confidence", 0.5)` into the vector metadata (wrong field, and `confidence` is not the importance). Now computes `score` from the intelligence node (0.0 preserved - not `or 0.5`) and passes it to both the object and the metadata.
+7. **`memory/hierarchy.py:store_semantic`** had no `importance` parameter, so `SemanticMemory.add` always built `importance=0.5` (178/178). Parameter added end to end; `store_from_memory_object` passes the object's importance, the vault replay uses `REPLAY_IMPORTANCE` (0.6).
+8. **`api/routes_memory.py:memory_timeline`** merged the hierarchy dump with `brain.memory.short`, showing each turn two or three times. Deduped on normalized content (first 80 chars, newest wins).
+
+### Source fix for the identity-file pollution
+`knowledge/vault_post_processor.py` extraction prompt included Mai's reply (`User: {user}\nMai: {ai}`) and the local 4B model filed her self-introduction as the user's facts (`[name] I am Mai Sakurajima`, `[location] I am in jail`). The Mai line is gone and a rule now says never attribute her statements to the user.
+
+### Measured, not changed
+Queries whose facts live only in the vault ("how old am I", "what do I do for work", "where do I live") still score 0.24-0.31 against the vector store and stay below the 0.40 floor - correctly, they are not vectors at all. They are covered by the new USER PROFILE block instead, which is why the floor was not lowered further.
+
+### Gate
+New `tests/test_memory_recall_fixes.py` (14): frontmatter merge, frontmatter-only files skipped, identity bullets -> facts, assistant lines + chitchat dropped, profile bounded, preferences unaffected, profile reaches the system prompt, `similarity` key used, threshold floor, pipeline importance from the intelligence node, semantic importance carried, `_user_half` on both shapes, timeline dedupe.
+Full suite **2,113 passed / 2 skipped / 0 failures** in 160s (baseline 2,099 + 14).
+
+### Identity file repair + janitor persistence fix (same day)
+
+**`identity/user.md` cleaned: 73 -> 52 facts.** Every removal was proven by reading the source conversation, not guessed:
+- Mai's own lines filed as user facts (2026-11-14: conversation line 19 is her saying "I am Mai Sakurajima. that's all.") - `[name] I am Mai Sakurajima`, `[name] My name is Mai`, `[background] I have a mother, a father, a sister, and a brother`, `[background] I have never told my family their actual names`; plus 2026-10-19 `[name] My name is Mai Sakurajima`, `[background] Mai said she likes me`.
+- `[location] I am in jail` was a **metaphor**: 2026-10-02 line 452 reads "you can say i am in a jail ... i need to earn money" and Mai answered "I feel like I'm in a jail." The feeling is already covered by the `[personality]`/`[background]` entries that survived.
+- 12 `[general]` chit-chat fragments ("for me", "like always", "eight times", "just testing you"). `feeling very lonely today` had a `[personality]` twin, so nothing was lost.
+- Exact duplicates: `[name] My brother is named Mustafa` / `[name] My sister is named Faryal` (both verbatim under `[background]`), `[name] The user's name is Murtaza`, `[name] I am Murtaza`.
+- Kept and verified as genuine: the `honey` preference (2026-10-19 line 206: "can you call me honey from now on" - it was the user asking, not Mai), full name, age, work, Karachi, siblings, and the family history.
+- `user.md` is the source of truth (reloaded every turn by `vault_post_processor` -> `MemoryState.load_from_file`), so `master_state.json` needed no edit - it holds only emotion/relationship/goals/attention/runtime. Round-trip verified: 52 facts reload, profile block is now name/age/work/Karachi/honey/background, no jail, no Mai lines. Backup: `%TEMP%\opencode\user.md.backup`.
+
+**`VaultJanitor.sweep()` never persisted entity removals** - it deleted junk note files but left `graph.json` untouched, so `sweep_graph_junk.py --apply` reported "removed 192 entities" and the junk returned on the next boot (graph.json still had all 525). `sweep()` gained `persist_path=`, writing survivors in `GraphExporter`'s list format; the script passes `graph.json`. Re-ran for real: **525 -> 333 entities**, junk gone (`you`, `me`, `love`, `like`, `said`, `siad`, ...), real entities intact (`murtaza`, `karachi`, `python`, `mustafa`, `faryal`, `aimal`, `mai`). Graph folder backed up (524 files) before the sweep; 19 junk notes were deleted in the first (note-only) pass.
+- Tests: `TestVaultJanitor` +2 (`sweep_apply_persists_survivors_to_graph_json`, `sweep_dry_run_does_not_touch_graph_json`). Full suite **2,115 passed / 2 skipped / 0 failures** in 323s (baseline 2,113 + 2).
+- Runtime note: `user.md` is read per turn (live immediately); `graph.json` is read at boot, so the graph cleanup applies on the next restart.
+
+---
+
+## Graph Cleanup Durability - Junk Replay Root Cause (Nov 15 2026)
+
+The previous sweep was not durable: `graph.json` went 333 -> 517 after any boot. Traced with a temporary pytest plugin (an mtime watcher on `graph.json`) plus stack-trace probes on `KnowledgeGraph._entities` insertion.
+
+### Two real causes (both at boot replay, not the app)
+1. **Every user turn became a graph entity (P0, 164 names).** `memory/vault_loader.py:_load_entity_links_from_conversations` called `add_relation(entry["user"], "mentioned_in", link)`, and `KnowledgeGraph.add_relation` auto-creates an entity for any unknown source/target - so the *raw user message* was stored as an entity on every boot. Fix: the source is now the canonical `"user"` node (created as `person`) and the dedupe key is the link alone. Nothing reads `mentioned_in` (grep: 1 hit, the writer).
+2. **Conversation notes replay their `[[links]]` forever.** A note written while the graph was dirty keeps `[[do you remember me]]` even after the entity is swept, so cleaning the graph could never stick. Fix: replay skips any link the janitor's predicate calls junk - the same rule the sweep uses, so a swept entity cannot come back.
+
+### Also fixed
+- `VaultJanitor._is_junk_name` - 5+ words is junk (a sentence, never an entity name). Measured before adding: zero 5+ word survivors among the 333, so no data loss.
+- `VaultJanitor.sweep_note_files` - note stems are underscored and `\b` does not match across `_`, so sentence notes were invisible to the junk check. Now checks `name.replace("_", " ")`; the note pass went from 12 to 182 files.
+- `tests/test_phase3_api.py` / `tests/test_reasoning_api.py` - `with TestClient(app)` enters the lifespan, which runs `MaiAPI.bootstrap()` -> real vault replay + graph export from inside the test suite. Dropped the context manager (the auth override answers before any app state is touched). The watcher plugin had named exactly these two tests as the writers.
+
+### Verified
+- Sweep `--apply`: 497 -> 333 (164 junk entities, 162 orphan notes).
+- Real `bootstrap_system()`: `graph.json` 333 before -> **333 after**; in-graph junk 0; the loader creates 0 junk entities on replay (was 164); kg 840 nodes = 333 exported + 507 `memory`-type nodes the exporter filters.
+- Full suite with the vault watcher attached: **2,118 passed / 2 skipped / 0 failures** (91s), zero `[VAULT-WRITE]` lines, `graph.json` mtime unchanged across the entire run.
+- Tests added: `test_sentence_entity_name_is_junk`, `test_sweep_note_files_sees_through_underscores`, `TestVaultLoaderLinkGate::test_junk_link_is_not_replayed` (also pins that the turn text never becomes an entity).
+
+### Left as-is (named, stable, not regressions)
+- Two sentence-ish survivors remain in `graph.json` and are not junk by the shared predicate: `ok first open chrome`, `thanks for watching!`. Verified not replayable from any note, so they will not grow; removing them needs either a manual edit or two `JUNK_TOKENS` entries.
+- `graph.py:import_from_memory_graph` and `GraphManager.process_conversation` still call `add_relation` with raw extractor names, which can auto-create an entity for an unknown relation endpoint at *runtime* (pre-existing; the confidence gate only covers entities).
+
+
+---
+
+## Continuity Engine — T8 / M22 (Nov 17 2026)
+
+Built ahead of sequence (prerequisite for autonomous cycles, not for voice/face).
+`continuity/` is a **thin reconciler over existing stores** — the `BrainGraph`
+facade pattern, never a second source of truth:
+
+- `continuity/store.py` — `ContinuityStore`: one document (`data/continuity.json`),
+  atomic `os.replace` writes, `transaction()` with snapshot rollback.
+- `continuity/projects.py` — `ProjectMemory`: name/summary/status/goal link,
+  decisions, open questions, blockers, dependencies, deadline, next checkpoint.
+  Each project auto-creates a `GoalManager` goal and **reads progress/completion
+  through it**; terminal project statuses mirror back (`complete`/`cancel`).
+- `continuity/commitments.py` — `CommitmentsLedger`: due windows (epoch, ISO,
+  `in 3h`, `90m`, `2d`); `sweep()` marks overdue promises `missed` and publishes;
+  `unsurfaced()` + `mark_surfaced()` make a missed promise reported once.
+- `continuity/checkpoints.py` — `CheckpointStore`: `save`/`resume`/`clear`
+  resumable state so interrupted long tasks continue instead of restarting.
+- `continuity/engine.py` — `ContinuityEngine.snapshot()` reconciles projects +
+  active goals + CognitiveState focus + SharedState runtime; `brief()` renders
+  the prompt block (`mark_surfaced=True` on the chat path); `publish()` emits
+  `state.continuity.updated`.
+- `continuity/tools.py` — 6 tools: `continuity_status`, `project_open`,
+  `project_update`, `commitment_add`, `commitment_resolve`, `checkpoint`.
+  (Note: `project_open` takes `project_name` — `ToolRegistry.call(name=...)`
+  consumes `name` as the tool name.)
+
+Wiring:
+- `app/builders/continuity.py` — new boot layer **after Cognition**, plus
+  `app.continuity`, validation gate, health registration, initial publish.
+- `core/event_specs.py` — 6 `data.continuity.*` events + `state.continuity.updated`
+  (publisher `continuity`); `STREAM_TOPICS` derives from the catalog, so UI
+  SSE/WS coverage is automatic.
+- `core/prompt_orchestrator.py` + `prompt/builder.py` + `core/prompt_builder.py`
+  — new `continuity` section ("CONTINUITY — ongoing work, keep the story straight").
+- `core/scheduler.py` — `continuity_check` task
+  (`SCHEDULER_CONTINUITY_CHECK_INTERVAL = 900`) sweeps overdue commitments.
+
+Tests: 51 new in `tests/test_continuity.py` (due parsing, store rollback/reload,
+project→goal read-through, commitment sweep + one-time surfacing, checkpoints,
+reconciliation with fakes, tools, event/prompt wiring).
+**Full suite: 2169 passed, 2 failed** — both in `tests/test_horizontal_scaling.py`
+(Redis cross-instance state + pub/sub), files untouched by this change; treated
+as pre-existing.
+
+Not done: conversation-driven commitment extraction (tools today), and
+autonomous work cycles consuming the snapshot (lands with M23 Partner).

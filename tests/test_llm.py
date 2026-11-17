@@ -3,6 +3,7 @@ from unittest.mock import MagicMock, patch
 
 import pytest
 
+
 # ---------------------------------------------------------------------------
 #  OllamaProvider tests
 # ---------------------------------------------------------------------------
@@ -938,3 +939,178 @@ class TestStreamFallbackHistory:
         chunks = list(manager.stream("sys", "u", history=self.HISTORY))
         assert chunks == ["final-fallback"]
         assert manager.generate.call_args.kwargs["history"] == self.HISTORY
+
+
+# ---------------------------------------------------------------------------
+#  llama.cpp provider (OpenAI-compatible /v1)
+# ---------------------------------------------------------------------------
+
+def _sse(*deltas):
+    """Build SSE lines the way llama-server emits them."""
+    lines = []
+    for d in deltas:
+        lines.append('data: ' + json.dumps({"choices": [{"delta": {"content": d}}]}))
+    lines.append("data: [DONE]")
+    return lines
+
+
+class TestOpenAICompatProvider:
+
+    def _make(self):
+        from llm.providers.openai_compat import OpenAICompatProvider
+        provider = OpenAICompatProvider(
+            model="local-chat-model", base_url="http://127.0.0.1:8082"
+        )
+        provider._http = MagicMock()
+        return provider
+
+    def test_is_alive_uses_health(self):
+        provider = self._make()
+        provider._http.get.return_value = MagicMock(status_code=200)
+        assert provider.is_alive() is True
+        assert provider._http.get.call_args.args[0].endswith("/health")
+
+    def test_is_alive_false_when_unreachable(self):
+        provider = self._make()
+        provider._http.get.side_effect = ConnectionError("no server")
+        assert provider.is_alive() is False
+
+    def test_is_alive_falls_back_to_v1_models(self):
+        provider = self._make()
+        provider._http.get.side_effect = [
+            MagicMock(status_code=404),
+            MagicMock(status_code=200),
+        ]
+        assert provider.is_alive() is True
+
+    def test_generate_parses_content(self):
+        provider = self._make()
+        provider._http.post.return_value = MagicMock(
+            status_code=200,
+            json=lambda: {"choices": [{"message": {"content": "  hello  "}}],
+                          "timings": {"predicted_per_second": 30.0}},
+        )
+        assert provider.generate("sys", "usr") == "hello"
+
+    def test_generate_does_not_retry_permanent_400(self):
+        provider = self._make()
+        provider._http.post.return_value = MagicMock(status_code=400)
+        with pytest.raises(RuntimeError):
+            provider.generate("sys", "usr")
+        assert provider._http.post.call_count == 1
+
+    def test_generate_retries_on_500(self):
+        provider = self._make()
+        provider._http.post.side_effect = [
+            MagicMock(status_code=500),
+            MagicMock(status_code=200,
+                      json=lambda: {"choices": [{"message": {"content": "ok"}}]}),
+        ]
+        with patch("llm.providers.openai_compat.time.sleep"):
+            assert provider.generate("sys", "usr") == "ok"
+        assert provider._http.post.call_count == 2
+
+    def test_stream_yields_raw_deltas(self):
+        provider = self._make()
+        provider._http.stream_lines.return_value = iter(_sse("Hel", "lo", " there."))
+        assert "".join(provider.stream("sys", "usr")) == "Hello there."
+
+    def test_stream_ignores_non_data_lines(self):
+        provider = self._make()
+        lines = ["event: ping", "", ": comment"] + _sse("hi")
+        provider._http.stream_lines.return_value = iter(lines)
+        assert "".join(provider.stream("sys", "usr")) == "hi"
+
+    def test_stream_raises_so_manager_can_fail_over(self):
+        provider = self._make()
+        provider._http.stream_lines.side_effect = RuntimeError("HTTP 503")
+        with pytest.raises(RuntimeError):
+            list(provider.stream("sys", "usr"))
+
+    def test_generate_with_tools_returns_none_on_error(self):
+        provider = self._make()
+        provider._http.post.return_value = MagicMock(status_code=400)
+        assert provider.generate_with_tools("sys", "usr") is None
+
+
+class TestLLMProviderLlamacpp:
+
+    def _make(self, provider="llamacpp"):
+        from llm.manager import LLMManager
+        with patch("llm.manager.LLM_PROVIDER", provider):
+            manager = LLMManager()
+        manager.openrouter = MagicMock()
+        manager.ollama = MagicMock()
+        manager.llamacpp = MagicMock()
+        return manager
+
+    def test_llamacpp_selected_when_configured(self):
+        manager = self._make("llamacpp")
+        assert manager._provider == "llamacpp"
+        assert manager._prefer_llamacpp is True
+        assert manager._prefer_ollama is False
+
+    def test_default_provider_unchanged_and_llamacpp_not_built(self):
+        from llm.manager import LLMManager
+        manager = LLMManager()
+        assert manager._provider == "openrouter"
+        assert manager._prefer_llamacpp is False
+        assert manager.llamacpp is None
+
+    def test_generate_uses_llamacpp_first(self):
+        manager = self._make()
+        manager.llamacpp.is_alive.return_value = True
+        manager.llamacpp.generate.return_value = "local"
+        manager.openrouter.is_alive.return_value = True
+        assert manager.generate("sys", "usr") == "local"
+        manager.openrouter.generate.assert_not_called()
+
+    def test_generate_falls_back_when_llamacpp_down(self):
+        manager = self._make()
+        manager.llamacpp.is_alive.return_value = False
+        manager.openrouter.is_alive.return_value = True
+        manager.openrouter.generate.return_value = "cloud"
+        assert manager.generate("sys", "usr") == "cloud"
+        manager.llamacpp.generate.assert_not_called()
+
+    def test_generate_falls_back_when_llamacpp_raises(self):
+        manager = self._make()
+        manager.llamacpp.is_alive.return_value = True
+        manager.llamacpp.generate.side_effect = RuntimeError("dead")
+        manager.openrouter.is_alive.return_value = True
+        manager.openrouter.generate.return_value = "cloud"
+        assert manager.generate("sys", "usr") == "cloud"
+        assert manager._llamacpp_available is False
+
+    def test_stream_puts_llamacpp_first(self):
+        manager = self._make()
+        manager.openrouter.is_alive.return_value = True
+        manager.llamacpp.stream.return_value = iter(["local"])
+        assert list(manager.stream("sys", "usr")) == ["local"]
+        manager.openrouter.stream.assert_not_called()
+
+    def test_select_provider_switches_at_runtime(self):
+        manager = self._make("openrouter")
+        manager._ensure_llamacpp = lambda: manager.llamacpp
+        status = manager.select_provider("llamacpp")
+        assert manager._provider == "llamacpp"
+        assert manager._prefer_llamacpp is True
+        assert status["selected"] == "llamacpp"
+
+    def test_select_provider_rejects_unknown(self):
+        manager = self._make("openrouter")
+        status = manager.select_provider("banana")
+        assert status["error"] == "unknown_provider"
+        assert manager._provider == "openrouter"
+
+    def test_providers_status_shape(self):
+        manager = self._make("openrouter")
+        manager.openrouter.is_alive.return_value = True
+        manager.openrouter.models = ["openrouter/free"]
+        manager.ollama.is_alive.return_value = False
+        status = manager.providers_status()
+        assert status["selected"] == "openrouter"
+        assert set(status["providers"]) == {"openrouter", "ollama", "llamacpp"}
+        assert status["providers"]["openrouter"]["available"] is True
+        assert status["providers"]["openrouter"]["model"] == "openrouter/free"
+        assert status["providers"]["ollama"]["available"] is False

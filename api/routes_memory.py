@@ -92,6 +92,15 @@ class MemoryMixin:
                         "metadata": {"speaker": entry.get("speaker", ""), "tags": entry.get("tags", [])},
                     })
             merged.sort(key=lambda x: x.get("timestamp", 0), reverse=True)
-            return {"timeline": merged[:limit]}
+            # The same turn lands in the hierarchy (one or more stores) and in
+            # brain.memory.short, so the timeline showed it two or three times.
+            seen, deduped = set(), []
+            for item in merged:
+                key = " ".join(str(item.get("content", "")).split()).lower()[:80]
+                if not key or key in seen:
+                    continue
+                seen.add(key)
+                deduped.append(item)
+            return {"timeline": deduped[:limit]}
         except Exception as e:
             return {"error": safe_error(e)}

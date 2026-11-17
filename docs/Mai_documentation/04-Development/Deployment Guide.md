@@ -161,7 +161,7 @@ ROOT_DIR=E:/Mai_ai
 MAI_OBSIDIAN_VAULT=E:/MaiMemory   # env override read by config/paths.py
 
 # Voice
-STT_BACKEND=whisper         # or "kyutai" (opt-in; above the RTF gate)
+STT_BACKEND=kyutai          # primary; "whisper" reverts to the fallback backend
 KYUTAI_STT_DIR=<path to stt-1b-en_fr>   # only for kyutai
 ```
 

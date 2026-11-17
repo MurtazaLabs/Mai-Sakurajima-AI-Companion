@@ -3,19 +3,36 @@
 var _intervals = []
 var _id = 'system'
 
+function _switchBtn(kind, value, label, active, disabled){
+  return '<button class="sys-switch" data-kind="' + kind + '" data-value="' + value + '"' + (disabled ? ' disabled' : '') +
+    ' style="margin-right:4px;padding:3px 9px;border-radius:6px;font-size:11px;font-family:inherit;' +
+    'cursor:' + (disabled ? 'not-allowed' : 'pointer') + ';' +
+    'border:1px solid ' + (active ? 'var(--accent)' : 'var(--glass-border)') + ';' +
+    'background:' + (active ? 'rgba(255,255,255,0.08)' : 'transparent') + ';' +
+    'color:' + (disabled ? 'var(--text-muted)' : (active ? 'var(--accent)' : 'inherit')) + ';' +
+    'opacity:' + (disabled ? '0.5' : '1') + '">' + label + '</button>'
+}
+
+function _json(url){
+  return fetch(url).then(function(r){ return r.json() }).catch(function(){ return null })
+}
+
 async function _init(){
   var el = document.getElementById(_id + '-content')
   if(!el) return
   el.innerHTML = '<div class="no-data"><span>Loading...</span></div>'
   try{
     var results = await Promise.all([
-      fetch('/api/system/health').then(function(r){ return r.json() }),
-      fetch('/api/system/plugins').then(function(r){ return r.json() }),
-      fetch('/api/system/about').then(function(r){ return r.json() }),
-      fetch('/api/config').then(function(r){ return r.json() }),
-      fetch('/api/system/orchestrator').then(function(r){ return r.json() }),
+      // One broken endpoint must not blank the whole page (a 500 arrives as
+      // plain text, so .json() rejects).
+      _json('/api/system/health'),
+      _json('/api/system/plugins'),
+      _json('/api/system/about'),
+      _json('/api/config'),
+      _json('/api/system/orchestrator'),
+      _json('/api/system/providers'),
     ])
-    var health = results[0], plugins = results[1], about = results[2], config = results[3], orch = results[4]
+    var health = results[0], plugins = results[1], about = results[2], config = results[3] || {}, orch = results[4], prov = results[5]
     var h = health || {}, s = h.summary || {}, comps = h.components || {}
     var pl = plugins || {}, pdata = pl.plugins || {}, hooks = pl.hooks || {}
     var ab = about || {}, rt = ab.runtime || {}
@@ -34,6 +51,27 @@ async function _init(){
       html += '<div class="sys-hpill"><span class="sys-hcount" style="color:' + c + '">' + hi.count + '</span><span class="sys-hlabel">' + hi.label + '</span></div>'
     })
     html += '</div><div class="sys-sub">' + (s.total || 0) + ' registered components</div></div>'
+
+    // Section: Models & Voice — live switches (unlike /api/config)
+    var pv = prov || {}, llm = pv.llm || {}, voice = pv.voice || {}
+    var llmProv = llm.providers || {}
+    html += '<div class="sys-section"><div class="sys-section-title">Models &amp; Voice <span style="font-weight:400;text-transform:none;letter-spacing:0;font-size:11px;color:var(--text-muted)">— switches apply immediately</span></div><div class="sys-runtime-list">'
+    html += '<div class="sys-rrow"><span class="sys-rkey">LLM provider</span><span class="sys-rval" id="sys-llm-switch">'
+    ;['openrouter','ollama','llamacpp'].forEach(function(name){
+      var p = llmProv[name] || {}
+      var isActive = llm.selected === name
+      var label = name + (p.available ? ' · online' : (name === 'ollama' ? ' · not installed' : ' · offline'))
+      html += _switchBtn('llm', name, label, isActive, false)
+    })
+    html += '</span></div>'
+    html += '<div class="sys-rrow"><span class="sys-rkey">Voice stack</span><span class="sys-rval" id="sys-voice-switch">'
+    ;[['local','local · Kyutai + Kokoro'],['cloud','cloud · ElevenLabs']].forEach(function(pair){
+      var name = pair[0]
+      var isActive = voice.stack === name
+      var disabled = name === 'cloud' && voice.cloud_available === false
+      html += _switchBtn('voice', name, disabled ? (pair[1] + ' · no key') : pair[1], isActive, disabled)
+    })
+    html += '</span></div></div><div class="sys-sub" id="sys-switch-note">VRAM free: ' + (voice.vram_free_mb !== null && voice.vram_free_mb !== undefined ? voice.vram_free_mb + ' MB' : 'n/a') + '</div></div>'
 
     // Section: Orchestrator
     var o = orch || {}
@@ -129,6 +167,9 @@ async function _init(){
       cfgKeys.forEach(function(kv){
         var k = kv[0], v = kv[1]
         if(!v || typeof v !== 'object') return
+        // Live switches live in "Models & Voice" above; editing them here would
+        // only persist and silently wait for a restart.
+        if(k === 'LLM_PROVIDER' || k === 'VOICE_STACK') return
         var val = v.value !== undefined ? v.value : v.default
         var meta = v.meta || {}
         var cat = meta.category || 'other'
@@ -164,6 +205,30 @@ async function _init(){
         fetch(endpoint, {method:'POST'}).then(function(r){ return r.json() }).then(function(){
           setTimeout(function(){ _init() }, 300)
         }).catch(function(){})
+      })
+    })
+
+    // Wire model / voice switches
+    el.querySelectorAll('.sys-switch').forEach(function(btn){
+      btn.addEventListener('click', function(){
+        var kind = this.dataset.kind, value = this.dataset.value
+        var url = kind === 'llm' ? '/api/system/llm/provider' : '/api/system/voice/stack'
+        var body = kind === 'llm' ? {provider: value} : {stack: value}
+        var note = document.getElementById('sys-switch-note')
+        this.disabled = true
+        if(note) note.textContent = 'Switching to ' + value + '...'
+        fetch(url, {method:'POST', headers:{'Content-Type':'application/json'}, body:JSON.stringify(body)})
+          .then(function(r){ return r.json() })
+          .then(function(res){
+            if(res && res.error){
+              if(note) note.textContent = 'Switch failed: ' + res.error + (res.detail ? ' — ' + res.detail : '')
+              btn.disabled = false
+              return
+            }
+            if(note && res.vram_freed_mb !== undefined) note.textContent = 'Freed ' + res.vram_freed_mb + ' MB VRAM'
+            setTimeout(function(){ _init() }, 600)
+          })
+          .catch(function(){ if(note) note.textContent = 'Switch failed'; btn.disabled = false })
       })
     })
 
@@ -245,7 +310,8 @@ async function _init(){
   } catch(e){
     el.innerHTML = '<div class="no-data"><span>Error: ' + e.message + '</span></div>'
   }
-  _intervals.push(setInterval(function(){ _init() }, 15000))
+  // _init() re-runs itself after a switch or plugin toggle — keep one timer.
+  if(!_intervals.length) _intervals.push(setInterval(function(){ _init() }, 15000))
 }
 
 function _destroy(){

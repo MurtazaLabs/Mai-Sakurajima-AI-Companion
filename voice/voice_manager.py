@@ -392,7 +392,7 @@ class VoiceManager:
             assert self.stt is not None
             text = self.stt.transcribe(norm, initial_prompt="Wake up, hey, hello, computer, mai")
         except TranscriptionUnavailable as e:
-            logger.error("[WakeThread] Whisper unavailable: %s", e)
+            logger.error("[WakeThread] STT unavailable: %s", e)
             return False
         except Exception as e:
             logger.warning("[WakeThread] Transcribe error: %s", e)
@@ -595,7 +595,7 @@ class VoiceManager:
             return result
 
         except TranscriptionUnavailable:
-            logger.warning("[VoiceManager] Whisper unavailable — aborting listen")
+            logger.warning("[VoiceManager] STT unavailable — aborting listen")
             self._set_state(VoiceState.IDLE)
             self._start_wake_detection()
             raise
@@ -690,10 +690,10 @@ class VoiceManager:
                 max_val = np.max(np.abs(norm_audio))
                 if max_val > 0:
                     norm_audio = norm_audio / max_val
-                logger.info("[VoiceManager] Starting Whisper transcription (audio=%d samples, max=%.4f)",
+                logger.info("[VoiceManager] Starting STT transcription (audio=%d samples, max=%.4f)",
                             len(norm_audio), max_val)
                 text = self.stt.transcribe(norm_audio)
-                logger.info("[VoiceManager] Whisper result: text=%s", repr(text) if text else "(empty)")
+                logger.info("[VoiceManager] STT result: text=%s", repr(text) if text else "(empty)")
             except TranscriptionUnavailable:
                 raise
             except Exception as e:

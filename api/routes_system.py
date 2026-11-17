@@ -26,6 +26,8 @@ class SystemMixin:
     clipboard_actions: Any = None
     filesystem_actions: Any = None
     orchestrator: Any = None
+    llm: Any = None
+    voice_stack: Any = None
 
     def system_orchestrator(self):
         orch = self.orchestrator
@@ -42,6 +44,46 @@ class SystemMixin:
         if hr and hasattr(hr, "stats"):
             return hr.stats()
         return {"status": "unavailable", "components": {}, "summary": {"total": 0, "ok": 0, "warn": 0, "error": 0, "stalled": 0}}
+
+    # ── Model / Voice switches ──────────────────────────────────────────────
+    # Both switches act immediately (unlike /api/config, which only persists
+    # and applies on restart) and persist the choice through ConfigManager.
+
+    def system_providers(self):
+        llm = getattr(self, "llm", None)
+        vs = getattr(self, "voice_stack", None)
+        return {
+            "llm": (
+                llm.providers_status()
+                if hasattr(llm, "providers_status")
+                else {"error": "llm_unavailable"}
+            ),
+            "voice": (
+                vs.status()
+                if hasattr(vs, "status")
+                else {"error": "voice_stack_unavailable"}
+            ),
+        }
+
+    def system_llm_provider(self, provider: str):
+        llm = getattr(self, "llm", None)
+        if not hasattr(llm, "select_provider"):
+            return {"error": "llm_unavailable"}
+        result = llm.select_provider(provider)
+        if "error" not in result:
+            cm = getattr(self, "config_manager", None)
+            if cm:
+                try:
+                    cm.set("LLM_PROVIDER", (provider or "").strip().lower())
+                except Exception as e:
+                    logger.warning("[routes_system] persist LLM_PROVIDER: %s", e)
+        return result
+
+    def system_voice_stack(self, stack: str):
+        vs = getattr(self, "voice_stack", None)
+        if not hasattr(vs, "switch"):
+            return {"error": "voice_stack_unavailable"}
+        return vs.switch(stack)
 
     def system_plugins(self):
         pl = self.plugin_loader

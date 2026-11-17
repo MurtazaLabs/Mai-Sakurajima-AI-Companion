@@ -18,6 +18,7 @@ Note: the runtime guard in ``GraphManager.process_conversation`` prevents new
 junk from entering after this sweep; this module only cleans history.
 """
 
+import json
 import logging
 import re
 from pathlib import Path
@@ -71,6 +72,8 @@ class VaultJanitor:
             return bool(n in JUNK_TOKENS or _SHORT_STOPWORD_RE.search(f" {n} "))
         if n in JUNK_TOKENS:
             return True
+        if len(n.split()) >= 5:
+            return True  # a sentence, not an entity name
         stripped = re.sub(r"[\W_]+", "", n)
         if len(stripped) == 0:
             return True
@@ -139,7 +142,8 @@ class VaultJanitor:
             live_ent = living_by_lower.get(stem)
             if live_ent is not None and not self._is_junk_name(getattr(live_ent, "name", "")):
                 continue  # legitimate living entity note (e.g. AI.md) is protected
-            if self._is_junk_name(name):
+            # Note stems are underscored, so the word-boundary rules need spaces.
+            if self._is_junk_name(name.replace("_", " ")):
                 if not dry_run:
                     try:
                         fpath.unlink()
@@ -149,10 +153,26 @@ class VaultJanitor:
                 continue
         return {"removed": len(removed), "dry_run": dry_run, "files": removed[:100]}
 
-    def sweep(self, dry_run=True):
-        """Run full sweep (graph entities + orphan notes)."""
+    def sweep(self, dry_run=True, persist_path=None):
+        """Run full sweep (graph entities + orphan notes).
+
+        ``persist_path`` is the ``graph.json`` the runtime rebuilds the graph
+        from at boot. Entity removals are in-memory only, so without it the
+        sweep looks successful and the junk returns on the next restart.
+        """
         graph_result = self.sweep_entities(dry_run=dry_run)
         files_result = self.sweep_note_files(dry_run=dry_run)
+        if persist_path is not None and not dry_run:
+            try:
+                data = [
+                    {"name": e.name, "type": getattr(e, "type", "unknown")}
+                    for e in self.graph.all_entities()
+                ]
+                Path(persist_path).write_text(json.dumps(data, indent=2), encoding="utf-8")
+                graph_result["persisted"] = len(data)
+            except Exception as e:
+                logger.error("[VaultJanitor] persist %s: %s", persist_path, e)
+                graph_result["persist_error"] = str(e)
         return {
             "entities": graph_result,
             "note_files": files_result,

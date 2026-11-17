@@ -40,6 +40,9 @@ class PromptOrchestrator:
         structured_notes = structured.get("system", {})
         system_notes_str = str(structured_notes) if structured_notes else None
 
+        identity_block = structured.get("identity")
+        user_profile = identity_block.get("profile") if isinstance(identity_block, dict) else None
+
         try:
             with brain.state.lock:
                 live_relationship = brain.state.relationship_scores.model_dump()
@@ -78,6 +81,16 @@ class PromptOrchestrator:
 
         tool_defs = brain._tool_defs_for_prompt()
 
+        continuity_text = None
+        continuity_engine = getattr(brain, "continuity", None)
+        if continuity_engine is not None:
+            try:
+                # mark_surfaced: a missed promise is reported once, then closed
+                # out of the unsurfaced set so she does not repeat it forever.
+                continuity_text = continuity_engine.brief(mark_surfaced=True) or None
+            except Exception as e:
+                logger.warning("[PromptOrchestrator] continuity brief failed: %s", e)
+
         cognitive_export = brain.cognitive.get()
 
         if brain.thought_journal:
@@ -111,7 +124,9 @@ class PromptOrchestrator:
             system_notes=system_notes_str,
             cognitive_state=cognitive_export,
             identity_data=identity_data,
+            continuity=continuity_text,
             monologue_enabled=bool(CHARACTER_MONOLOGUE_ENABLED) if monologue is None else bool(monologue),
+            user_profile=user_profile,
         )
 
         MAX_SYSTEM_CHARS = int(LLM_MAX_CONTEXT * 0.5 * 4)

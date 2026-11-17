@@ -21,6 +21,8 @@ def build_system_prompt(
     cognitive_state=None,
     identity_data=None,
     monologue_enabled=False,
+    user_profile=None,
+    continuity=None,
 ):
     if emotion is None:
         emotion = {}
@@ -42,6 +44,10 @@ def build_system_prompt(
     )
     if experiences is not None:
         kwargs["experiences"] = experiences
+    if user_profile:
+        kwargs["user_profile"] = user_profile
+    if continuity:
+        kwargs["continuity"] = continuity
     return _builder.build_system(**kwargs)
 
 

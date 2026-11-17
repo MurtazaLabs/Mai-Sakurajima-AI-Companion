@@ -11,7 +11,7 @@
 | core/ | 66 | 16,030 | 88% | Brain/kernel/fabric mature; P0 deadlock + belief drift resolved; stream guard on `think_stream`; Attention RLock added |
 | memory/ | 28 | 7,378 | 82% | strong pipeline; layer breach narrowed (3 lazy imports, 2 files); embedding cache now model-fingerprinted |
 | knowledge/ | 29 | 5,853 | 82% | vault pipeline strong; D-1 belief drift **resolved**; graph 3-layer overlap remains |
-| voice/ | 33 | 4,665 | 84% | full duplex + Phase 0 utterance gate; Kyutai opt-in; self-hearing fixed; AEC feed wired (recorder still muted) |
+| voice/ | 33 | 4,665 | 84% | full duplex + Phase 0 utterance gate; Kyutai primary (whisper fallback); self-hearing fixed; AEC feed wired (recorder still muted) |
 | api/ | 24 | 4,952 | 88% | 103 route sites; HTTPS dev certs, metrics endpoint, Oct-19 security fixes |
 | agency/ | 12 | 2,540 | 92% | cleanest subsystem; dreaming TOCTOU fixed; dead wrappers removed |
 | app/ | 18 | 2,329 | 96% | builder pattern gold standard |
@@ -46,7 +46,7 @@ Key pillars to avoid regressions: RLock discipline everywhere, HealthRegistry fa
 
 ✅ **Complete** — **character layer M0–M13** (canon volumes I–IV, behavioral validation harness, experience store + preference evolution, real-world evaluation harness + rubric, relationship dynamics on chat path, envelope-leak guard, experience-in-speech, conflict coherence).
 
-🟡 **Partial** — AEC fed but recorder still muted during playback, Kyutai STT (opt-in, above latency gate), openWakeWord (installed, unwired), plugins (marketplace requires trusted keys; no public registry), multi-session profiles (`ProfileStore` + `SessionManager` exist; chat path single-user), entity web interface (state adapter only), Discord (relay prototype).
+🟡 **Partial** — AEC fed but recorder still muted during playback, openWakeWord (installed, unwired), plugins (marketplace requires trusted keys; no public registry), multi-session profiles (`ProfileStore` + `SessionManager` exist; chat path single-user), entity web interface (state adapter only), Discord (relay prototype).
 
 ❌ **Not started** — cloud sync, WhatsApp (M26), Continuity Engine (M21), Java/JavaFX client, screen/camera share, documentation site, roadmap M15+ (see [[03-Features/future-vision-roadmap]]).
 

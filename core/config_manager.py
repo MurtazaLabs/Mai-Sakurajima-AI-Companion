@@ -22,9 +22,15 @@ _SAFE_KEYS = {
     "SCHEDULER_ENABLED",
     "AI_NAME", "LLM_MAX_CONTEXT",
     "EXECUTOR_MODE",
+    # Runtime switches (persisted so the UI buttons survive a restart)
+    "LLM_PROVIDER", "VOICE_STACK",
 }
 
 _KEY_META = {
+    "LLM_PROVIDER": {"label": "LLM Provider", "category": "ai", "type": "select",
+                     "options": ["openrouter", "ollama", "llamacpp"]},
+    "VOICE_STACK": {"label": "Voice Stack", "category": "voice", "type": "select",
+                    "options": ["local", "cloud"]},
     "LLM_MODEL": {"label": "LLM Model", "category": "ai", "type": "text"},
     "LLM_TEMPERATURE": {"label": "Temperature", "category": "ai", "type": "float", "min": 0.0, "max": 2.0, "step": 0.05},
     "LLM_TOP_P": {"label": "Top-P", "category": "ai", "type": "float", "min": 0.0, "max": 1.0, "step": 0.05},

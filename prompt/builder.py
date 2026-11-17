@@ -18,7 +18,8 @@ class PromptBuilder:
                      recall=None, knowledge=None, graph=None, experiences=None,
                      tool_defs=None, personality=None, relationship=None,
                      system_notes=None, speech_pacing=None, cognitive_state=None,
-                     identity_data=None, monologue_enabled=False):
+                     identity_data=None, monologue_enabled=False, user_profile=None,
+                     continuity=None):
         sections = []
 
         sections.append(self.character.build(identity_data=identity_data))
@@ -41,6 +42,11 @@ class PromptBuilder:
         if relationship:
             extra_lines.append(f"RELATIONSHIP STATE\n{relationship}")
 
+        if continuity:
+            extra_lines.append(
+                f"CONTINUITY — ongoing work, keep the story straight\n{continuity}"
+            )
+
         if system_notes:
             extra_lines.append(f"SYSTEM RULES\n{system_notes}")
 
@@ -53,6 +59,7 @@ class PromptBuilder:
             experiences=experiences,
             behavior=behavior,
             emotional=emotional_text,
+            user_profile=user_profile,
         )
 
         all_context = context_text

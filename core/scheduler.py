@@ -87,6 +87,10 @@ class Scheduler:
             Settings.SCHEDULER_PREFERENCE_APPLY_INTERVAL
         )
 
+        self.continuity_check_interval = (
+            Settings.SCHEDULER_CONTINUITY_CHECK_INTERVAL
+        )
+
         # ==================================================
         # 🧠 THREAD SAFETY
         # ==================================================
@@ -438,6 +442,35 @@ class Scheduler:
             "preference_apply",
             _preference_apply,
             interval=self.preference_apply_interval
+        )
+
+        # ==================================================
+        # 🧠 CONTINUITY — COMMITMENT CHECK
+        # ==================================================
+        #
+        # T8 · Overdue promises are marked missed here, not silently
+        # forgotten. Registration is unconditional; the callback no-ops
+        # until the brain exposes a ContinuityEngine.
+
+        def _continuity_check():
+            brain = getattr(self.kernel, "brain", None)
+            engine = getattr(brain, "continuity", None) if brain else None
+            if engine is None or not hasattr(engine, "check_commitments"):
+                return
+            try:
+                summary = engine.check_commitments()
+                if summary.get("missed_count"):
+                    logger.info(
+                        "[Scheduler] continuity_check: %d missed commitment(s)",
+                        summary["missed_count"],
+                    )
+            except Exception as e:
+                logger.error("[Scheduler] continuity_check error: %s", e)
+
+        self.register_task(
+            "continuity_check",
+            _continuity_check,
+            interval=self.continuity_check_interval
         )
 
     # ==================================================

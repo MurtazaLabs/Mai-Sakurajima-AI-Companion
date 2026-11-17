@@ -87,6 +87,8 @@ class MaiAPI(
         self.brain: Any = None
         self.voice: Any = None
         self.voice_manager: Any = None
+        self.llm: Any = None
+        self.voice_stack: Any = None
         self.event_bus: Any = None
         self.knowledge_builder: Any = None
         self.goal_manager: Any = None
@@ -186,6 +188,8 @@ class MaiAPI(
             self.model_lifecycle = components.get("model_lifecycle")
             self.app = components.get("app")
             self.kernel = getattr(self.app, "kernel", None)
+            self.llm = components.get("llm")
+            self.voice_stack = getattr(self.app, "voice_stack", None)
             if self.session_manager:
                 routes_profile.set_session_manager(self.session_manager)
             self._last_dream_report: dict = {}
@@ -833,6 +837,43 @@ def system_about(request: Request, _: None = Depends(_require_auth)):
 def system_orchestrator(request: Request, _: None = Depends(_require_auth)):
 
     return mai.system_orchestrator()
+
+
+# ── Model / Voice provider switches ─────────────────────────────────────────
+
+
+@app.get("/api/system/providers")
+def system_providers(request: Request, _: None = Depends(_require_auth)):
+
+    return mai.system_providers()
+
+
+class LlmProviderRequest(BaseModel):
+    provider: str
+
+
+@app.post("/api/system/llm/provider")
+def system_llm_provider(
+    body: LlmProviderRequest,
+    request: Request,
+    _: None = Depends(_require_auth),
+):
+
+    return mai.system_llm_provider(body.provider)
+
+
+class VoiceStackRequest(BaseModel):
+    stack: str
+
+
+@app.post("/api/system/voice/stack")
+def system_voice_stack(
+    body: VoiceStackRequest,
+    request: Request,
+    _: None = Depends(_require_auth),
+):
+
+    return mai.system_voice_stack(body.stack)
 
 
 @app.get("/api/config")

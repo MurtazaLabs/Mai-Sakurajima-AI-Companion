@@ -140,8 +140,9 @@ run.py  |  run_daemon.py  |  uvicorn api.server:app
 - 16 kHz capture, pre-roll buffer, VAD onset/offset, trailing-silence trim,
   whole-utterance Silero gate before STT (mean ≥ 0.15, ratio ≥ 0.10, voiced
   ≥ 0.20 s; fail-open if VAD unavailable).
-- STT backends: `FasterWhisperSTT` (default) and `KyutaiSTT` (opt-in via
-  `STT_BACKEND=kyutai`, permanent whisper fallback on any failure).
+- STT backends: `KyutaiSTT` (primary since Nov 2026 — `STT_BACKEND`
+  defaults to `kyutai`) and `FasterWhisperSTT` (permanent fallback on any
+  Kyutai load/runtime failure; `STT_BACKEND=whisper` reverts).
 - Kokoro TTS with emotion-conditioned text, `StreamPlayer`, sentence-level
   streaming from `brain.think_stream()`.
 - Barge-in via `InterruptManager` (mic RMS over threshold during playback).
@@ -219,7 +220,6 @@ run.py  |  run_daemon.py  |  uvicorn api.server:app
 | Capability | State | Evidence |
 |------------|-------|----------|
 | **AEC (echo cancellation)** | **Wired — recorder still muted** | `StreamPlayer` streams playback through an `OutputStream` and feeds each block to `FullAEC` (`VoiceManager.attach_playback_tap()`, wired in `app/builders/voice.py`); `end_playback()` clears the reference between clips. Verified 18 dB on a synthetic two-path room; `FULL_AEC_DOUBLE_TALK_THRESHOLD` corrected 0.3 → 1.0. Not yet used to keep the mic live during playback — that needs live validation. |
-| **Kyutai STT** | **Partial — opt-in** | Runs (RTF 1.17–2.97 on the 4 GB T1000), above the 0.7 promotion gate. `.env` on this machine sets `STT_BACKEND=kyutai`; config default stays `whisper`. |
 | **openWakeWord** | **Installed, not wired** | `openwakeword==0.6.0` in `requirements.txt`; no import under `voice/`. No pretrained “hey mai” model exists — needs a custom verifier or synthetic training. |
 | **Discord** | **Prototype** | `integrations/discord_bot.py` (82 lines) relays to `POST /api/chat`; `discord` package not installed; no `ChannelAdapter`, no voice, not M24. |
 | **WhatsApp** | **Not started** | Official Meta Agent Platform only (no unofficial client). M26. |
@@ -243,7 +243,7 @@ run.py  |  run_daemon.py  |  uvicorn api.server:app
 | Language / runtime | Python 3.10.11 inside `mai_env/` (base Python lacks the voice stack) |
 | Web/API | FastAPI + Starlette, uvicorn, SSE, WebSocket |
 | LLM | OpenRouter (cloud, default `openrouter/free`) with Ollama failover; `LLM_PROVIDER` selects preference; **no local model installed on this machine** |
-| STT | faster-whisper (default) / Kyutai 1B via transformers (opt-in) |
+| STT | Kyutai 1B via transformers (primary, Nov 2026) / faster-whisper (fallback) |
 | TTS | Kokoro (`kokoro`, `misaki`) with emotion-conditioned text |
 | VAD / audio | Silero VAD (SHA-256-verified download), sounddevice, soundfile |
 | Speaker | SpeechBrain embeddings + torch.amp compatibility shim |
@@ -289,9 +289,11 @@ Latest commits: `2cd6181 deployment passed` and `37584f5 new update`
 2. **Wake word is a transcription check, not a wake model.** Every wake attempt
    costs an STT pass (measured ~1.7 s floor on this GPU); openWakeWord would cut
    that but has no “hey mai” model.
-3. **STT latency is the conversation bottleneck.** Kyutai RTF 1.17–2.97 exceeds
-   the 0.7 gate; whisper is comparable or better on short clips. True streaming
-   STT needs RTF < 1 and is hardware-blocked.
+3. **STT latency is the conversation bottleneck.** Kyutai is now the default and
+   is faster than whisper on this GPU (2.5–4.2 s vs ~3.0 s for a ~2 s clip) but
+   still above the plan's RTF ≤ 0.7 ideal — every turn pays a multi-second
+   transcription before the LLM sees it. True streaming STT needs RTF < 1 and is
+   hardware-blocked on the 4 GB T1000.
 4. **Cloud LLM dependency.** No Ollama/model installed; if OpenRouter is
    unavailable, generation fails over to a dead local endpoint.
 5. **No context-token budget.** Long sessions rely on turn-count truncation;

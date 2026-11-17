@@ -1,7 +1,7 @@
 # Mai Sakurajima — Future Vision Roadmap
 
-Status: **Planning — direction approved, implementation pending go**
-Date: 2026-11-08 (channel decision: Discord → WhatsApp; Java desktop client plan 2026-10-19; feature-review fold-in 2026-10-13; original 2026-10-10)
+Status: **Planning — direction approved; first pillar landed (Continuity Engine core, 2026-11-17)**
+Date: 2026-11-17 (Continuity Engine core built; channel decision: Discord → WhatsApp 2026-11-08; Java desktop client plan 2026-10-19; feature-review fold-in 2026-10-13; original 2026-10-10)
 Owner: Syed Murtaza / Mai AI Suite
 
 > **Truth anchor:** [[00-Overview/CURRENT_STATE]] is the verified list of what
@@ -12,9 +12,9 @@ Owner: Syed Murtaza / Mai AI Suite
 
 | Bucket | Items |
 |---|---|
-| ✅ **Completed** | Companion stage (M0–M13) · Desktop app shell — pywebview (M14, Oct 13) · VAD noise gate + self-hearing fix · OpenRouter hardening + `LLM_PROVIDER` preference · Oct-19 security audit remediation · Porcupine removal · `openwakeword` installed (unwired) · plugin platform (manifest/lifecycle/signing/sandbox/marketplace) |
-| 🟡 **In development / partial** | AEC continuous capture (playback feed wired; recorder still muted) · openWakeWord "hey mai" model · Kyutai STT (opt-in, above RTF gate) · multi-session profile scoping on chat path · entity web interface (`api/web/state/` only) · Discord relay prototype (`integrations/discord_bot.py`) |
-| 🔜 **Planned next** | **M15** Model Scheduler + TTS bake-off · **M16–M19** custom voice, VRM face, eyes, silent research + file tools · **M21** Continuity Engine · **M22** Self (code-awareness) · **M23–M25** Partner + Discord V1/V2 · **M26** WhatsApp |
+| ✅ **Completed** | Companion stage (M0–M13) · Desktop app shell — pywebview (M14, Oct 13) · VAD noise gate + self-hearing fix · OpenRouter hardening + `LLM_PROVIDER` preference · Oct-19 security audit remediation · Porcupine removal · `openwakeword` installed (unwired) · plugin platform (manifest/lifecycle/signing/sandbox/marketplace) · **Continuity Engine core (T8/M22, Nov 17)** — project memory, commitments ledger, checkpoints/resume, reconciled snapshot as tool + `state.continuity.updated` |
+| 🟡 **In development / partial** | AEC continuous capture (playback feed wired; recorder still muted) · openWakeWord "hey mai" model · multi-session profile scoping on chat path · entity web interface (`api/web/state/` only) · Discord relay prototype (`integrations/discord_bot.py`) · Continuity: autonomous cycles do not consume the snapshot yet (lands with M23) |
+| 🔜 **Planned next** | **M15** Model Scheduler + TTS bake-off · **M16–M19** custom voice, VRM face, eyes, silent research + file tools · **M21** Self (code-awareness) · **M23–M25** Partner + Discord V1/V2 · **M26** WhatsApp |
 | 🔮 **Future possibilities** | Java/JavaFX client (successor to pywebview) · cloud sync · documentation site · load/chaos testing · plugin marketplace public registry · true streaming STT (needs GPU upgrade) |
 
 ## 1. North star
@@ -321,7 +321,7 @@ pattern).
 | M19 | Silent Research + Artifacts | headless browsing, research jobs, file read/create tools | current |
 | M20 | GPU upgrade window | ambient eyes, 7B vision, richer local LLM | upgraded |
 | M21 | **Self** | code index, health feeds, self-diagnosis reports, pair-programming mode | either |
-| M22 | **Continuity Engine** | project memory, commitments ledger, checkpoints/resume, state exposure | either |
+| M22 | **Continuity Engine** | **core built Nov 17** — project memory, commitments ledger, checkpoints/resume, reconciled state as tool + `state.*` feed; autonomous cycles consume it at M23 | either |
 | M23 | Partner | email, calendar, presence policy, verified actions, autonomous cycles, initiative | either |
 | M24 | **Discord V1** | text DMs, notifications, presence, avatar, reports/files in chat | either |
 | M25 | **Discord V2** | voice channels, two-way voice, turn-taking polish, ritual voice briefings | either |
@@ -446,6 +446,19 @@ real number, and that risk is not accepted.
   no E2EE. Discord ships first because it validates the shared channel contract.
   Contract shape adapted from nanobot's `channels/base.py` (MIT — adaptation,
   not import; nanobot is asyncio on Python ≥3.11, Mai is threads on 3.10).
+- 2026-11-17: **Continuity Engine core built ahead of schedule** (pulled out of
+  sequence — it is a prerequisite for autonomous cycles, not for the voice/
+  face tracks). New `continuity/` package: `ContinuityStore` (one atomic JSON
+  document), `ProjectMemory`, `CommitmentsLedger`, `CheckpointStore`, and
+  `ContinuityEngine` as a thin reconciler — project progress/completion read
+  through `GoalManager`, focus through `CognitiveState`, runtime through
+  `SharedState`; continuity owns only what no one else did (decisions, open
+  questions, blockers, dependencies, deadlines, due windows, checkpoints).
+  Exposed as 6 tools + `state.continuity.updated` (auto-derived into
+  STREAM_TOPICS), injected into the prompt as a CONTINUITY section, and swept
+  by a `continuity_check` scheduler task. 51 new tests; 2169 pass total.
+  Remaining: conversation-driven commitment extraction and autonomous-cycle
+  consumption (M23).
 - Pending: JDK install go + P1 go (Java client skeleton + streaming chat);
   M15 (scheduler + TTS bake-off) follows after P3.
 

@@ -83,6 +83,17 @@ class PooledHTTPClient:
         """Sync streaming POST request."""
         client = self._get_sync_client()
         return client.post(url, **kwargs)
+
+    def stream_lines(self, url: str, **kwargs):
+        """True streaming POST: yields decoded lines as they arrive.
+
+        ``post()`` reads the whole body before returning, so a caller that
+        wants first-token latency must use this instead.
+        """
+        client = self._get_sync_client()
+        with client.stream("POST", url, **kwargs) as resp:
+            resp.raise_for_status()
+            yield from resp.iter_lines()
     
     # Async methods
     async def aget(self, url: str, **kwargs) -> httpx.Response:

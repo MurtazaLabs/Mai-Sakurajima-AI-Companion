@@ -1,7 +1,9 @@
 EMBEDDING_MODEL = "all-MiniLM-L6-v2"
 MEMORY_RECALL_LIMIT = 2
 MEMORY_SIMILARITY = 0.40
-MEMORY_SIMILARITY_THRESHOLD = 0.65
+# Retriever floor. Was 0.65, which measured zero hits across 8 realistic queries —
+# the best genuine match scored 0.639 with all-MiniLM-L6-v2, so nothing ever recalled.
+MEMORY_SIMILARITY_THRESHOLD = MEMORY_SIMILARITY
 MAX_MEMORY_RESULTS = 5
 MEMORY_MAX_NODES = 5000
 MEMORY_MAX_LINKS = 10

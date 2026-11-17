@@ -1,7 +1,7 @@
 class ContextPrompt:
 
     def build(self, memory_context="", recall=None, knowledge=None, graph=None,
-              experiences=None, behavior=None, emotional=None):
+              experiences=None, behavior=None, emotional=None, user_profile=None):
         sections = []
 
         if behavior:
@@ -9,6 +9,12 @@ class ContextPrompt:
 
         if emotional:
             sections.append(emotional)
+
+        if user_profile:
+            sections.append(
+                "USER PROFILE (things the user has told you about themselves)\n"
+                f"{user_profile}"
+            )
 
         if memory_context:
             sections.append(f"MEMORY CONTEXT\n{memory_context}")

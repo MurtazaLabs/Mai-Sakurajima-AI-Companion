@@ -3,21 +3,23 @@ import logging
 import app.config_loader as cfg
 from app.metadata import tag_service
 from core.state.per_person_relationship import PerPersonRelationshipManager
-from voice.kokoro_tts import KokoroTTS
 from voice.realtime import RealtimeVoice
 from voice.speaker import SpeakerManager
-from voice.stt import FasterWhisperSTT
+from voice.stack_switcher import VoiceStackSwitcher, build_stt, build_tts, resolve_stack
 from voice.wake_word import WakeWord
 
 logger = logging.getLogger("Mai")
 
 
 def build(app):
+    stack = resolve_stack(getattr(app, "config_manager", None))
+    logger.info("    Voice stack: %s", stack)
+
     logger.info("    Building TTS...")
     try:
-        app.tts = KokoroTTS()
-        tag_service(app, "tts", "KokoroTTS", "Voice")
-        logger.info("    ✓ KokoroTTS")
+        app.tts = build_tts(stack)
+        tag_service(app, "tts", type(app.tts).__name__, "Voice")
+        logger.info("    ✓ %s", type(app.tts).__name__)
     except Exception as e:
         logger.warning("    TTS failed to load: %s", e)
         app.tts = None
@@ -50,12 +52,8 @@ def build(app):
         logger.warning("    VoiceRenderer failed to build: %s", e)
         app.voice_renderer = None
 
-    if getattr(cfg.voice_config, "STT_BACKEND", "whisper") == "kyutai":
-        from voice.stt_kyutai import KyutaiSTT
-        app.stt = KyutaiSTT()
-        logger.info("    ✓ STT: Kyutai (streams, falls back to faster-whisper on any failure)")
-    else:
-        app.stt = FasterWhisperSTT()
+    app.stt = build_stt(stack)
+    logger.info("    ✓ STT: %s", type(app.stt).__name__)
 
     try:
         if cfg.voice_config.ADAPTIVE_NOISE_ENABLED:
@@ -154,6 +152,11 @@ def build(app):
     except Exception as e:
         logger.warning("    Per-person relationship manager failed: %s", e)
         app.per_person_relationship = None
+
+    logger.info("    Building VoiceStackSwitcher...")
+    app.voice_stack = VoiceStackSwitcher(app)
+    tag_service(app, "voice_stack", "VoiceStackSwitcher", "Voice", active=True)
+    logger.info("    ✓ VoiceStackSwitcher (%s)", stack)
 
     assert app.voice is not None
     assert app.stt is not None

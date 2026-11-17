@@ -8,6 +8,7 @@ from collections.abc import Iterator
 
 from app.config_loader import LLM_PROVIDER, OPENROUTER_API_KEY
 from llm.providers.ollama import OllamaProvider
+from llm.providers.openai_compat import OpenAICompatProvider
 from llm.providers.openrouter import OpenRouterProvider
 
 logger = logging.getLogger("Mai.LLMManager")
@@ -39,27 +40,45 @@ class LLMManager:
         self._lock = threading.RLock()
         self._openrouter_available = False
         self._ollama_available = False
+        self._llamacpp_available = False
         self._probe_at = 0.0
         self._openrouter_cooldown_until = 0.0
         self._ollama_cooldown_until = 0.0
+        self._llamacpp_cooldown_until = 0.0
 
-        # Provider preference: "ollama" = local first (OpenRouter fallback),
-        # anything else = OpenRouter first (default). Normalized here so
-        # tests can patch llm.manager.LLM_PROVIDER with any casing.
+        # Provider preference: "ollama"/"llamacpp" = local first (OpenRouter
+        # fallback), anything else = OpenRouter first (default). Normalized
+        # here so tests can patch llm.manager.LLM_PROVIDER with any casing,
+        # and so select_provider() can swap it at runtime.
         provider = (LLM_PROVIDER or "openrouter").strip().lower()
-        if provider not in ("openrouter", "ollama"):
+        if provider not in ("openrouter", "ollama", "llamacpp"):
             logger.warning(
                 "[LLMManager] Unknown LLM_PROVIDER %r — defaulting to openrouter",
                 LLM_PROVIDER,
             )
             provider = "openrouter"
+        self._provider = provider
         self._prefer_ollama = provider == "ollama"
+        self._prefer_llamacpp = provider == "llamacpp"
 
         self.ollama = OllamaProvider()
+
+        # Constructed on demand: a llama.cpp provider pointed at a dead port
+        # must not cost anything until it is actually selected.
+        self.llamacpp = None
+        if self._prefer_llamacpp:
+            self._ensure_llamacpp()
 
         self.openrouter = OpenRouterProvider(
             api_key=OPENROUTER_API_KEY
         )
+
+    def _ensure_llamacpp(self) -> OpenAICompatProvider:
+        """Lazily build the llama.cpp provider (also used by select_provider)."""
+        with self._lock:
+            if self.llamacpp is None:
+                self.llamacpp = OpenAICompatProvider()
+            return self.llamacpp
 
     # ---------------- availability probing (cached + circuit breaker) ----------------
 
@@ -78,6 +97,12 @@ class LLMManager:
             probe_openrouter = now >= self._openrouter_cooldown_until
             probe_ollama = now >= self._ollama_cooldown_until
             current_ollama = self._ollama_available
+            current_llamacpp = self._llamacpp_available
+            probe_llamacpp = (
+                self._prefer_llamacpp
+                and self.llamacpp is not None
+                and now >= self._llamacpp_cooldown_until
+            )
 
         # ── network I/O outside the lock ────────────────────────────────
         if probe_openrouter:
@@ -98,9 +123,18 @@ class LLMManager:
                 logger.debug("[LLMManager] Ollama probe failed: %s", e)
                 ollama_ok = False
 
+        llamacpp_ok = current_llamacpp
+        if probe_llamacpp:
+            try:
+                llamacpp_ok = self.llamacpp.is_alive()
+            except Exception as e:
+                logger.debug("[LLMManager] llama.cpp probe failed: %s", e)
+                llamacpp_ok = False
+
         with self._lock:
             self._openrouter_available = openrouter_ok
             self._ollama_available = ollama_ok
+            self._llamacpp_available = llamacpp_ok
 
     def _mark_openrouter_dead(self) -> None:
         with self._lock:
@@ -112,11 +146,16 @@ class LLMManager:
             self._ollama_available = False
             self._ollama_cooldown_until = time.monotonic() + FAILURE_COOLDOWN
 
+    def _mark_llamacpp_dead(self) -> None:
+        with self._lock:
+            self._llamacpp_available = False
+            self._llamacpp_cooldown_until = time.monotonic() + FAILURE_COOLDOWN
+
     def is_available(self) -> bool:
 
         self._probe()
         with self._lock:
-            return self._openrouter_available or self._ollama_available
+            return self._openrouter_available or self._ollama_available or self._llamacpp_available
 
     @staticmethod
     def _is_simple_query(user: str) -> bool:
@@ -135,6 +174,26 @@ class LLMManager:
         with self._lock:
             openrouter_ok = self._openrouter_available
             prefer_ollama = self._prefer_ollama
+            prefer_llamacpp = self._prefer_llamacpp
+
+        if prefer_llamacpp:
+            # Cached probe, same rationale as Ollama below: a dead localhost
+            # must not cost a 2s timeout on every voice turn.
+            with self._lock:
+                llamacpp_ok = self._llamacpp_available
+            if llamacpp_ok:
+                try:
+                    return self.llamacpp.generate(system, user, history)
+                except Exception as e:
+                    self._mark_llamacpp_dead()
+                    logger.warning(
+                        "llama.cpp failed: %s. Falling back to OpenRouter.",
+                        _sanitize_log_message(str(e)),
+                    )
+            else:
+                logger.info(
+                    "llama.cpp unavailable (cached). Falling back to OpenRouter."
+                )
 
         # Attempt order: preferred provider first, the other second.
         order = ("ollama", "openrouter") if prefer_ollama else ("openrouter", "ollama")
@@ -233,6 +292,8 @@ class LLMManager:
             openrouter_ok = self._openrouter_available
 
         priority = []
+        if self._prefer_llamacpp and self.llamacpp is not None:
+            priority.append(("llamacpp", self.llamacpp))
         if self._prefer_ollama:
             if hasattr(self.ollama, "stream"):
                 priority.append(("ollama", self.ollama))
@@ -256,6 +317,8 @@ class LLMManager:
     def _mark_dead(self, name: str) -> None:
         if name == "openrouter":
             self._mark_openrouter_dead()
+        elif name == "llamacpp":
+            self._mark_llamacpp_dead()
         else:
             self._mark_ollama_dead()
 
@@ -297,3 +360,61 @@ class LLMManager:
             response = self._fallback_text(system, user)
         if response:
             yield response
+    # ---------------- runtime provider switching ----------------
+    # UI: GET /api/system/providers, POST /api/system/llm/provider
+
+    PROVIDERS = ("openrouter", "ollama", "llamacpp")
+
+    def select_provider(self, name: str, probe: bool = True) -> dict:
+        """Switch the preferred provider at runtime. Never raises: bad input
+        comes back as an ``error`` key alongside the current status.
+
+        ``probe=False`` is used at boot to restore a persisted choice without
+        paying a network probe before the first real request.
+        """
+        target = (name or "").strip().lower()
+        if target not in self.PROVIDERS:
+            return {"error": "unknown_provider", "provider": self._provider}
+
+        with self._lock:
+            if target == "llamacpp":
+                self._ensure_llamacpp()
+            self._provider = target
+            self._prefer_ollama = target == "ollama"
+            self._prefer_llamacpp = target == "llamacpp"
+            # A fresh selection must not inherit the previous provider's cooldown.
+            if target == "llamacpp":
+                self._llamacpp_cooldown_until = 0.0
+            elif target == "ollama":
+                self._ollama_cooldown_until = 0.0
+            else:
+                self._openrouter_cooldown_until = 0.0
+
+        if probe:
+            self._probe(force=True)
+        logger.info("[LLMManager] provider switched to %s", target)
+        return self.providers_status(probe=probe)
+
+    def providers_status(self, probe: bool = True) -> dict:
+        """Cached availability for every provider (probe at most once per TTL)."""
+        if probe:
+            self._probe()
+        with self._lock:
+            selected = self._provider
+            flags = {
+                "openrouter": self._openrouter_available,
+                "ollama": self._ollama_available,
+                "llamacpp": self._llamacpp_available,
+            }
+        models = {
+            "openrouter": (getattr(self.openrouter, "models", None) or ["openrouter/auto"])[0],
+            "ollama": getattr(self.ollama, "model", None),
+            "llamacpp": getattr(self.llamacpp, "model", None) if self.llamacpp else None,
+        }
+        return {
+            "selected": selected,
+            "providers": {
+                name: {"available": bool(flags[name]), "model": models[name]}
+                for name in self.PROVIDERS
+            },
+        }

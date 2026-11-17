@@ -112,7 +112,8 @@ tomli==2.4.1
 # torch/torchaudio: CPU builds from the PyTorch index (added by requirements-ci.txt).
 # torchaudio 2.x pins exact torch versions in wheel metadata — these two must
 # move together. openai-whisper/tf2onnx/onnx removed (zero import sites);
-# STT is faster-whisper (or Kyutai), wake is STT phrase matching + Silero VAD.
+# STT is Kyutai (primary, needs torch below) with faster-whisper as the
+# permanent fallback; wake is STT phrase matching + Silero VAD.
 # Kyutai STT GPU (stt-kyutai-replacement-plan.md): the cu121 local builds are
 # installed from the pytorch index instead -- PyPI Windows wheels are cpu-only:
 #   pip install torch==2.3.0+cu121 torchaudio==2.3.0+cu121

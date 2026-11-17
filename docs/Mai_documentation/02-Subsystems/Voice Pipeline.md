@@ -65,7 +65,7 @@ WakeWord / hotkey → Mic capture (16k) → Recorder
 | Component | File | Details |
 |-----------|------|---------|
 | `FasterWhisperSTT` | `stt.py` | Faster-Whisper; RLock; lazy load; typed; TranscriptionUnavailable exception |
-| `KyutaiSTT` | `stt_kyutai.py` | optional Kyutai 1B backend (`STT_BACKEND=kyutai`); lazy load; auto device (cuda/bf16 or cpu/fp32); **permanent whisper fallback** on load or runtime failure; dynamo disabled when Triton is absent |
+| `KyutaiSTT` | `stt_kyutai.py` | **primary STT backend** (default `STT_BACKEND="kyutai"`); lazy load; auto device (cuda/bf16 or cpu/fp32); **permanent whisper fallback** on load or runtime failure; dynamo disabled when Triton is absent |
 
 ### Text-to-Speech (TTS)
 
@@ -155,7 +155,7 @@ WakeWord / hotkey → Mic capture (16k) → Recorder
 
 - ❌ AEC is wired but not exploited — the reference is real, yet the recorder stays muted during playback, so cancellation is not used. Unmute `voice_manager.py` and validate live (needs echo cancellation better than the mute guard on the actual mic/speaker path) (see [[00-Overview/CURRENT_STATE]] §4)
 - ❌ Wake word costs a full STT pass; openWakeWord is installed but unwired (no "hey mai" model)
-- ❌ Kyutai RTF (1.17–2.97) is above the 0.7 promotion gate — opt-in only
+- ⚠️ Kyutai RTF (1.17–2.97 pre-Oct-27, better now) is above the 0.7 ideal but it is the default anyway — measured faster than whisper on the real device; `STT_BACKEND=whisper` reverts
 - ❌ True streaming STT is blocked by hardware (RTF < 1 required)
 
 ---

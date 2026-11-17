@@ -54,6 +54,7 @@ class AIApplication:
         self.emotion_detector = None
         self.diarization = None
         self.voice_manager = None
+        self.voice_stack = None
         self.wake = None
         self.speaker_manager = None
         self.per_person_relationship = None
@@ -66,6 +67,7 @@ class AIApplication:
         self.directory_watcher = None
         self.identity = None
         self.needs_engine = None
+        self.continuity = None
         self.model_lifecycle = None
 
         # Internal — cleared after build
@@ -105,7 +107,7 @@ class AIApplication:
         "full_aec", "emotion_detector", "diarization", "voice_manager", "wake",
         "speaker_manager", "per_person_relationship", "kernel", "knowledge_builder",
         "plugin_loader", "hook_registry", "write_journal", "event_inspector",
-        "directory_watcher", "identity", "model_lifecycle",
+        "directory_watcher", "identity", "continuity", "model_lifecycle",
     ]
 
     @property

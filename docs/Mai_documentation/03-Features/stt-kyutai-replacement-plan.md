@@ -1,6 +1,6 @@
 # STT Replacement Plan — faster-whisper → Kyutai 1B
 
-Status: **NO-GO on the 0.7 gate, but user opted in anyway (2026-10-25): `.env` sets `STT_BACKEND=kyutai` — ~2x vs the whisper baseline in steady state (~4x for longer turns); faster-whisper remains the permanent fallback; product default (config) stays "whisper"**
+Status: **Kyutai is the primary backend (2026-11-08): `config/voice.py` default is `STT_BACKEND="kyutai"`; whisper is the permanent fallback. It still misses the plan's RTF ≤ 0.7 ideal, so this is a deliberate override of the gate, not a pass**
 Date: 2026-10-09 (updated 2026-10-25)
 Owner: Syed Murtaza / Mai AI Suite
 
@@ -88,7 +88,7 @@ is cloud).
     `set_model()`, `stats()`, raises `TranscriptionUnavailable` on load
     failure. Input: 16 kHz float32 mono (full utterance clip).
   - `app/builders/voice.py` — single construction site; now selects the
-    backend by `cfg.voice_config.STT_BACKEND` ("whisper" default).
+    backend by `cfg.voice_config.STT_BACKEND` ("kyutai" default since Nov 2026).
   - `config/voice.py` — `STT_BACKEND` (env-switchable) + `KYUTAI_STT_DIR`,
     re-exported via `config/settings.py`.
   - Callers: `voice/voice_manager.py` `_transcribe()` (after the Phase 0
@@ -109,8 +109,8 @@ VoiceManager / kernel
   `transcribe()` (16 kHz in → 24 kHz Mimi path → generate → decode),
   `stats()` incl. `avg_rtf`, public `.model`/`.sample_rate` for callers, and
   **permanent** faster-whisper fallback on any load or runtime failure.
-- `STT_BACKEND` config select in `app/builders/voice.py` — default stays
-  `"whisper"`; nothing changes without the env var.
+- `STT_BACKEND` config select in `app/builders/voice.py` — default is
+  `"kyutai"` (was `"whisper"` at build time; promoted Nov 2026).
 - Hard fallback (§ plan): Kyutai load failure at first use, or a runtime
   failure mid-call, downgrades the backend permanently to faster-whisper
   (tested: `tests/test_stt_kyutai.py`).
@@ -126,9 +126,10 @@ Downloaded `kyutai/stt-1b-en_fr` (dsm format), verified complete (§3).
    T1000, bf16 2.3GB VRAM, dynamo→eager — no triton on Windows):
    **median RTF 1.219, avg 1.200 (device=cuda verified)** — ~4x faster than
    the whisper baseline (~4.9) but **fails the 0.7 gate** (a ~1s fixed
-   overhead + eager-run compiled regions). **User decision (same day):
-   opted in anyway via `.env` `STT_BACKEND=kyutai`** — config default stays
-   "whisper"; kyutai is machine-level opt-in with permanent whisper fallback.
+   overhead + eager-run compiled regions). **Decision: promoted to primary
+   anyway (2026-11-08)** — it is measurably faster than whisper on the real
+   device; the gate was an ideal, not a usability floor. `config/voice.py`
+   now defaults `STT_BACKEND="kyutai"` with whisper as the permanent fallback.
    Steady-state evidence: RTF 1.12-1.25 on warm shapes (long turns ~4x vs
    the 4.9 whisper baseline; short clips bound ~2.4s absolute vs whisper's
    ~3.0s). Real-speech round-trip verbatim (kokoro TTS -> wav -> kyutai).
@@ -183,7 +184,7 @@ Downloaded `kyutai/stt-1b-en_fr` (dsm format), verified complete (§3).
 | dsm weights not loadable by transformers 5.x | Re-download `-trfs` checkpoint; local dsm clone + dsm package as offline fallback |
 | transformers 5.17 API drift vs 4.53-era docs | Integration written against installed version; unit tests pin the load path |
 | VRAM pressure with TTS later moved to GPU | 1B model leaves ~1.5GB headroom; 2.6B stays rejected |
-| Voice regression | `STT_BACKEND` default stays `whisper`; hard runtime fallback (§4) |
+| Voice regression | `STT_BACKEND=whisper` reverts to the old default in one env var; hard runtime fallback (§4) always available |
 
 ## 7. Decisions log
 
@@ -197,8 +198,8 @@ Downloaded `kyutai/stt-1b-en_fr` (dsm format), verified complete (§3).
   stalled twice → completed via resumable curl, sha256 verified).
 - 2026-10-25: **Bench verdict NO-GO** — CPU median RTF 4.78, GPU (torch
   2.3.0+cu121 bf16, eager under no-triton Windows) median 1.219; both above
-  the 0.7 gate. Default backend stays faster-whisper; kyutai is shipped code,
-  opt-in only. `processor(audio=x)` keyword contract fixed (positional binds
+  the 0.7 gate. Default backend stayed faster-whisper then; kyutai shipped as
+  opt-in code. `processor(audio=x)` keyword contract fixed (positional binds
   to `images` in transformers 4.57); bench device report made honest
   (hardcoded "cpu" invalidated an earlier false GO); environment pins
   documented: PyPI Windows torch wheels are cpu-only — cu121 comes from the
@@ -214,3 +215,13 @@ Downloaded `kyutai/stt-1b-en_fr` (dsm format), verified complete (§3).
     shapes; short-clip absolute steps to ~2.4s).
   - `test_stt_backend_*` made ambient-aware — they reloaded config under
     whatever the .env sets instead of hardcoding "whisper".
+- 2026-11-08: **Promoted to primary.** `config/voice.py` default is now
+  `STT_BACKEND="kyutai"` (env still overrides; `STT_BACKEND=whisper` reverts).
+  Rationale: kyutai is measurably faster than whisper on the real device
+  (2.5-4.2s vs ~3.0s for a ~2s clip after the Oct-27 dynamo/padding fixes), so
+  the 0.7 gate is an unmet ideal rather than a reason to keep the slower
+  backend. The permanent faster-whisper fallback is unchanged, and the Oct-31
+  padding removal means the RTF 1.17-2.97 numbers above are conservative.
+  Consequence to watch on a fresh install: the 1B checkpoint load is lazy, so
+  the first utterance after boot pays ~2.7s; if `KYUTAI_STT_DIR` is missing the
+  backend logs a load error and falls back to whisper for the process lifetime.

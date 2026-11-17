@@ -9,6 +9,17 @@ from typing import Any
 
 logger = logging.getLogger(__name__)
 
+
+def _user_half(text):
+    """Recalled turns are stored whole ("USER: … AI: …"). Replaying Mai's own
+    replies — often her denials — teaches her to repeat them, so keep only the
+    user's side."""
+    text = str(text or "")
+    for marker in ("\nAI:", "\nMai:"):
+        if marker in text:
+            text = text.split(marker, 1)[0]
+    return text.replace("USER:", "").replace("User:", "").strip()
+
 from app.config_loader import OBSIDIAN_VAULT
 from core.event_bus import EventBus
 from memory.emotion_analyzer import EmotionAnalyzer
@@ -280,6 +291,8 @@ AI:
 
                         text = str(mem)
 
+                    text = _user_half(text)
+
                     if text and text not in seen:
 
                         merged.append(text)
@@ -387,7 +400,7 @@ AI:
             if mem_type == target_type:
 
                 emotional.append(
-                    f"\nUser: {mem['user']}\nMai: {mem['ai']}\n"
+                    f"\nUser: {mem['user']}\n"
                 )
 
         return emotional[:2]

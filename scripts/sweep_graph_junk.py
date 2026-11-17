@@ -71,7 +71,7 @@ def main():
         logger.info("No graph.json found — starting with empty graph")
 
     janitor = VaultJanitor(graph=graph, vault_root=vault)
-    result = janitor.sweep(dry_run=not args.apply)
+    result = janitor.sweep(dry_run=not args.apply, persist_path=state_file)
 
     entities = result["entities"]
     files = result["note_files"]

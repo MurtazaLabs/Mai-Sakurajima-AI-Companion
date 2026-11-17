@@ -9,6 +9,7 @@
 | Symptom | Likely Cause | Check |
 |---------|--------------|-------|
 | `stt=MISSING` in logs | No STT backend loaded yet (lazy) — or the backend failed to load | `/api/voice/status`; check `STT_BACKEND` |
+| `[KyutaiSTT] Load failed … falling back to faster-whisper` | Default backend is Kyutai but the checkpoint is missing/unloadable (`KYUTAI_STT_DIR`, default `kyutai STT/stt-1b-en_fr-trfs`) or CUDA/torch is broken | Run with `STT_BACKEND=whisper` to silence it, or restore the checkpoint; `/api/voice/status` then reports `backend: kyutai(whisper fallback)` + `load_failed: true` |
 | `VAD model checksum mismatch` | Silero model updated at source | Delete `~/.cache/silero_vad/silero_vad.jit` and restart |
 | `stt=MISSING` → `stt=ok` on first use | Lazy loading (expected) | First transcription triggers load |
 | `Speaker unknown` every time | SpeechBrain embeddings failing | Check `voice/speaker/speaker_encoder.py` torch compat |
@@ -26,7 +27,7 @@
 **Symptoms:** Mic shows activity, but no text appears
 
 **Checklist:**
-1. Check `STT_BACKEND` — `whisper` (default) or `kyutai` (opt-in); `/api/voice/status` shows the live backend and whether a fallback happened
+1. Check `STT_BACKEND` — `kyutai` (default; needs the checkpoint under `KYUTAI_STT_DIR`) or `whisper`; `/api/voice/status` → `stt.backend` reports `kyutai`, or `kyutai(whisper fallback)` with `load_failed: true` after a failure
 2. Check `stt` status in `/api/voice/status` — should show `ok` after first use
 3. Check microphone device: `python -c "import sounddevice as sd; print(sd.query_devices())"`
 4. Check VAD: `python -c "from voice.vad import VAD; v=VAD(); v._load_model(); print(v._model is not None)"`

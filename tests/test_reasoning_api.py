@@ -57,8 +57,9 @@ def test_reasoning_routes_use_auth_dependency():
 
     app.dependency_overrides[_require_auth] = deny
     try:
-        with TestClient(app) as client:
-            response = client.get("/api/reasoning/thoughts")
+        # No `with`: entering the context runs the lifespan, which bootstraps the
+        # real application and re-exports the live vault graph.
+        response = TestClient(app).get("/api/reasoning/thoughts")
         assert response.status_code == 401
     finally:
         app.dependency_overrides.pop(_require_auth, None)

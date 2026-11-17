@@ -181,6 +181,13 @@ def build(app):
     logger.info("    Building LLMManager...")
     app.llm = LLMManager()
     tag_service(app, "llm", "LLMManager", "Infrastructure")
+    # Persisted choice from the UI button wins over LLM_PROVIDER. probe=False:
+    # no network before the first real request.
+    if app.config_manager:
+        saved_provider = app.config_manager.get("LLM_PROVIDER")
+        if saved_provider:
+            app.llm.select_provider(saved_provider, probe=False)
+            logger.info("    LLM provider restored: %s", saved_provider)
     logger.info("    ✓ LLMManager")
 
     logger.info("    Building RelationshipEngine...")

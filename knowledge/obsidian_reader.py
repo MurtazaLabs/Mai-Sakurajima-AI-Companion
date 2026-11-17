@@ -1,6 +1,7 @@
 import hashlib
 import logging
 import os
+import re
 import threading
 from pathlib import Path
 from typing import Any
@@ -135,11 +136,19 @@ class ObsidianReader:
         if not content:
             return []
         entries = []
-        chunks = content.split("\n---")
-        for chunk in chunks:
+        carry = ""
+        # Frontmatter (id/importance/tags/emotion) and its entry are separated by
+        # "\n---", so a plain split drops the metadata of every entry.
+        for chunk in content.split("\n---"):
             chunk = chunk.strip()
             if not chunk:
                 continue
+            if "### 👤 User" not in chunk:
+                carry = chunk
+                continue
+            if carry:
+                chunk = f"{carry}\n{chunk}"
+                carry = ""
             try:
                 raw_entities = self._extract_section(chunk, "### 👥 Related Entities")
                 parsed_entities = self._parse_entity_links(raw_entities)
@@ -239,10 +248,77 @@ class ObsidianReader:
                     elif value.lower() == "false":
                         value = False
                     result[key] = value
+            facts = self._parse_fact_bullets(content)
+            if facts:
+                result["facts"] = facts
+                profile = self._format_user_profile(facts)
+                if profile:
+                    result["profile"] = profile
             return result
         except Exception as e:
             logger.debug("[ObsidianReader] markdown parse: %s", e)
             return {}
+
+    # state_dumper writes identity facts as "- [category] fact — YYYY-MM-DD"
+    _FACT_RE = re.compile(r"^-\s*\[([^\]]{1,40})\]\s*(.+?)(?:\s*—\s*(\d{4}-\d{2}-\d{2}))?$")
+    _PROFILE_CATEGORIES = ("name", "age", "work", "study", "location", "background")
+    _PROFILE_MAX_LINES = 12
+    _PROFILE_MAX_CHARS = 700
+
+    def _parse_fact_bullets(self, content):
+        facts = []
+        for line in content.splitlines():
+            match = self._FACT_RE.match(line.strip())
+            if not match:
+                continue
+            facts.append({
+                "category": match.group(1).strip().lower(),
+                "fact": match.group(2).strip(),
+                "timestamp": match.group(3) or "",
+            })
+        return facts
+
+    def _format_user_profile(self, facts):
+        # Condense identity bullets into a prompt-sized block: stable categories
+        # only, deduped, newest first, and interleaved so one chatty category
+        # cannot crowd out name/age/work.
+        groups: dict[str, dict[str, tuple[str, str]]] = {}
+        for fact in facts:
+            category = str(fact.get("category", "")).strip().lower()
+            text = str(fact.get("fact", "")).strip()
+            if category not in self._PROFILE_CATEGORIES or not text:
+                continue
+            if "mai" in text.lower():
+                # Her own lines get filed into user.md as user facts; skip them.
+                continue
+            key = " ".join(text.lower().split()).rstrip(".!")
+            entry = (str(fact.get("timestamp", "")), text)
+            bucket = groups.setdefault(category, {})
+            if key not in bucket or entry[0] > bucket[key][0]:
+                bucket[key] = entry
+
+        buckets = [
+            sorted(groups.get(c, {}).values(), key=lambda e: e[0], reverse=True)
+            for c in self._PROFILE_CATEGORIES
+        ]
+        lines, total, idx = [], 0, 0
+        while len(lines) < self._PROFILE_MAX_LINES:
+            added = False
+            for bucket in buckets:
+                if idx >= len(bucket):
+                    continue
+                text = bucket[idx][1]
+                if total + len(text) > self._PROFILE_MAX_CHARS:
+                    continue
+                lines.append(f"- {text}")
+                total += len(text)
+                added = True
+                if len(lines) >= self._PROFILE_MAX_LINES:
+                    break
+            if not added:
+                break
+            idx += 1
+        return "\n".join(lines)
 
     def clear_cache(self):
         with self._lock:

@@ -153,7 +153,13 @@ class MemoryPipeline:
             emo = (self.emotion_analyzer.analyze(user) or
                    {"type": "neutral", "intensity": 0.5}) if self.emotion_analyzer else {}
 
-        obj = MemoryObject(content=user, memory_type="conversation", user_id=user_id)
+        # Intelligence's computed score is the real importance; without it we
+        # cannot do better than neutral, but it must not be dropped on the floor.
+        raw_score = getattr(node, "importance", None) if node is not None else None
+        score = 0.5 if raw_score is None else max(0.0, min(1.0, float(raw_score)))
+        obj = MemoryObject(
+            content=user, memory_type="conversation", user_id=user_id, importance=score
+        )
         if node is None and self.vector_store:
             node = obj
         if tags:
@@ -206,7 +212,7 @@ class MemoryPipeline:
             if self._journal:
                 meta = {
                     "tags": tags, "emotion": emo, "timestamp": time.time(),
-                    "importance": getattr(node, "confidence", 0.5) if node else 0.5,
+                    "importance": score,
                     "speaker": speaker, "memory_type": "conversation",
                 }
                 if user_id:
@@ -215,7 +221,7 @@ class MemoryPipeline:
             else:
                 meta = {
                     "tags": tags, "emotion": emo, "timestamp": time.time(),
-                    "importance": getattr(node, "confidence", 0.5) if node else 0.5,
+                    "importance": score,
                     "speaker": speaker, "memory_type": "conversation",
                 }
                 if user_id:

@@ -14,13 +14,40 @@ USE_CUSTOM_VOICE = True
 VOICE_COOLDOWN = 2.0
 WAKE_COOLDOWN = 2.0
 
-# STT backend selection — "whisper" (default) | "kyutai".
-# Kyutai (kyutai/stt-1b-en_fr-trfs, streaming, semantic VAD) is gated on the
-# Phase 1 RTF benchmark (docs/Mai_documentation/03-Features/stt-kyutai-replacement-plan.md),
-# RTF <= 0.7 on this machine; faster-whisper stays the fallback backend.
-STT_BACKEND = os.environ.get("STT_BACKEND", "whisper").strip().lower()
+# STT backend selection — "kyutai" (default) | "whisper".
+# Kyutai (kyutai/stt-1b-en_fr-trfs) is the primary backend: measured faster than
+# whisper on this machine (2.5-4.2s vs ~3.0s for a ~2s clip, GPU) even though it
+# misses the plan's RTF <= 0.7 ideal
+# (docs/Mai_documentation/03-Features/stt-kyutai-replacement-plan.md).
+# FasterWhisperSTT stays the permanent fallback: any Kyutai load or runtime
+# failure switches to it for the rest of the process.
+STT_BACKEND = os.environ.get("STT_BACKEND", "kyutai").strip().lower()
 KYUTAI_STT_DIR = str(Path(
     os.environ.get("KYUTAI_STT_DIR", str(ROOT_DIR / "kyutai STT" / "stt-1b-en_fr-trfs"))))
+
+# Voice stack — "local" (Kyutai STT + Kokoro TTS, 2.3 GB VRAM) or "cloud"
+# (ElevenLabs Scribe STT + Flash v2.5 TTS, 0 GB VRAM). Switchable at runtime via
+# voice/stack_switcher.py / POST /api/system/voice/stack. The local stack's STT
+# is what holds the VRAM a local LLM needs, so this is the privacy/VRAM switch
+# (docs/Mai_documentation/03-Features/llamacpp-local-llm-plan.md §4).
+VOICE_STACK = os.environ.get("VOICE_STACK", "local").strip().lower()
+
+# ElevenLabs (cloud voice). An empty key keeps the cloud stack unavailable —
+# the switcher refuses and the boot falls back to local rather than half-running.
+ELEVENLABS_API_KEY = os.environ.get("ELEVENLABS_API_KEY", "")
+# "Bella" — a premade voice. Deliberately NOT Rachel: ElevenLabs' free tier
+# refuses the library voices over the API (402 paid_plan_required, verified
+# 2026-11-13), while the premade set works on every plan.
+ELEVENLABS_VOICE_ID = os.environ.get("ELEVENLABS_VOICE_ID", "HY4HX0IWY87Q5uoIYH4v")
+ELEVENLABS_TTS_MODEL = os.environ.get("ELEVENLABS_TTS_MODEL", "eleven_flash_v2_5")
+# Check GET https://api.elevenlabs.io/v1/models against your account at
+# validation time — a wrong id fails every call (logged with the response body).
+# scribe_v2 beats scribe_v1 on this machine's own speech: v1 wrote "Hello Mai"
+# and v2 "Hello, Mai." (both correct on the rest) — measured 2026-11-13.
+ELEVENLABS_STT_MODEL = os.environ.get("ELEVENLABS_STT_MODEL", "scribe_v2")
+# PCM instead of MP3: no decoder, no extra latency. 24 kHz out.
+ELEVENLABS_OUTPUT_FORMAT = os.environ.get("ELEVENLABS_OUTPUT_FORMAT", "pcm_24000")
+ELEVENLABS_TIMEOUT = int(os.environ.get("ELEVENLABS_TIMEOUT", "60"))
 
 # VAD settings
 VAD_THRESHOLD = 0.5 

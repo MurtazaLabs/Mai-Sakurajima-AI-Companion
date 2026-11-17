@@ -28,6 +28,8 @@ logger = logging.getLogger(__name__)
 
 class KyutaiSTT:
 
+    stack = "local"
+
     def __init__(self, model_path: str | None = None, sample_rate: int | None = None):
         self.sample_rate = sample_rate or Settings.VOICE_SAMPLE_RATE
         self._model_path = model_path or Settings.KYUTAI_STT_DIR

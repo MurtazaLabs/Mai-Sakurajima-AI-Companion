@@ -11,6 +11,7 @@ from app.config_loader import (
     KOKORO_VOICE,
     VOICE_SAMPLE_RATE,
 )
+from voice.speech_text import sanitize
 
 logger = logging.getLogger("Mai.TTS")
 
@@ -35,6 +36,8 @@ def _load_kokoro():
 
 
 class KokoroTTS:
+
+    stack = "local"
 
     # 🧠 shared singleton pipeline
     _shared_pipeline = None
@@ -123,9 +126,7 @@ class KokoroTTS:
     # 🎭 ENHANCE SPEECH RHYTHM
     def _enhance_text(self, text, emotion="neutral"):
 
-        text = text.strip()
-
-        text = re.sub(r"\s+", " ", text)
+        text = sanitize(text)
 
         text = text.replace("...", "… ")
 
