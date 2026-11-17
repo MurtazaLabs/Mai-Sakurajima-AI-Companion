@@ -139,6 +139,9 @@ def bootstrap_system():
         "directory_watcher": app.directory_watcher,
         "app": app,
         "lifecycle_manager": getattr(app, "lifecycle_manager", None),
+        "continuity": getattr(app, "continuity", None),
+        "partner": getattr(app, "partner", None),
+        "self_awareness": getattr(app, "self_awareness", None),
         "model_lifecycle": getattr(app, "model_lifecycle", None),
     }
 

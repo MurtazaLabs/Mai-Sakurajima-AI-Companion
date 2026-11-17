@@ -12,9 +12,9 @@ Owner: Syed Murtaza / Mai AI Suite
 
 | Bucket | Items |
 |---|---|
-| ✅ **Completed** | Companion stage (M0–M13) · Desktop app shell — pywebview (M14, Oct 13) · VAD noise gate + self-hearing fix · OpenRouter hardening + `LLM_PROVIDER` preference · Oct-19 security audit remediation · Porcupine removal · `openwakeword` installed (unwired) · plugin platform (manifest/lifecycle/signing/sandbox/marketplace) · **Continuity Engine core (T8/M22, Nov 17)** — project memory, commitments ledger, checkpoints/resume, reconciled snapshot as tool + `state.continuity.updated` |
-| 🟡 **In development / partial** | AEC continuous capture (playback feed wired; recorder still muted) · openWakeWord "hey mai" model · multi-session profile scoping on chat path · entity web interface (`api/web/state/` only) · Discord relay prototype (`integrations/discord_bot.py`) · Continuity: autonomous cycles do not consume the snapshot yet (lands with M23) |
-| 🔜 **Planned next** | **M15** Model Scheduler + TTS bake-off · **M16–M19** custom voice, VRM face, eyes, silent research + file tools · **M21** Self (code-awareness) · **M23–M25** Partner + Discord V1/V2 · **M26** WhatsApp |
+| ✅ **Completed** | Companion stage (M0–M13) · Desktop app shell — pywebview (M14, Oct 13) · VAD noise gate + self-hearing fix · OpenRouter hardening + `LLM_PROVIDER` preference · Oct-19 security audit remediation · Porcupine removal · `openwakeword` installed (unwired) · plugin platform (manifest/lifecycle/signing/sandbox/marketplace) · **Continuity Engine core (T8/M22, Nov 17)** — project memory, commitments ledger, checkpoints/resume, reconciled snapshot as tool + `state.continuity.updated` · **M23 Partner core (Nov 17, built ahead of sequence)** — presence/interruption policy + quiet mode, action tiers with verified actions and an audit trail, read-only IMAP inbox + approval-gated outbox, local .ics calendar, idle work cycles, ritual briefings (spoken through the kernel when presence allows), initiative/disagreement gates, REST approval endpoints, durable + resumable pending approvals, sandboxed `create_file` action · **T7 Self core (Nov 17, ahead of sequence)** — own-code `ast` index (439 modules, searchable, incremental), HealthRegistry + log-tail error feeds, proactive read-only self-diagnosis with proposals, 7 tools, `/api/self/*`, ritual brief line |
+| 🟡 **In development / partial** | AEC continuous capture (playback feed wired; recorder still muted) · openWakeWord "hey mai" model · multi-session profile scoping on chat path · entity web interface (`api/web/state/` only) · Discord relay prototype (`integrations/discord_bot.py`) · Continuity/Presence: idle cycles consume the snapshot but execute no research yet (needs T4) · Partner: no SMTP send, no calendar OAuth sync; pending approvals persist and `create_file` (sandboxed workspace write) is resumable across restarts |
+| 🔜 **Planned next** | **M15** Model Scheduler + TTS bake-off · **M16–M19** custom voice, VRM face, eyes, silent research + file tools · **M24–M25** Discord V1/V2 · **M26** WhatsApp |
 | 🔮 **Future possibilities** | Java/JavaFX client (successor to pywebview) · cloud sync · documentation site · load/chaos testing · plugin marketplace public registry · true streaming STT (needs GPU upgrade) |
 
 ## 1. North star
@@ -158,6 +158,15 @@ Reference: AI Infrastructure Expert (model lifecycle, GPU/VRAM management).
 
 ### T7 — Self (self-code-awareness) ★ new pillar
 She knows her own code and tells you herself when something is wrong.
+
+> **Status (2026-11-17): core built, ahead of sequence.** `self_awareness/` —
+> `OwnCodeIndex` (ast facts, incremental, search + sandboxed read),
+> `HealthErrorFeeds` (health registry + grouped log tail), `SelfDiagnosis`
+> (health / repeated-error / unparsed-module / stale-index findings, proposals
+> only), `SelfAwarenessEngine` (`data.self.*` + `state.self.updated`),
+> 7 tools, `api/routes_self.py`, scheduler `self_tick`, one line in the ritual
+> brief. Boundary enforced structurally: no apply/restart/patch path exists.
+> Not built: cross-run error cursor (log tail only), dashboard surface.
 
 1. **Self-code index** — the repository (~84+ modules, venv excluded) ingested
    into her existing knowledge base; she can retrieve and read her own
@@ -322,7 +331,7 @@ pattern).
 | M20 | GPU upgrade window | ambient eyes, 7B vision, richer local LLM | upgraded |
 | M21 | **Self** | code index, health feeds, self-diagnosis reports, pair-programming mode | either |
 | M22 | **Continuity Engine** | **core built Nov 17** — project memory, commitments ledger, checkpoints/resume, reconciled state as tool + `state.*` feed; autonomous cycles consume it at M23 | either |
-| M23 | Partner | email, calendar, presence policy, verified actions, autonomous cycles, initiative | either |
+| M23 | Partner | **core built Nov 17** — presence policy, action tiers + verified actions/audit, read-only IMAP + approval-gated outbox, .ics calendar, idle cycles, ritual briefings, initiative/disagreement gates; SMTP send and calendar OAuth sync remain | either |
 | M24 | **Discord V1** | text DMs, notifications, presence, avatar, reports/files in chat | either |
 | M25 | **Discord V2** | voice channels, two-way voice, turn-taking polish, ritual voice briefings | either |
 | M26 | **WhatsApp** | official Agent Platform channel, creator-only DMs, voice notes → STT | either |
@@ -459,6 +468,72 @@ real number, and that risk is not accepted.
   by a `continuity_check` scheduler task. 51 new tests; 2169 pass total.
   Remaining: conversation-driven commitment extraction and autonomous-cycle
   consumption (M23).
+- 2026-11-17: **M23 Partner core built** (second out-of-sequence pillar). New
+  `partner/` package: `PresencePolicy` (activity classes, per-class interruption
+  policy + cooldown, quiet mode, rituals once per window, initiative and
+  disagreement gated by relationship trust), `ActionPolicy` +
+  `VerifiedActionEngine` (read_only / safe / needs_approval / forbidden; unknown
+  actions fail closed to needs_approval; post-condition verification; audit
+  trail), `ActionAuditLog` (JSONL), `ImapMailbox` (read-only, never marks mail
+  seen), `Outbox` (drafts need approval; `send()` refuses — no SMTP transport),
+  `IcsCalendar` (local .ics), `IdleWorkCycle` (plans backlog from continuity and
+  checkpoints it through the verified action path), `PartnerEngine` (briefing,
+  ritual gate, tick, `state.partner.updated`) and 6 tools. Atomic JSON writes
+  were extracted to `core/atomic_document.py`, now shared with the continuity
+  store. 78 new tests; full suite 2253 pass. Deliberately not built: SMTP
+  sending, calendar OAuth sync, speaking ritual briefings, and consuming
+  initiative/presence in the kernel path.
+- 2026-11-17: **M23 follow-up — ritual speech + REST approvals.** The kernel
+  subscribes to `data.partner.briefing` (`attach_partner_ritual`, wired in the
+  runtime builder) and speaks the text on a worker thread — `publish_event` is
+  synchronous, so the scheduler's dispatch thread is never blocked. Speech is
+  gated twice: the engine emits only inside a ritual window and outside quiet
+  mode, and the kernel re-checks `presence.decide("ritual")` plus the
+  conversation phase, returning `{"spoken": bool, "reason": str}` so the
+  decision is inspectable. Approvals are no longer a dead end:
+  `GET /api/partner/approvals`, `POST .../{id}/approve`,
+  `POST .../{id}/reject` (new `VerifiedActionEngine.reject`, recorded as
+  `rejected` in the audit) plus `GET /api/partner/status`. Drafts resolve
+  through the same endpoints but still cannot send. 21 new tests.
+- 2026-11-17: **M23 follow-up — approvals survive restart.** The action engine
+  accepts an `AtomicDocument` (`store=`) and mirrors pending descriptors
+  (`action_type`, sanitized `params`, `description`, `cycle_id`, `created_at`,
+  `tier`) into `data/partner.json["pending_actions"]`, in the same atomic
+  transaction as drafts; `PartnerEngine` always passes its store. Executors are
+  closures, so approving a restored entry resolves
+  `register_executor_factory(action_type, factory)` lazily; `pending()` and the
+  REST list expose `resumable`, and approval without a factory records
+  `no_executor_after_restart` instead of pretending. Approve/reject remove the
+  entry from disk; secret params are redacted before writing. 15 new tests,
+  including a REST approve-after-restart flow. Full suite **2289 passed**.
+- 2026-11-17: **M23 follow-up — the approval tier does real work.**
+  `partner/workspace.py` adds a relative-path-only text sandbox
+  (`data/partner_files/`, 4000-char cap, absolute/drive/root-relative/`..`
+  refused). The `file_create` tool parks a `create_file` action (NEEDS_APPROVAL)
+  without writing anything; `PartnerEngine` registers the `create_file` verifier
+  (file exists with the reported bytes) and executor factory (rebuilds the write
+  from persisted params), so an approval restored after a reboot executes.
+  Pending params persist with an 8000-char string budget so bodies round-trip.
+  Boot-level test: `TestBootLevelApprovals` builds the partner layer twice on a
+  temp data dir, parks via the tool, then approves over REST after the restart.
+  Full suite **2305 passed** (130 partner tests).
+- 2026-11-17: **T7 Self core built** (read-and-diagnose only). New
+  `self_awareness/` package: `OwnCodeIndex` (ast index of 439 project modules —
+  path, module, classes, functions, imports, docstring, lines, size, mtime,
+  sha256; incremental by mtime+size; BOM-safe; atomic JSON document; symbol/
+  docstring search and a sandboxed `read_module`), `HealthErrorFeeds`
+  (HealthRegistry snapshot + bounded log tail grouped into signatures; new
+  read-only `HealthRegistry.errors()/recent_errors()`), `SelfDiagnosis`
+  (health, repeated log signature, unparsed module, stale/empty index findings
+  with stable ids, evidence, proposal and `auto_apply: False`; JSONL history),
+  `SelfAwarenessEngine` (refresh/diagnose/tick/report/status; publishes
+  `data.self.index_built`, `data.self.diagnosis`, `state.self.updated`),
+  7 tools, `api/routes_self.py`
+  (`GET /api/self/{status,index,code,health,errors,report}`,
+  `POST /api/self/diagnose`), builder + boot/validation/application/run/API
+  wiring, scheduler `self_tick`, and one `brief_line()` in the partner ritual
+  brief. 59 new tests; full suite **2364 passed**. Real-repo run: 439 modules
+  indexed in 1.4s, 0 unparsed, clean diagnosis.
 - Pending: JDK install go + P1 go (Java client skeleton + streaming chat);
   M15 (scheduler + TTS bake-off) follows after P3.
 

@@ -84,6 +84,20 @@ def _check_continuity(app):
     return ok
 
 
+def _check_partner(app):
+    ok = True
+    if getattr(app, "partner", None) is None:
+        logger.error("  ✗ PartnerEngine: MISSING"); ok = False
+    return ok
+
+
+def _check_self_awareness(app):
+    ok = True
+    if getattr(app, "self_awareness", None) is None:
+        logger.error("  ✗ SelfAwarenessEngine: MISSING"); ok = False
+    return ok
+
+
 def _check_voice(app):
     ok = True
     if app.voice is None:
@@ -110,6 +124,8 @@ VALIDATION_ORDER = [
     ("Agency",          _check_agency),
     ("Cognition",       _check_brain),
     ("Continuity",      _check_continuity),
+    ("Partner",         _check_partner),
+    ("SelfAwareness",   _check_self_awareness),
     ("Voice",           _check_voice),
     ("Runtime",         _check_runtime),
 ]

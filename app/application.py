@@ -68,6 +68,8 @@ class AIApplication:
         self.identity = None
         self.needs_engine = None
         self.continuity = None
+        self.self_awareness = None
+        self.partner = None
         self.model_lifecycle = None
 
         # Internal — cleared after build
@@ -107,7 +109,7 @@ class AIApplication:
         "full_aec", "emotion_detector", "diarization", "voice_manager", "wake",
         "speaker_manager", "per_person_relationship", "kernel", "knowledge_builder",
         "plugin_loader", "hook_registry", "write_journal", "event_inspector",
-        "directory_watcher", "identity", "continuity", "model_lifecycle",
+        "directory_watcher", "identity", "continuity", "partner", "model_lifecycle",
     ]
 
     @property

@@ -223,24 +223,51 @@ class RedisSharedState:
                     logger.warning("[RedisSharedState] Redis save failed: %s", e)
 
     def load_state_from_disk(self):
-        """Load state from Redis (preferred) or local file."""
-        # Try Redis first
+        """Load state from Redis (preferred) or the local file.
+
+        Per-component keys written by ``set_emotion``/``set_goals``/... are the
+        freshest values (they are what another worker last synced), so they are
+        merged after the master snapshot instead of being ignored — otherwise a
+        worker that boots after another worker changed emotion would read the
+        stale master snapshot and claim the change never happened.
+        """
         if self._available:
             redis = self._get_redis()
             if redis:
+                loaded = False
                 try:
-                    key = self._make_key("master")
-                    data = redis.get(key)
-                    if data:
-                        parsed = json.loads(data)
-                        self._load_from_dict(parsed)
-                        logger.info("[RedisSharedState] Loaded state from Redis")
-                        return
+                    data = redis.get(self._make_key("master"))
                 except Exception as e:
-                    # Corrupt/unparsable Redis value — the connection itself is
-                    # fine (_get_redis() already flips _available on connection
-                    # loss). Keep Redis enabled; fall back to the local file.
                     logger.warning("[RedisSharedState] Redis load failed: %s", e)
+                    data = None
+                if data:
+                    try:
+                        self._load_from_dict(json.loads(data))
+                        loaded = True
+                    except Exception as e:
+                        logger.warning("[RedisSharedState] Master snapshot unreadable: %s", e)
+                for component in (
+                    "emotion", "relationship_scores", "goals", "attention", "runtime",
+                ):
+                    try:
+                        raw = redis.get(self._make_key(component))
+                    except Exception as e:
+                        logger.warning(
+                            "[RedisSharedState] %s load failed: %s", component, e,
+                        )
+                        break
+                    if not raw:
+                        continue
+                    try:
+                        self._load_component(component, json.loads(raw))
+                        loaded = True
+                    except Exception as e:
+                        logger.warning(
+                            "[RedisSharedState] %s value unreadable: %s", component, e,
+                        )
+                if loaded:
+                    logger.info("[RedisSharedState] Loaded state from Redis")
+                    return
 
         # Fallback to local file
         target_path = Path(self.persistence_dir) / "state" / "master_state.json"
@@ -253,6 +280,12 @@ class RedisSharedState:
             logger.info("[RedisSharedState] Loaded state from local file")
         except Exception as e:
             logger.error("Failed to recover state: %s", str(e))
+
+    def _load_component(self, name: str, value) -> None:
+        """Restore one component synced by another worker."""
+        if not isinstance(value, dict):
+            raise ValueError(f"{name} payload is not an object")
+        self._load_from_dict({name: value})
 
     def _load_from_dict(self, data: dict):
         """Load state from dictionary."""

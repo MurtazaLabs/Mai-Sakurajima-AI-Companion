@@ -70,7 +70,9 @@ def test_event_bus_pubsub():
     def handler(msg):
         received.append(msg.payload)
 
-    bus1.subscribe("test.topic", handler)
+    # receive_message=True: the handler consumes the MaiMessage envelope, which
+    # is what a cross-worker subscriber gets on the fabric path.
+    bus1.subscribe("test.topic", handler, receive_message=True)
     time.sleep(0.1)  # Wait for subscription
 
     bus2.publish("test.topic", {"message": "hello from worker 2"})
@@ -78,3 +80,37 @@ def test_event_bus_pubsub():
 
     assert len(received) == 1
     assert received[0]["message"] == "hello from worker 2"
+    bus1.shutdown()
+    bus2.shutdown()
+
+
+def test_registered_event_reaches_another_worker():
+    """Semantic events (publish_event) must cross workers too, not just the
+    legacy publish path — otherwise state.* / data.* fan-out dies the moment a
+    second worker joins."""
+    from core.event_specs import PARTNER_BRIEFING, register_event_specs
+    from core.mai_message import publish_event
+
+    bus1 = RedisEventBus(worker_count=1, max_queue=50)
+    bus2 = RedisEventBus(worker_count=1, max_queue=50)
+    if not bus1._redis_available:
+        pytest.skip("Redis unavailable; cross-worker fan-out cannot be verified")
+    register_event_specs(bus1)
+    register_event_specs(bus2)
+
+    received = []
+    bus1.subscribe(
+        PARTNER_BRIEFING,
+        lambda msg: received.append(msg.payload),
+        receive_message=True,
+    )
+    time.sleep(0.1)
+
+    publish_event(bus2, PARTNER_BRIEFING, {"ritual": "morning", "text": "hi"}, source="partner")
+    deadline = time.time() + 3
+    while time.time() < deadline and not received:
+        time.sleep(0.02)
+
+    assert received == [{"ritual": "morning", "text": "hi"}]
+    bus1.shutdown()
+    bus2.shutdown()

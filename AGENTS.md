@@ -2135,3 +2135,194 @@ as pre-existing.
 
 Not done: conversation-driven commitment extraction (tools today), and
 autonomous work cycles consuming the snapshot (lands with M23 Partner).
+
+
+---
+
+## M23 Partner — M23 core (Nov 17 2026)
+
+Built ahead of sequence (T5 pillar). `partner/` implements presence, an action
+policy with verified actions, read-only mail with an approval-gated outbox, a
+local .ics calendar, idle work cycles, and ritual briefings.
+
+- `partner/presence.py` — `PresencePolicy`: activity classes
+  (`coding/working/focus/idle/conversation/away`), per-activity interruption
+  policy + cooldown, quiet mode (persisted), rituals (morning/midday/evening/
+  night, once per local day), `should_initiate` + `may_disagree` gated by
+  relationship trust, `detect_activity` from window title / idle time /
+  CognitiveState.
+- `partner/actions.py` — `ActionPolicy` tiers (`read_only`, `safe`,
+  `needs_approval`, `forbidden`; unknown types fail closed to
+  `needs_approval`) and `VerifiedActionEngine`: precondition → execute →
+  **post-condition verification** → audit. `succeeded` / `unverified` /
+  `failed` / `blocked` / `denied` / `pending_approval` are distinct outcomes.
+  Params are sanitized (secret-shaped keys redacted) before logging.
+- `partner/audit.py` — `ActionAuditLog`: append-only JSONL, torn-line tolerant.
+- `partner/mail.py` — `ImapMailbox` (read-only `SELECT`, `BODY.PEEK`, never
+  marks mail seen), `NullMailbox` when unconfigured, `Outbox` (drafts require
+  approval; `send()` refuses — "no SMTP transport configured").
+- `partner/calendar.py` — `IcsCalendar`: VEVENT parse (folding, escapes, DATE/
+  DATETIME, `Z` as UTC), `upcoming(hours)`; missing file = empty calendar.
+- `partner/cycles.py` — `IdleWorkCycle`: backlog from continuity (due
+  commitments, project checkpoints, resumable tasks); gated by quiet mode,
+  activity ≠ idle, and a cooldown; plans through the verified action path and
+  writes a resumable checkpoint per item (it plans, it does not research — T4).
+- `partner/engine.py` — `PartnerEngine`: trust from `SharedState`,
+  `briefing()` (continuity + calendar + inbox + approvals), `maybe_brief()`
+  (once per ritual window, never in quiet mode), `tick()` (brief + cycle),
+  `publish()` → `state.partner.updated`.
+- `partner/tools.py` — 6 tools: `partner_status`, `presence_set`,
+  `partner_briefing`, `mail_summary`, `mail_draft`, `calendar_upcoming`.
+
+Supporting changes:
+- `core/atomic_document.py` — atomic JSON document + transactional rollback,
+  extracted from the continuity store and now shared by both stores.
+- `config/partner.py` — presence/cycle settings + `MAI_MAIL_IMAP_*` and
+  `MAI_CALENDAR_ICS` from the environment (no secrets in source).
+- `app/builders/partner.py` — new boot layer after Continuity; brain/scheduler
+  wiring, health registration, initial publish. Validation gate added.
+- `core/event_specs.py` — `data.partner.presence|briefing|action|cycle` +
+  `state.partner.updated` (publisher `partner`), auto-covered by STREAM_TOPICS.
+- `core/scheduler.py` — `partner_tick` task (`PARTNER_TICK_INTERVAL`).
+
+Tests: 78 new in `tests/test_partner.py` (presence matrix/cooldowns/rituals,
+audit, policy tiers, verified-action outcomes + approvals + redaction, IMAP
+fake connection, ICS parsing, cycle gating/planning, engine briefing/tick/state
+events, tools, wiring). Full suite: **2253 passed** (Redis scaling tests
+excluded — pre-existing failures).
+
+Follow-up wiring (same day):
+- Ritual speech — `AIOSKernel.attach_partner_ritual()` subscribes to
+  `data.partner.briefing` (wired in `app/builders/partner.py`) and speaks the
+  text on a daemon thread, since `publish_event` is synchronous. Gated twice:
+  the engine emits only in a ritual window outside quiet mode, and the kernel
+  re-checks `presence.decide("ritual")` plus `ConversationPhase.IDLE`. Returns
+  `{"spoken": bool, "reason": str}`; idempotent attach.
+- REST approvals — `api/routes_partner.py` (`PartnerMixin`) + routes:
+  `GET /api/partner/status`, `GET /api/partner/approvals` (actions + drafts),
+  `POST /api/partner/approvals/{id}/approve|reject` (404 on unknown id). New
+  `VerifiedActionEngine.reject()` records status `rejected` in the audit.
+  Drafts resolve through the same endpoints but still cannot send.
+- Pending approvals now outlive the process: `VerifiedActionEngine(store=...)`
+  mirrors the pending set into `data/partner.json` (`pending_actions`) inside
+  the same atomic transaction as drafts, and `PartnerEngine` always passes its
+  store. Closures cannot be serialized, so approving a restored entry rebuilds
+  its executor through `register_executor_factory(action_type, factory)`;
+  `pending()` and the REST list expose `resumable`, and approval without a
+  factory records an honest `no_executor_after_restart` failure. Params are
+  redacted before writing; approve/reject remove the entry atomically.
+- Genuine approval-tier action: `create_file` is real work the partner can do.
+  `partner/workspace.py` (`PartnerWorkspace`) is a relative-path-only text
+  sandbox at `data/partner_files/` (absolute, drive, Windows root-relative and
+  `..` paths refused; 4000-char content cap). `PartnerEngine.request_file()`
+  parks a write as `create_file` with a precondition that re-validates the path
+  and a verifier that checks the file exists with the bytes reported.
+  `PartnerEngine.__init__` registers the `create_file` executor factory, so a
+  restored approval rebuilds `workspace.write(path, content)` and runs.
+  Production trigger: the `file_create` tool (7 partner tools) — a model tool
+  call parks the write; nothing is written until approval. Pending params
+  persist with an 8000-char string budget (audit stays at 500) so a body
+  round-trips intact; `partner.status()` exposes workspace stats.
+- Boot-level test: `TestBootLevelApprovals` in `tests/test_partner.py` runs the
+  real `app.builders.partner.build()` twice against a temp data dir, parks a
+  write through the tool, re-boots, lists it over REST (`resumable: true`),
+  approves it over REST, then checks the file and the audit record.
+- `run.bootstrap_system()` now exports `continuity` and `partner`.
+- Tests: 130 in `tests/test_partner.py` (+52); full suite **2305 passed**.
+
+Known limits (deliberate, documented):
+- No SMTP transport: approved drafts must be sent by hand.
+- Calendar is a local .ics only; no OAuth/Google sync.
+- Pending approvals survive a restart, but executing a restored one needs a
+  registered executor factory; no production path parks approvals today (the
+  approval tier is exercised by callers/tests), so none is registered yet.
+- Activity detection has no window-title source yet (T3); `refresh_activity`
+  will not downgrade an explicit setting without evidence.
+
+## T7 Self — core (Nov 17 2026)
+
+Built ahead of sequence (third pillar after Continuity/Partner), under the
+roadmap's propose-only boundary: **she reads and diagnoses; the user approves
+fixes.**
+
+New package `self_awareness/`:
+- `code_index.py` — `OwnCodeIndex`: `ast` facts per module (path, dotted module,
+  classes, `Class.method` functions, top-level imports, docstring first line,
+  lines, size, mtime, sha256) stored in an `AtomicDocument`
+  (`data/self_awareness/code_index.json`). Incremental refresh (mtime+size),
+  deletion detection, `force=True` full pass, symbol/module/docstring search,
+  and `read_module()` with a relative-path sandbox (absolute/drive/root-relative
+  and `..` refused, `.py` only, line budget). Reads with `utf-8-sig` — a BOM is
+  not a syntax error (this was a real false positive found on the repo).
+- `feeds.py` — `HealthErrorFeeds`: `HealthRegistry.stats()` snapshot +
+  unhealthy list, plus a bounded tail (512 KB default) of `logs/mai.log`
+  grouped into digit-normalized signatures with counts, last line and examples.
+  Read-only; nothing rotates or truncates the log.
+- `diagnosis.py` — `SelfDiagnosis`: findings for unhealthy/stalled components,
+  repeated error signatures (threshold 3), unparsed modules, stale/empty index.
+  Each finding has a stable id (`health:stt`, `code:path`, `errors:<sha>`),
+  severity, evidence, proposal and `auto_apply: False`. Reports append to
+  `data/self_awareness/diagnoses.jsonl`.
+- `engine.py` — `SelfAwarenessEngine`: `refresh_index`, `diagnose`, `tick`
+  (interval-gated proactive pass; refreshes the index first), `report`,
+  `status`, `brief_line`; publishes `data.self.index_built`,
+  `data.self.diagnosis`, `state.self.updated`.
+- `tools.py` — 7 tools: `self_status`, `self_index`, `self_read_code`,
+  `self_health`, `self_errors`, `self_diagnose`, `self_report`.
+
+Wiring: `app/builders/self_awareness.py` (after Partner; indexes once at boot,
+registers the 7 tools + health, assigns `brain.self_awareness` and
+`partner.self_awareness`), `app/boot.py`, `app/validation.py`,
+`app/application.py`, `run.bootstrap_system()`, `core/scheduler.py`
+(`self_tick`), `core/event_specs.py`, `api/routes_self.py` +
+`api/server.py` (`GET /api/self/status|index|code|health|errors|report`,
+`POST /api/self/diagnose`), and one `Self-check:` line in
+`PartnerEngine.briefing()` so the ritual brief carries her state.
+
+Tests: 59 in `tests/test_self_awareness.py` (index facts/incremental/BOM/
+search/sandboxed reads, feed grouping + registry reads, finding shapes and
+persistence, engine gating/events, tools, boot wiring incl. partner brief
+line, REST). Full suite **2364 passed** (Redis scaling excluded — pre-existing).
+Real-repo check: 439 modules, 94k lines, 0 unparsed, index 1.4 s, clean
+diagnosis.
+
+Known limits (deliberate):
+- Structure, not semantics: the index reads symbols/docstrings, not meaning.
+- Error feed is a log tail, not a since-last-check cursor; a signature that
+  already scrolled out of the tail is invisible until it recurs.
+- No patch generation/applying and no component restart — proposals are text,
+  and the boundary is enforced by the absence of any write path.
+- No dashboard surface yet; the `state.self.updated` feed is available for one.
+
+## Redis horizontal scaling — green (Nov 17 2026)
+
+`tests/test_horizontal_scaling.py` now runs in the normal suite (no ignore
+flag). Three real defects were fixed:
+
+1. `RedisSharedState.load_state_from_disk()` read only the `mai:state:master`
+   snapshot while `set_emotion`/`set_goals`/... write per-component keys, so a
+   worker booting after another worker changed state read stale values (0.5
+   default instead of the synced emotion). It now merges `emotion`,
+   `relationship_scores`, `goals`, `attention`, `runtime` over the master
+   snapshot (they are the freshest), then falls back to the local file.
+2. `RedisEventBus._subscribe_to_redis()` passed an already-prefixed channel to
+   `_RedisPubSub.subscribe()`, which prefixes too — listeners sat on
+   `mai:events:mai:events:<topic>` and cross-worker delivery never happened.
+   `_RedisPubSub` now owns the prefix, SUBSCRIBEs synchronously before
+   returning, keeps one listener per channel (repeated subscriptions share it
+   instead of spawning duplicate threads) and closes cleanly on shutdown.
+3. Only the legacy `publish()` broadcast to Redis; `publish_event` /
+   `publish_wait` / `publish_async` / `publish_message` never left the process,
+   so `data.*` / `state.*` fan-out died with a second worker. Every publish
+   path now funnels through `_broadcast()` (once per message), Redis-originated
+   messages carry an `origin` worker id so a bus never re-dispatches its own
+   broadcast (which doubled local delivery), and legacy topics are rebuilt via
+   `legacy_message` on receipt so registry validation does not reject them.
+
+Test changes in `tests/test_horizontal_scaling.py`: the existing pub/sub handler
+now subscribes with `receive_message=True` (it consumes `msg.payload`; legacy
+subscribers otherwise receive the payload dict by contract), both buses are
+shut down, and a semantic-event cross-worker test was added.
+
+Full suite **2368 passed**, including all 4 horizontal-scaling tests — no Redis
+exclusions remain.

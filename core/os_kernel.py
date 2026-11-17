@@ -132,6 +132,7 @@ class AIOSKernel:
         self.greeting_first_enabled = greeting_first_enabled
         self.greeting_first_delay_seconds = greeting_first_delay_seconds
         self._session_greeted = False
+        self._partner_ritual_attached = False
 
     @property
     def running(self):
@@ -578,6 +579,84 @@ class AIOSKernel:
         time.sleep(1.5)
         self._restore_last_known_speaker()
         self._conversation_phase()
+
+    # ==================================================
+    # 🤝 PARTNER RITUAL — SPEAK THE BRIEFING
+    # ==================================================
+
+    def attach_partner_ritual(self, event_bus=None):
+        """Speak ritual briefings on the voice stack when presence allows.
+
+        Idempotent: safe to call from the runtime builder and again in tests.
+        """
+        if self._partner_ritual_attached:
+            return True
+        bus = event_bus or self.event_bus or getattr(self.brain, "event_bus", None)
+        if bus is None or not hasattr(bus, "subscribe"):
+            logger.info("[Kernel] No event bus — ritual briefings will not be spoken")
+            return False
+        try:
+            from core.event_specs import PARTNER_BRIEFING
+            bus.subscribe(PARTNER_BRIEFING, self._on_partner_briefing)
+        except Exception as e:
+            logger.warning("[Kernel] Ritual briefing subscribe failed: %s", e)
+            return False
+        self._partner_ritual_attached = True
+        logger.info("[Kernel] Partner ritual briefings wired to voice")
+        return True
+
+    def _on_partner_briefing(self, payload):
+        """Presence-gated voice delivery of a ritual briefing.
+
+        Returns why it was (or was not) spoken so the decision is inspectable.
+        """
+        if not isinstance(payload, dict):
+            payload = {}
+        text = str(payload.get("text") or "").strip()
+        if not text:
+            return {"spoken": False, "reason": "empty_briefing"}
+        if self._phase != ConversationPhase.IDLE:
+            return {"spoken": False, "reason": "conversation_in_progress"}
+        partner = getattr(self.brain, "partner", None) if self.brain else None
+        presence = getattr(partner, "presence", None)
+        if presence is not None and hasattr(presence, "decide"):
+            decision = presence.decide("ritual")
+            if not decision.allowed:
+                logger.info("[Kernel] Ritual briefing withheld: %s", decision.reason)
+                return {"spoken": False, "reason": decision.reason}
+        threading.Thread(
+            target=self._speak_briefing,
+            args=(text,),
+            daemon=True,
+            name="mai-ritual-briefing",
+        ).start()
+        return {"spoken": True, "reason": "ritual"}
+
+    def _speak_briefing(self, text):
+        """Speak on a worker thread — publish_event is synchronous, so a ritual
+        emitted from the scheduler must never block its dispatch thread."""
+        if self.voice is None:
+            logger.warning("[Kernel] No voice available for the ritual briefing")
+            return False
+        if self.voice_manager:
+            try:
+                self.voice_manager.set_speaking(True, getattr(self.voice, "interrupt", None))
+            except Exception as e:
+                logger.debug("[Kernel] set_speaking(True) skipped: %s", e)
+        try:
+            self.voice.speak_stream(iter([text]))
+            self.voice.wait_until_done()
+            logger.info("[Kernel] Ritual briefing spoken (%d chars)", len(text))
+            return True
+        except Exception as e:
+            logger.error("[Kernel] Ritual briefing speak failed: %s", e)
+            return False
+        finally:
+            if self.voice_manager:
+                try:
+                    self.voice_manager.set_speaking(False)
+                except Exception as e:
+                    logger.debug("[Kernel] set_speaking(False) skipped: %s", e)
 
     # ==================================================
     # 🚀 MAIN LOOP — Deterministic FSM (event-driven wake)

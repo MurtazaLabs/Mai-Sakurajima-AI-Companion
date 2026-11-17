@@ -5,6 +5,8 @@ import time
 import traceback
 
 from app.config_loader import Settings
+from config.partner import PARTNER_ENABLED, PARTNER_TICK_INTERVAL
+from config.self_awareness import SELF_DIAGNOSIS_INTERVAL, SELF_ENABLED
 from core.event_bus import EventBus
 
 logger = logging.getLogger(__name__)
@@ -472,6 +474,68 @@ class Scheduler:
             _continuity_check,
             interval=self.continuity_check_interval
         )
+
+        # ==================================================
+        # 🤝 PARTNER — RITUAL BRIEFING + IDLE CYCLE
+        # ==================================================
+        #
+        # M23 · Presence/initiative. The task no-ops until the brain exposes a
+        # PartnerEngine; ritual gating (once per window, quiet mode) and the
+        # cycle cooldown are enforced inside the engine.
+
+        if PARTNER_ENABLED:
+
+            def _partner_tick():
+                brain = getattr(self.kernel, "brain", None)
+                partner = getattr(brain, "partner", None) if brain else None
+                if partner is None or not hasattr(partner, "tick"):
+                    return
+                try:
+                    result = partner.tick()
+                    brief = result.get("brief") or {}
+                    if brief.get("briefed"):
+                        logger.info(
+                            "[Scheduler] %s briefing emitted",
+                            brief.get("ritual", "ritual"),
+                        )
+                except Exception as e:
+                    logger.error("[Scheduler] partner_tick error: %s", e)
+
+            self.register_task(
+                "partner_tick",
+                _partner_tick,
+                interval=PARTNER_TICK_INTERVAL
+            )
+
+        # ==================================================
+        # ★ SELF — PROACTIVE DIAGNOSIS (READ-ONLY)
+        # ==================================================
+        #
+        # T7 · Refresh the own-code index, then diagnose health + logs.
+        # Findings are proposals; nothing here writes or restarts anything.
+
+        if SELF_ENABLED:
+
+            def _self_tick():
+                brain = getattr(self.kernel, "brain", None)
+                self_engine = getattr(brain, "self_awareness", None) if brain else None
+                if self_engine is None or not hasattr(self_engine, "tick"):
+                    return
+                try:
+                    result = self_engine.tick()
+                    if result.get("diagnosed"):
+                        logger.info(
+                            "[Scheduler] self-diagnosis: %s finding(s)",
+                            result.get("findings", 0),
+                        )
+                except Exception as e:
+                    logger.error("[Scheduler] self_tick error: %s", e)
+
+            self.register_task(
+                "self_tick",
+                _self_tick,
+                interval=SELF_DIAGNOSIS_INTERVAL
+            )
 
     # ==================================================
     # 🧠 SAFE MEMORY DECAY

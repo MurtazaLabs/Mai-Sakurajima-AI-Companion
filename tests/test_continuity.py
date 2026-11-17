@@ -175,6 +175,116 @@ class TestProjectMemory:
         assert [p.id for p in ordered][0] == active.id
         assert done.id not in [p.id for p in engine.projects.list(include_terminal=False)]
 
+    # -- goal-owned status is mirrored, never guessed ------------------
+
+    def test_goal_cap_pause_mirrors_into_project_status(self, engine, goal_manager):
+        """The active-goal cap pauses a goal; the project must not stay "active"."""
+        projects = [engine.projects.create(f"Capped {i}") for i in range(5)]
+        assert all(goal_manager.get(p.goal_id).status == "active" for p in projects)
+
+        # The sixth goal pushes the store over _max_active and pauses one.
+        engine.projects.create("Capped 5")
+        paused_goals = goal_manager.list(status="paused")
+        assert len(paused_goals) == 1
+        paused_project = next(p for p in projects if p.goal_id == paused_goals[0].id)
+
+        reloaded = engine.projects.get(paused_project.id)
+        assert reloaded.status == "paused"
+        assert paused_project.id not in [p.id for p in engine.projects.list(status="active")]
+
+        snapshot = engine.snapshot()
+        by_name = {p["name"]: p for p in snapshot["projects"]}
+        assert by_name[paused_project.name]["status"] == "paused"
+        assert by_name[paused_project.name]["goal"]["status"] == "paused"
+        # The brief must never describe the preempted project as running.
+        assert f"{paused_project.name} [active" not in engine.brief()
+
+    def test_reconcile_is_a_noop_for_a_running_goal(self, engine, goal_manager):
+        project = engine.projects.create("Running")
+        before = engine.projects.get(project.id).updated_at
+        assert engine.projects.reconcile()["changed"] == 0
+        reloaded = engine.projects.get(project.id)
+        assert reloaded.status == "active"
+        assert reloaded.updated_at == before
+
+    def test_terminal_goal_status_wins_over_continuity_status(self, engine, goal_manager):
+        completed = engine.projects.create("Externally finished")
+        abandoned = engine.projects.create("Externally dropped")
+        blocked = engine.projects.create("Blocked then finished")
+        engine.projects.update(blocked.id, status="blocked")
+
+        goal_manager.complete(completed.goal_id)
+        goal_manager.cancel(abandoned.goal_id)
+        goal_manager.complete(blocked.goal_id)
+
+        assert engine.projects.get(completed.id).status == "completed"
+        assert engine.projects.get(abandoned.id).status == "abandoned"
+        assert engine.projects.get(blocked.id).status == "completed"
+
+    def test_resumed_goal_returns_a_mirrored_pause_to_active(self, engine, goal_manager):
+        """The mirror is symmetric: a lifted goal pause lifts the mirrored pause."""
+        projects = [engine.projects.create(f"Resume {i}") for i in range(5)]
+        engine.projects.create("Resume 5")  # cap pause lands on one goal
+        paused_goal = goal_manager.list(status="paused")[0]
+        paused_project = next(p for p in projects if p.goal_id == paused_goal.id)
+
+        mirrored = engine.projects.get(paused_project.id)
+        assert mirrored.status == "paused"
+        assert mirrored.status_source == "goal"
+
+        assert goal_manager.activate(paused_goal.id) is True
+
+        resumed = engine.projects.get(paused_project.id)
+        assert resumed.status == "active"
+        assert resumed.id in [p.id for p in engine.projects.list(status="active")]
+        by_name = {p["name"]: p for p in engine.snapshot()["projects"]}
+        assert by_name[paused_project.name]["status"] == "active"
+        assert by_name[paused_project.name]["goal"]["status"] == "active"
+        assert paused_project.id not in [p.id for p in engine.projects.list(status="paused")]
+
+    def test_deliberate_pause_is_not_resumed_by_the_goal(self, engine, goal_manager):
+        """Provenance keeps the mirror from undoing a pause someone asked for."""
+        project = engine.projects.create("Deliberate pause")
+        engine.projects.update(project.id, status="paused")
+        assert engine.projects.get(project.id).status_source == "user"
+
+        # Simulate the goal pausing and resuming around the deliberate pause.
+        goal_manager.get(project.goal_id).status = "paused"
+        assert engine.projects.get(project.id).status == "paused"
+        assert engine.projects.get(project.id).status_source == "user"
+
+        goal_manager.activate(project.goal_id)
+        reloaded = engine.projects.get(project.id)
+        assert reloaded.status == "paused"
+        assert reloaded.status_source == "user"
+
+    def test_legacy_record_without_provenance_is_not_auto_resumed(self, store_path, goal_manager):
+        """Records written before the mirror existed default to an explicit status."""
+        from continuity.engine import ContinuityEngine
+        engine = ContinuityEngine(store_path=str(store_path), goal_manager=goal_manager)
+        project = engine.projects.create("Legacy pause")
+        engine.projects.update(project.id, status="paused")
+
+        raw = json.loads(store_path.read_text(encoding="utf-8"))
+        raw["projects"][project.id].pop("status_source", None)
+        store_path.write_text(json.dumps(raw), encoding="utf-8")
+
+        reloaded = ContinuityEngine(store_path=str(store_path), goal_manager=goal_manager)
+        assert reloaded.projects.get(project.id).status == "paused"
+
+    def test_pause_does_not_erase_a_blocked_project(self, engine, goal_manager):
+        """A scheduler pause is transient; a real blocker is not erased by it."""
+        blocked = engine.projects.create("Blocked work")
+        engine.projects.update(blocked.id, status="blocked")
+        engine.projects.add_blocker(blocked.id, "no JDK on host")
+
+        # Simulate the cap pause landing on this project's goal.
+        goal_manager.get(blocked.goal_id).status = "paused"
+
+        reloaded = engine.projects.get(blocked.id)
+        assert reloaded.status == "blocked"
+        assert len(reloaded.blockers_live()) == 1
+
 
 # ---------------------------------------------------------------------------
 #  Commitments ledger

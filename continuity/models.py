@@ -15,6 +15,11 @@ from datetime import datetime
 
 PROJECT_STATUSES = ("active", "paused", "blocked", "completed", "abandoned")
 _TERMINAL_PROJECT_STATUSES = ("completed", "abandoned")
+
+# Who wrote the current project status: an explicit request (agent/user) or the
+# goal-status mirror. Provenance is what lets a *mirrored* pause be resumed when
+# the goal resumes, while a deliberate pause is left alone.
+STATUS_SOURCES = ("user", "goal")
 COMMITMENT_STATUSES = ("open", "kept", "missed", "cancelled")
 
 _REL_DUE_RE = re.compile(
@@ -93,6 +98,7 @@ class Project:
         decisions=None,
         open_questions=None,
         blockers=None,
+        status_source: str = "user",
     ):
         now = time.time()
         self.id = project_id or _new_id("prj")
@@ -110,6 +116,7 @@ class Project:
         self.created_at = float(created_at or now)
         self.updated_at = float(updated_at or now)
         self.completed_at = float(completed_at or 0.0)
+        self.status_source = status_source if status_source in STATUS_SOURCES else "user"
 
     # -- mutations ---------------------------------------------------
 
@@ -192,6 +199,7 @@ class Project:
             "created_at": self.created_at,
             "updated_at": self.updated_at,
             "completed_at": self.completed_at,
+            "status_source": self.status_source,
         }
 
     @classmethod
@@ -213,6 +221,9 @@ class Project:
             decisions=data.get("decisions") or [],
             open_questions=data.get("open_questions") or [],
             blockers=data.get("blockers") or [],
+            # Records written before the mirror existed carry no provenance;
+            # assume an explicit status rather than silently resuming them.
+            status_source=data.get("status_source", "user"),
         )
 
 

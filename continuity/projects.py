@@ -16,6 +16,11 @@ from continuity.models import PROJECT_STATUSES, Project, parse_due
 
 logger = logging.getLogger(__name__)
 
+# Goal-owned terminal lifecycle states, mirrored onto the project record. A
+# terminal goal always wins: the project cannot claim to be running when the
+# goal that owns its progress is done or abandoned.
+_GOAL_TERMINAL_TO_PROJECT = {"completed": "completed", "cancelled": "abandoned"}
+
 
 class ProjectMemory:
 
@@ -115,6 +120,9 @@ class ProjectMemory:
                 if key == "status":
                     if value not in PROJECT_STATUSES:
                         raise ValueError(f"unknown project status: {value!r}")
+                    # An explicit status write owns the current status: the
+                    # goal mirror must not resume it later.
+                    project.status_source = "user"
                 elif key == "deadline":
                     value = parse_due(value)
                 elif key == "dependencies":
@@ -257,11 +265,96 @@ class ProjectMemory:
             self._changed()
         return ok
 
+    # -- reconciliation ----------------------------------------------
+
+    def reconcile(self, project_ids=None) -> dict:
+        """Pull goal-owned lifecycle status onto linked projects.
+
+        ``GoalManager`` pauses the lowest-priority excess goal when the active
+        cap is reached (and completes/cancels goals on its own paths). That
+        happens deep inside the goal store, so no event reaches continuity.
+        This is a deliberate **pull**: reconciling on read keeps the project
+        record honest without a second writer, a subscription, or a second
+        source of truth.
+
+        ``blocked`` is a continuity-owned sub-state of active work, so a
+        scheduler pause never erases it; a *terminal* goal status always wins.
+        """
+        if self.goal_manager is None:
+            return {"changed": 0, "details": []}
+        changes = []
+        with self._lock:
+            raw_map = self._store.read()["projects"]
+            ids = list(raw_map) if project_ids is None else [
+                i for i in project_ids if i in raw_map
+            ]
+            for project_id in ids:
+                project = Project.from_dict(raw_map[project_id])
+                change = self._mirror_from_goal(project)
+                if change is None:
+                    continue
+                self._save(project)
+                changes.append(change)
+        for change in changes:
+            logger.info(
+                "[Projects] Status mirrored from goal: %s %s -> %s",
+                change["name"][:40], change["from"], change["to"],
+            )
+        return {"changed": len(changes), "details": changes}
+
+    def _mirror_from_goal(self, project: Project) -> dict | None:
+        """Apply a goal-owned status to ``project`` in place; return the change.
+
+        Symmetric for pauses: a goal pause relaxes an actively running project,
+        and a resume lifts a pause **this mirror wrote earlier**. A pause the
+        agent or user set deliberately stays put — ``status_source`` records
+        which of the two it was.
+        """
+        if not project.goal_id or project.is_terminal:
+            return None
+        try:
+            goal = self.goal_manager.get(project.goal_id)
+        except Exception as exc:
+            logger.debug("[Projects] goal status read failed: %s", exc)
+            return None
+        if goal is None:
+            return None
+        goal_status = getattr(goal, "status", "")
+        if goal_status == "paused":
+            # Preemption is transient — only relax an actively running project.
+            target = "paused" if project.status == "active" else None
+        elif goal_status == "active":
+            # Resume only the pause the mirror itself applied.
+            mirrored_pause = project.status == "paused" and project.status_source == "goal"
+            target = "active" if mirrored_pause else None
+        else:
+            target = _GOAL_TERMINAL_TO_PROJECT.get(goal_status)
+        if target is None or target == project.status:
+            return None
+        previous = project.status
+        project.status = target
+        project.status_source = "goal"
+        project.touch()
+        if target == "completed":
+            project.completed_at = time.time()
+        return {
+            "id": project.id,
+            "name": project.name,
+            "from": previous,
+            "to": target,
+            "goal_status": goal_status,
+        }
+
     # -- reads -------------------------------------------------------
 
     def get(self, project_id) -> Project | None:
         with self._lock:
-            return self._load(project_id)
+            project = self._load(project_id)
+            if project is None:
+                return None
+            if self._mirror_from_goal(project) is not None:
+                self._save(project)
+            return project
 
     def find(self, name) -> Project | None:
         needle = str(name or "").strip().lower()
@@ -275,6 +368,7 @@ class ProjectMemory:
         return None
 
     def list(self, status=None, include_terminal=True) -> list[Project]:
+        self.reconcile()
         with self._lock:
             projects = [Project.from_dict(raw) for raw in self._store.read()["projects"].values()]
         if status:

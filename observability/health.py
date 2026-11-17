@@ -107,6 +107,25 @@ class HealthRegistry:
                 "error_count": entry["error_count"],
             }
 
+    def errors(self, name, limit=10):
+        """Recent errors for one component (read-only copy)."""
+        with self._lock:
+            entry = self._components.get(name)
+            if entry is None:
+                return []
+            return [dict(item) for item in entry["errors"][-int(limit):]]
+
+    def recent_errors(self, limit=50):
+        """Recent errors across components, oldest first."""
+        with self._lock:
+            rows = [
+                {"name": name, **item}
+                for name, entry in self._components.items()
+                for item in entry["errors"]
+            ]
+        rows.sort(key=lambda item: item.get("timestamp", 0.0))
+        return rows[-int(limit):]
+
     def stats(self):
         self.check_stalled()
         with self._lock:

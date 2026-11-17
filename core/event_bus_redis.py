@@ -71,47 +71,88 @@ class Subscription:
 
 
 class _RedisPubSub:
-    """Redis pub/sub wrapper for distributed event broadcasting."""
+    """Redis pub/sub wrapper for distributed event broadcasting.
+
+    One listener thread per channel, not per callback: ``subscribe`` performs
+    the Redis SUBSCRIBE synchronously (so a publish issued immediately after it
+    is received) and repeated subscriptions to the same topic share that
+    channel instead of spawning duplicate listeners.
+    """
 
     def __init__(self, redis_client, key_prefix: str = "mai:events"):
         self.redis = redis_client
         self.key_prefix = key_prefix
-        self.pubsub = None
-        self._subscriptions: dict[str, threading.Thread] = {}
+        self._callbacks: dict[str, list[Callable]] = {}
+        self._threads: dict[str, threading.Thread] = {}
+        self._pubsubs: dict[str, Any] = {}
         self._lock = threading.RLock()
         self._running = False
 
+    def channel_for(self, topic: str) -> str:
+        return f"{self.key_prefix}:{topic}"
+
     def subscribe(self, topic: str, callback: Callable) -> str:
-        """Subscribe to a topic pattern."""
+        """Subscribe ``callback`` to ``topic``; returns a subscription id."""
+        if not self.redis:
+            return ""
+        channel = self.channel_for(topic)
         with self._lock:
-            if not self.redis:
-                return ""
-
-            channel = f"{self.key_prefix}:{topic}"
-
-            def listener():
+            callbacks = self._callbacks.setdefault(channel, [])
+            if callback not in callbacks:
+                callbacks.append(callback)
+            thread = self._threads.get(channel)
+            if thread is not None and thread.is_alive():
+                return f"sub_{channel}"
+            try:
                 pubsub = self.redis.pubsub()
                 pubsub.subscribe(channel)
-                for message in pubsub.listen():
-                    if message["type"] == "message":
-                        try:
-                            data = json.loads(message["data"])
-                            callback(data)
-                        except Exception as e:
-                            logger.error("[RedisPubSub] Callback error: %s", e)
-
-            thread = threading.Thread(target=listener, daemon=True)
+            except Exception as e:
+                logger.error("[RedisPubSub] Subscribe failed for %s: %s", channel, e)
+                return ""
+            self._pubsubs[channel] = pubsub
+            self._running = True
+            thread = threading.Thread(
+                target=self._listen,
+                args=(channel, pubsub),
+                name=f"redis-pubsub-{topic}",
+                daemon=True,
+            )
+            self._threads[channel] = thread
             thread.start()
-            self._subscriptions[topic] = thread
-            return f"sub_{topic}"
+            return f"sub_{channel}"
+
+    def _listen(self, channel: str, pubsub) -> None:
+        try:
+            for message in pubsub.listen():
+                if message.get("type") != "message":
+                    continue
+                try:
+                    data = json.loads(message["data"])
+                except (TypeError, ValueError) as e:
+                    logger.error("[RedisPubSub] Bad payload on %s: %s", channel, e)
+                    continue
+                with self._lock:
+                    callbacks = list(self._callbacks.get(channel, ()))
+                for callback in callbacks:
+                    try:
+                        callback(data)
+                    except Exception as e:
+                        logger.error("[RedisPubSub] Callback error: %s", e)
+        except Exception as e:
+            if self._running:
+                logger.warning("[RedisPubSub] Listener for %s stopped: %s", channel, e)
+        finally:
+            with self._lock:
+                self._pubsubs.pop(channel, None)
+                self._threads.pop(channel, None)
 
     def publish(self, topic: str, payload: dict) -> bool:
         """Publish message to topic."""
         try:
             if not self.redis:
                 return False
-            channel = f"{self.key_prefix}:{topic}"
-            payload_str = json.dumps(payload)
+            channel = self.channel_for(topic)
+            payload_str = json.dumps(payload, default=str)
             self.redis.publish(channel, payload_str)
             return True
         except Exception as e:
@@ -119,13 +160,26 @@ class _RedisPubSub:
             return False
 
     def unsubscribe(self, topic: str) -> bool:
+        channel = self.channel_for(topic)
         with self._lock:
-            # Redis pubsub doesn't support clean unsubscribe easily
-            # This is a simplified version
-            return True
+            self._callbacks.pop(channel, None)
+            pubsub = self._pubsubs.pop(channel, None)
+            thread = self._threads.pop(channel, None)
+        if pubsub is not None:
+            try:
+                pubsub.close()
+            except Exception:
+                pass
+        if thread is not None:
+            thread.join(timeout=1.0)
+        return True
 
     def shutdown(self):
-        pass
+        self._running = False
+        with self._lock:
+            channels = list(self._pubsubs)
+        for channel in channels:
+            self.unsubscribe(channel.removeprefix(f"{self.key_prefix}:"))
 
 
 class _WorkerPool:
@@ -279,6 +333,9 @@ class RedisEventBus:
         metadata_registry: Any | None = None,
     ):
         self._lock = threading.RLock()
+        # Identifies this instance's Redis messages so its own listener
+        # does not re-dispatch an event it already dispatched locally.
+        self._worker_id = uuid.uuid4().hex[:8]
         self._subscribers: dict[str, list[Subscription]] = {}
         self.registry: EventRegistry = registry or EventRegistry()
         self._default_source = default_source
@@ -466,32 +523,51 @@ class RedisEventBus:
             logger.warning("[RedisEventBus] Failed to init pubsub: %s", e)
 
     def _subscribe_to_redis(self, topic: str):
-        """Subscribe to a Redis channel for a topic."""
+        """Subscribe to the Redis channel for a topic.
+
+        ``_RedisPubSub`` owns the ``mai:events:`` prefix; passing the prefixed
+        channel here used to produce ``mai:events:mai:events:<topic>`` and no
+        cross-worker delivery ever happened.
+        """
         if not self._redis_available:
             return
         pubsub = self._pubsub
         if pubsub is None:
             return
         try:
-            channel = f"mai:events:{topic}"
-            pubsub.subscribe(channel, self._on_redis_message)
+            pubsub.subscribe(topic, self._on_redis_message)
         except Exception as e:
             logger.warning("[RedisEventBus] Failed to subscribe to %s: %s", topic, e)
 
     def _on_redis_message(self, data: dict):
         """Handle incoming Redis pub/sub message."""
+        if not isinstance(data, dict):
+            return
+        if data.get("origin") == self._worker_id:
+            # Already dispatched locally by publish(); re-dispatching would
+            # deliver every local event twice.
+            return
         try:
-            # Convert to MaiMessage and dispatch locally
-            msg = MaiMessage(
-                type=data.get("type", ""),
-                payload=data.get("payload", {}),
-                source=data.get("source", ""),
-                version=data.get("version", 1),
-                priority=Priority(data.get("priority", "normal")),
-                correlation_id=data.get("correlation_id", ""),
-                causation_id=data.get("causation_id", ""),
-            )
-            # Dispatch locally
+            topic = data.get("type", "")
+            payload = data.get("payload") or {}
+            source = data.get("source", "")
+            if data.get("legacy"):
+                # Legacy topics are not in the event registry, so rebuilding
+                # them as version-1 messages would fail validation.
+                msg = legacy_message(
+                    topic, payload, source=source,
+                    correlation_id=data.get("correlation_id") or None,
+                )
+            else:
+                msg = MaiMessage(
+                    type=topic,
+                    payload=payload,
+                    source=source,
+                    version=int(data.get("version", 1) or 1),
+                    priority=data.get("priority", "NORMAL"),
+                    correlation_id=data.get("correlation_id") or None,
+                    causation_id=data.get("causation_id") or None,
+                )
             self._dispatch_once(msg, attempt=1)
         except Exception as e:
             logger.error("[RedisEventBus] Failed to process Redis message: %s", e)
@@ -500,11 +576,26 @@ class RedisEventBus:
     # ... (keeping all the existing methods from core/event_bus.py)
     
     def publish(self, topic, data=None, source=None):
-        """Legacy synchronous publish - now uses Redis pub/sub if available."""
+        """Legacy synchronous publish — local dispatch + Redis broadcast."""
         msg = self._prepare(topic, data, source)
-        if self._redis_available:
-            self._publish_to_redis(msg)
+        self._broadcast(msg)
         self._dispatch_once(msg, attempt=1)
+
+    def _broadcast(self, msg: 'MaiMessage') -> None:
+        """Send one message to the other workers exactly once.
+
+        Every publish path funnels through here (legacy ``publish``,
+        ``publish_wait``/``publish_event``, async submit) so semantic events
+        cross workers too — before this, only the legacy path reached Redis and
+        a multi-worker deployment silently lost all ``data.*``/``state.*``
+        fan-out.
+        """
+        if not self._redis_available:
+            return
+        if msg.metadata.get("broadcast") or msg.metadata.get("from_redis"):
+            return
+        msg.metadata["broadcast"] = True
+        self._publish_to_redis(msg)
 
     def _publish_to_redis(self, msg: 'MaiMessage'):
         """Publish message to Redis pub/sub."""
@@ -523,6 +614,8 @@ class RedisEventBus:
                 "correlation_id": msg.correlation_id,
                 "causation_id": msg.causation_id,
                 "timestamp": msg.timestamp,
+                "legacy": msg.is_legacy,
+                "origin": self._worker_id,
             }
             pubsub.publish(msg.type, payload)
         except Exception as e:
@@ -531,6 +624,7 @@ class RedisEventBus:
     def publish_async(self, topic, data=None, source=None):
         """Legacy async publish — routed through the bounded worker pool."""
         msg = self._prepare(topic, data, source)
+        self._broadcast(msg)
         self._pool.submit(msg)
 
     def emit(self, topic, **kwargs):
@@ -540,12 +634,14 @@ class RedisEventBus:
         """Fabric publish. ``wait=True`` dispatches synchronously."""
         if wait:
             return self.publish_wait(msg, timeout=timeout)
+        self._broadcast(msg)
         self._pool.submit(msg)
         return None
 
     def publish_wait(self, topic_or_msg, payload=None, timeout=None, source=None):
-        """Dispatch and return handler results (synchronous)."""
+        """Dispatch locally and broadcast; returns handler results."""
         msg = self._prepare(topic_or_msg, payload, source)
+        self._broadcast(msg)
         results = self._dispatch_with_retry(msg, async_mode=False)
         return [value for _, value in (results or [])]
 
@@ -836,6 +932,11 @@ class RedisEventBus:
 
     def shutdown(self, timeout: float = 2.0) -> None:
         self._pool.shutdown(timeout=timeout)
+        if self._pubsub:
+            try:
+                self._pubsub.shutdown()
+            except Exception as e:
+                logger.debug("[RedisEventBus] pubsub shutdown: %s", e)
         if self._redis:
             try:
                 self._redis.close()

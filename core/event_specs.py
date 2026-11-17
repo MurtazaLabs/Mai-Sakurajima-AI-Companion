@@ -77,6 +77,18 @@ CONTINUITY_COMMITMENT_RESOLVED = "data.continuity.commitment_resolved"
 CONTINUITY_COMMITMENT_MISSED = "data.continuity.commitment_missed"
 CONTINUITY_CHECKPOINT_SAVED = "data.continuity.checkpoint_saved"
 
+# ── Partner (presence / actions / briefings / cycles) ──────────────
+
+PARTNER_PRESENCE = "data.partner.presence"
+PARTNER_BRIEFING = "data.partner.briefing"
+PARTNER_ACTION = "data.partner.action"
+PARTNER_CYCLE = "data.partner.cycle"
+
+# ── Self-awareness (T7) ───────────────────────────────────────────
+
+SELF_INDEX_BUILT = "data.self.index_built"
+SELF_DIAGNOSIS = "data.self.diagnosis"
+
 # ── Emotion / cognition ────────────────────────────────────────────
 
 EMOTION_CHANGED = "data.emotion.changed"
@@ -120,6 +132,8 @@ STATE_NEEDS_UPDATED = "state.needs.updated"
 STATE_MONOLOGUE_GENERATED = "state.monologue.generated"
 STATE_USER_SWITCHED = "state.user.switched"
 STATE_CONTINUITY_UPDATED = "state.continuity.updated"
+STATE_PARTNER_UPDATED = "state.partner.updated"
+STATE_SELF_UPDATED = "state.self.updated"
 
 # Retrieval and tool-execution projections.
 #
@@ -255,6 +269,20 @@ VERTEX_SPECS: list[EventSpec] = [
           payload_keys=("id", "promise", "due_at"), priority="high"),
     _spec(CONTINUITY_CHECKPOINT_SAVED, "continuity", "A resumable checkpoint was written",
           payload_keys=("task_id", "step")),
+    # Partner
+    _spec(PARTNER_PRESENCE, "partner", "Presence changed (quiet mode / activity)",
+          payload_keys=("quiet_mode",)),
+    _spec(PARTNER_BRIEFING, "partner", "Ritual briefing emitted",
+          payload_keys=("ritual", "text"), priority="high"),
+    _spec(PARTNER_ACTION, "partner", "A verified action was recorded",
+          payload_keys=("id", "action_type", "tier", "status", "verified")),
+    _spec(PARTNER_CYCLE, "partner", "An idle work cycle planned backlog items",
+          payload_keys=("cycle_id", "items", "planned", "failed")),
+    # Self-awareness
+    _spec(SELF_INDEX_BUILT, "self", "Own-code index refreshed",
+          payload_keys=("modules", "changed", "parse_errors")),
+    _spec(SELF_DIAGNOSIS, "self", "Self-diagnosis report produced",
+          payload_keys=("findings", "error", "warn", "healthy"), priority="high"),
     # Emotion / cognition
     _spec(EMOTION_CHANGED, "cognition", "Dominant emotion changed",
           payload_keys=("type", "valence", "arousal", "confidence"), priority="high"),
@@ -330,6 +358,12 @@ VERTEX_SPECS: list[EventSpec] = [
     _spec(STATE_CONTINUITY_UPDATED, "continuity", "Reconciled continuity state changed (UI truth)",
           payload_keys=("projects", "open_commitments", "due", "missed", "checkpoints"),
           priority="high"),
+    _spec(STATE_PARTNER_UPDATED, "partner", "Presence / approval state changed (UI truth)",
+          payload_keys=("quiet_mode", "activity", "pending_approvals", "drafts_needing_approval"),
+          priority="high"),
+    _spec(STATE_SELF_UPDATED, "self", "Self-awareness state changed (UI truth)",
+          payload_keys=("healthy", "unhealthy", "components", "modules", "findings"),
+          priority="normal"),
 ]
 
 

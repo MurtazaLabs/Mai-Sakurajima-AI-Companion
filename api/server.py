@@ -32,6 +32,8 @@ from api.routes_dashboard import DashboardMixin
 from api.routes_inspector import InspectorMixin
 from api.routes_knowledge import KnowledgeMixin
 from api.routes_memory import MemoryMixin
+from api.routes_partner import PartnerMixin
+from api.routes_self import SelfMixin
 from api.routes_permissions import PermissionsMixin
 from api.routes_plugins import router as plugins_router
 from api.routes_reasoning import ReasoningMixin
@@ -74,6 +76,8 @@ class MaiAPI(
     TasksMixin,
     PermissionsMixin,
     InspectorMixin,
+    PartnerMixin,
+    SelfMixin,
 ):
     """FastAPI-facing façade for the Mai system.
 
@@ -122,6 +126,8 @@ class MaiAPI(
         self.model_lifecycle: Any = None
         self.app: Any = None
         self.kernel: Any = None
+        self.partner: Any = None
+        self.self_awareness: Any = None
 
     def cleanup(self):
         self._stop_voice_conversation()
@@ -187,6 +193,9 @@ class MaiAPI(
             self.session_manager = components.get("session_manager")
             self.model_lifecycle = components.get("model_lifecycle")
             self.app = components.get("app")
+            self.partner = components.get("partner") or getattr(self.app, "partner", None)
+            self.self_awareness = (components.get("self_awareness")
+                                   or getattr(self.app, "self_awareness", None))
             self.kernel = getattr(self.app, "kernel", None)
             self.llm = components.get("llm")
             self.voice_stack = getattr(self.app, "voice_stack", None)
@@ -765,6 +774,86 @@ def agency_tools(request: Request, _: None = Depends(_require_auth)):
 def agency_world(request: Request, _: None = Depends(_require_auth)):
 
     return mai.agency_world()
+
+
+@app.get("/api/partner/status")
+def partner_status(request: Request, _: None = Depends(_require_auth)):
+
+    return mai.partner_status()
+
+
+@app.get("/api/partner/approvals")
+def partner_approvals(request: Request, _: None = Depends(_require_auth)):
+
+    return mai.partner_approvals()
+
+
+@app.post("/api/partner/approvals/{approval_id}/approve")
+def partner_approve(approval_id: str, request: Request,
+                    _: None = Depends(_require_auth)):
+
+    result = mai.partner_approve(approval_id)
+    if result.get("error") == "unknown_approval":
+        return JSONResponse(status_code=404, content=result)
+    return result
+
+
+@app.post("/api/partner/approvals/{approval_id}/reject")
+def partner_reject(approval_id: str, request: Request, reason: str = "",
+                   _: None = Depends(_require_auth)):
+
+    result = mai.partner_reject(approval_id, reason=reason)
+    if result.get("error") == "unknown_approval":
+        return JSONResponse(status_code=404, content=result)
+    return result
+
+
+@app.get("/api/self/status")
+def self_status(request: Request, _: None = Depends(_require_auth)):
+
+    return mai.self_status()
+
+
+@app.get("/api/self/index")
+def self_index(request: Request, query: str = "", limit: int = 10,
+               _: None = Depends(_require_auth)):
+
+    return mai.self_index(query=query, limit=limit)
+
+
+@app.get("/api/self/code")
+def self_code(request: Request, module: str = "", max_lines: int = 400,
+              _: None = Depends(_require_auth)):
+
+    result = mai.self_code(module=module, max_lines=max_lines)
+    if result.get("error"):
+        return JSONResponse(status_code=400, content=result)
+    return result
+
+
+@app.get("/api/self/health")
+def self_health(request: Request, _: None = Depends(_require_auth)):
+
+    return mai.self_health()
+
+
+@app.get("/api/self/errors")
+def self_errors(request: Request, limit: int = 40,
+                _: None = Depends(_require_auth)):
+
+    return mai.self_errors(limit=limit)
+
+
+@app.post("/api/self/diagnose")
+def self_diagnose(request: Request, _: None = Depends(_require_auth)):
+
+    return mai.self_diagnose()
+
+
+@app.get("/api/self/report")
+def self_report(request: Request, _: None = Depends(_require_auth)):
+
+    return mai.self_report()
 
 
 @app.get("/api/reasoning/thoughts")

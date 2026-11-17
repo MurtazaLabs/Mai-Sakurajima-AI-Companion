@@ -5,8 +5,10 @@ from app.builders import (
     infrastructure,
     knowledge,
     memory,
+    partner,
     reasoning,
     runtime,
+    self_awareness,
     voice,
 )
 
@@ -18,6 +20,8 @@ BOOT_ORDER = [
     ("Agency",          agency.build),
     ("Cognition",       cognition.build),
     ("Continuity",      continuity.build),
+    ("Partner",         partner.build),
+    ("SelfAwareness",   self_awareness.build),
     ("Voice",           voice.build),
     ("Runtime",         runtime.build),
 ]
