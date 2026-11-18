@@ -1,4 +1,4 @@
-﻿# Byte-compiled / optimized / DLL files
+# Byte-compiled / optimized / DLL files
 __pycache__/
 *.py[cod]
 *$py.class
@@ -47,3 +47,6 @@ package.json
 .freebuff/
 .opencode/
 mypy_log.txt
+
+# Vendored llama.cpp CUDA binaries (too large for GitHub; keep local)
+tools/llama/*.dll
