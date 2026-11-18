@@ -60,6 +60,8 @@ class PartnerEngine:
         self.continuity = continuity
         # Assigned by the self-awareness builder; the briefing reads one line.
         self.self_awareness = None
+        # Assigned by the research builder; the briefing reads one line.
+        self.research = None
         self.cognitive_state = cognitive_state
         self.shared_state = shared_state
         self.event_bus = event_bus
@@ -210,6 +212,16 @@ class PartnerEngine:
                 line = self_awareness.brief_line()
             except Exception as exc:
                 logger.warning("[Partner] self-awareness line failed: %s", exc)
+                line = ""
+            if line:
+                lines.append(line)
+
+        research = getattr(self, "research", None)
+        if research is not None:
+            try:
+                line = research.brief_line()
+            except Exception as exc:
+                logger.warning("[Partner] research line failed: %s", exc)
                 line = ""
             if line:
                 lines.append(line)

@@ -14,7 +14,7 @@ import imaplib
 import logging
 import time
 import uuid
-from dataclasses import dataclass, field
+from dataclasses import dataclass
 from email.header import decode_header, make_header
 
 logger = logging.getLogger(__name__)

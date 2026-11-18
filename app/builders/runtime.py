@@ -33,6 +33,12 @@ def build(app):
     )
     tag_service(app, "kernel", "AIOSKernel", "Runtime", active=True)
     app.kernel.voice_manager = app.voice_manager
+    # Boot order: Partner is built before Runtime, so it cannot see the
+    # kernel. Attach the ritual-briefing speaker once both exist (idempotent).
+    try:
+        app.kernel.attach_partner_ritual(app.event_bus)
+    except Exception as e:
+        logger.warning("    Ritual briefing voice wiring skipped: %s", e)
     logger.info("    [OK] AIOSKernel")
     assert app.kernel is not None
 

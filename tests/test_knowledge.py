@@ -2034,6 +2034,7 @@ class TestVaultJanitor:
     def test_sweep_apply_persists_survivors_to_graph_json(self, tmp_path):
         """Entity removals must reach graph.json — it is what boot rebuilds from."""
         import json
+
         from knowledge.vault_janitor import VaultJanitor
         graph = self._graph_with_junk()
         state_file = tmp_path / "graph.json"
@@ -2048,6 +2049,7 @@ class TestVaultJanitor:
 
     def test_sweep_dry_run_does_not_touch_graph_json(self, tmp_path):
         import json
+
         from knowledge.vault_janitor import VaultJanitor
         graph = self._graph_with_junk()
         state_file = tmp_path / "graph.json"

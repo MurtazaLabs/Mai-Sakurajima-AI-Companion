@@ -1,5 +1,4 @@
 import asyncio
-import ipaddress
 import json
 import logging
 import os
@@ -24,6 +23,7 @@ from pydantic import BaseModel, field_validator
 
 from api import auth as jwt_auth
 from api import routes_auth, routes_profile
+from api.auth import saml_router
 from api.certs import ensure_dev_certs
 from api.middleware.rate_limiter import RateLimiter
 from api.routes_agency import AgencyMixin
@@ -33,10 +33,11 @@ from api.routes_inspector import InspectorMixin
 from api.routes_knowledge import KnowledgeMixin
 from api.routes_memory import MemoryMixin
 from api.routes_partner import PartnerMixin
-from api.routes_self import SelfMixin
 from api.routes_permissions import PermissionsMixin
 from api.routes_plugins import router as plugins_router
 from api.routes_reasoning import ReasoningMixin
+from api.routes_research import ResearchMixin
+from api.routes_self import SelfMixin
 from api.routes_system import SystemMixin
 from api.routes_tasks import TasksMixin
 from api.routes_voice import VoiceMixin
@@ -78,6 +79,7 @@ class MaiAPI(
     InspectorMixin,
     PartnerMixin,
     SelfMixin,
+    ResearchMixin,
 ):
     """FastAPI-facing façade for the Mai system.
 
@@ -128,6 +130,7 @@ class MaiAPI(
         self.kernel: Any = None
         self.partner: Any = None
         self.self_awareness: Any = None
+        self.research: Any = None
 
     def cleanup(self):
         self._stop_voice_conversation()
@@ -196,6 +199,8 @@ class MaiAPI(
             self.partner = components.get("partner") or getattr(self.app, "partner", None)
             self.self_awareness = (components.get("self_awareness")
                                    or getattr(self.app, "self_awareness", None))
+            self.research = (components.get("research")
+                             or getattr(self.app, "research", None))
             self.kernel = getattr(self.app, "kernel", None)
             self.llm = components.get("llm")
             self.voice_stack = getattr(self.app, "voice_stack", None)
@@ -391,6 +396,9 @@ _otel_active = _maybe_init_otel()
 
 app = FastAPI(title="Mai AI API", version="2.0.0", lifespan=lifespan)
 app.include_router(routes_auth.router)
+# SAML SSO lives on its own router (prefix /api/auth/saml); it was
+# defined but never mounted, so every SAML endpoint 404'd.
+app.include_router(saml_router)
 app.include_router(routes_profile.router)
 app.include_router(plugins_router)
 
@@ -854,6 +862,55 @@ def self_diagnose(request: Request, _: None = Depends(_require_auth)):
 def self_report(request: Request, _: None = Depends(_require_auth)):
 
     return mai.self_report()
+
+
+# ── Research (T4) ────────────────────────────────────────────────────
+class ResearchStartRequest(BaseModel):
+    query: str = ""
+    depth: str = "standard"
+    urls: list[str] | None = None
+
+
+@app.get("/api/research/status")
+def research_status(request: Request, _: None = Depends(_require_auth)):
+
+    return mai.research_status()
+
+
+@app.get("/api/research")
+def research_list(request: Request, limit: int = 20,
+                  _: None = Depends(_require_auth)):
+
+    return mai.research_list(limit=limit)
+
+
+@app.post("/api/research")
+def research_start(payload: ResearchStartRequest, request: Request,
+                   _: None = Depends(_require_auth)):
+
+    return mai.research_start(query=payload.query, depth=payload.depth,
+                              urls=payload.urls or [])
+
+
+@app.get("/api/research/{job_id}/status")
+def research_get(job_id: str, request: Request,
+                 _: None = Depends(_require_auth)):
+
+    return mai.research_get(job_id)
+
+
+@app.get("/api/research/{job_id}/report")
+def research_report(job_id: str, request: Request,
+                    _: None = Depends(_require_auth)):
+
+    return mai.research_report(job_id)
+
+
+@app.delete("/api/research/{job_id}")
+def research_cancel(job_id: str, request: Request,
+                    _: None = Depends(_require_auth)):
+
+    return mai.research_cancel(job_id)
 
 
 @app.get("/api/reasoning/thoughts")

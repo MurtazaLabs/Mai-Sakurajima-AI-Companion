@@ -7,7 +7,12 @@ import time
 logger = logging.getLogger(__name__)
 
 from app.config_loader import Settings
-from execution.handlers import CommandActions, DesktopActions, SystemActions
+from execution.handlers import (
+    CommandActions,
+    DesktopActions,
+    FileSystemActions,
+    SystemActions,
+)
 from execution.handlers import _result as _shared_result
 
 
@@ -26,6 +31,7 @@ class TaskExecutor:
             typing_delay=Settings.EXECUTOR_TYPING_DELAY,
             typing_interval=Settings.EXECUTOR_TYPING_INTERVAL,
         )
+        self._filesystem = FileSystemActions()
 
         # ==================================================
         # 🧠 EXECUTION STATE
@@ -106,6 +112,7 @@ class TaskExecutor:
         ).strip()
 
         content = task.get("content")
+        path = task.get("path") if task.get("path") is not None else content
 
         task_id = task.get("id")
 
@@ -150,6 +157,20 @@ class TaskExecutor:
             elif action_type == "search":
 
                 result = self.search(content)
+
+            elif action_type == "list_dir":
+
+                result = self._filesystem.list_dir(path)
+
+            elif action_type == "read_file":
+
+                result = self._filesystem.read_file(path)
+
+            elif action_type in ("write_file", "create_file"):
+
+                result = self._filesystem.run_file_write(
+                    action_type, path, content
+                )
 
             else:
 

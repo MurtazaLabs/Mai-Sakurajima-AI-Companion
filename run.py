@@ -141,7 +141,10 @@ def bootstrap_system():
         "lifecycle_manager": getattr(app, "lifecycle_manager", None),
         "continuity": getattr(app, "continuity", None),
         "partner": getattr(app, "partner", None),
+        "research": getattr(app, "research", None),
+        "file_tools": getattr(app, "file_tools", None),
         "self_awareness": getattr(app, "self_awareness", None),
+        "session_manager": getattr(app, "session_manager", None),
         "model_lifecycle": getattr(app, "model_lifecycle", None),
     }
 

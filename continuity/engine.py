@@ -173,7 +173,7 @@ class ContinuityEngine:
         if projects:
             lines.append("Ongoing projects:")
             for project in projects:
-                percent = int(round(self.projects.progress(project) * 100))
+                percent = round(self.projects.progress(project) * 100)
                 entry = f"  - {project.name} [{project.status}, {percent}%]"
                 if project.next_checkpoint:
                     entry += f" — next: {project.next_checkpoint}"

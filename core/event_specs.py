@@ -84,6 +84,13 @@ PARTNER_BRIEFING = "data.partner.briefing"
 PARTNER_ACTION = "data.partner.action"
 PARTNER_CYCLE = "data.partner.cycle"
 
+# ── Research ─────────────────────────────────────────────────────
+
+RESEARCH_STARTED = "data.research.started"
+RESEARCH_SOURCE_FETCHED = "data.research.source_fetched"
+RESEARCH_FINISHED = "data.research.finished"
+RESEARCH_FAILED = "data.research.failed"
+
 # ── Self-awareness (T7) ───────────────────────────────────────────
 
 SELF_INDEX_BUILT = "data.self.index_built"
@@ -133,6 +140,7 @@ STATE_MONOLOGUE_GENERATED = "state.monologue.generated"
 STATE_USER_SWITCHED = "state.user.switched"
 STATE_CONTINUITY_UPDATED = "state.continuity.updated"
 STATE_PARTNER_UPDATED = "state.partner.updated"
+STATE_RESEARCH_UPDATED = "state.research.updated"
 STATE_SELF_UPDATED = "state.self.updated"
 
 # Retrieval and tool-execution projections.
@@ -278,6 +286,15 @@ VERTEX_SPECS: list[EventSpec] = [
           payload_keys=("id", "action_type", "tier", "status", "verified")),
     _spec(PARTNER_CYCLE, "partner", "An idle work cycle planned backlog items",
           payload_keys=("cycle_id", "items", "planned", "failed")),
+    # Research
+    _spec(RESEARCH_STARTED, "research", "A research job started",
+          payload_keys=("id", "query", "depth")),
+    _spec(RESEARCH_SOURCE_FETCHED, "research", "A research source was fetched",
+          payload_keys=("id", "url", "chars", "error")),
+    _spec(RESEARCH_FINISHED, "research", "A research job finished with an artifact",
+          payload_keys=("id", "query", "sources", "artifact"), priority="high"),
+    _spec(RESEARCH_FAILED, "research", "A research job failed honestly",
+          payload_keys=("id", "query", "error"), priority="high"),
     # Self-awareness
     _spec(SELF_INDEX_BUILT, "self", "Own-code index refreshed",
           payload_keys=("modules", "changed", "parse_errors")),
@@ -361,6 +378,8 @@ VERTEX_SPECS: list[EventSpec] = [
     _spec(STATE_PARTNER_UPDATED, "partner", "Presence / approval state changed (UI truth)",
           payload_keys=("quiet_mode", "activity", "pending_approvals", "drafts_needing_approval"),
           priority="high"),
+    _spec(STATE_RESEARCH_UPDATED, "research", "Research queue / reports changed (UI truth)",
+          payload_keys=("queued", "running", "done", "ready"), priority="normal"),
     _spec(STATE_SELF_UPDATED, "self", "Self-awareness state changed (UI truth)",
           payload_keys=("healthy", "unhealthy", "components", "modules", "findings"),
           priority="normal"),

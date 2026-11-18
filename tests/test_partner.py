@@ -771,7 +771,7 @@ class TestWiring:
         assert "partner_tick" in names
 
     def test_settings_expose_partner_intervals(self):
-        from config.partner import PARTNER_TICK_INTERVAL, PARTNER_IDLE_CYCLE_INTERVAL
+        from config.partner import PARTNER_IDLE_CYCLE_INTERVAL, PARTNER_TICK_INTERVAL
         assert PARTNER_TICK_INTERVAL > 0
         assert PARTNER_IDLE_CYCLE_INTERVAL > 0
 
@@ -1135,7 +1135,8 @@ class TestBootLevelApprovals:
     def test_parked_approval_is_approved_over_rest_after_a_restart(self, monkeypatch, tmp_path):
         from fastapi.testclient import TestClient
 
-        from api.server import _require_auth, app as api_app, mai
+        from api.server import _require_auth, mai
+        from api.server import app as api_app
         from partner.tools import register_partner_tools
 
         first = self._boot(monkeypatch, tmp_path)

@@ -12,7 +12,7 @@ Owner: Syed Murtaza / Mai AI Suite
 
 | Bucket | Items |
 |---|---|
-| ✅ **Completed** | Companion stage (M0–M13) · Desktop app shell — pywebview (M14, Oct 13) · VAD noise gate + self-hearing fix · OpenRouter hardening + `LLM_PROVIDER` preference · Oct-19 security audit remediation · Porcupine removal · `openwakeword` installed (unwired) · plugin platform (manifest/lifecycle/signing/sandbox/marketplace) · **Continuity Engine core (T8/M22, Nov 17)** — project memory, commitments ledger, checkpoints/resume, reconciled snapshot as tool + `state.continuity.updated` · **M23 Partner core (Nov 17, built ahead of sequence)** — presence/interruption policy + quiet mode, action tiers with verified actions and an audit trail, read-only IMAP inbox + approval-gated outbox, local .ics calendar, idle work cycles, ritual briefings (spoken through the kernel when presence allows), initiative/disagreement gates, REST approval endpoints, durable + resumable pending approvals, sandboxed `create_file` action · **T7 Self core (Nov 17, ahead of sequence)** — own-code `ast` index (439 modules, searchable, incremental), HealthRegistry + log-tail error feeds, proactive read-only self-diagnosis with proposals, 7 tools, `/api/self/*`, ritual brief line |
+| ✅ **Completed** | Companion stage (M0–M13) · Desktop app shell — pywebview (M14, Oct 13) · VAD noise gate + self-hearing fix · OpenRouter hardening + `LLM_PROVIDER` preference · Oct-19 security audit remediation · Porcupine removal · `openwakeword` installed (unwired) · plugin platform (manifest/lifecycle/signing/sandbox/marketplace) · **Continuity Engine core (T8/M22, Nov 17)** — project memory, commitments ledger, checkpoints/resume, reconciled snapshot as tool + `state.continuity.updated` · **M23 Partner core (Nov 17, built ahead of sequence)** — presence/interruption policy + quiet mode, action tiers with verified actions and an audit trail, read-only IMAP inbox + approval-gated outbox, local .ics calendar, idle work cycles, ritual briefings (spoken through the kernel when presence allows), initiative/disagreement gates, REST approval endpoints, durable + resumable pending approvals, sandboxed `create_file` action · **T7 Self core (Nov 17, ahead of sequence)** — own-code `ast` index (439 modules, searchable, incremental), HealthRegistry + log-tail error feeds, proactive read-only self-diagnosis with proposals, 7 tools, `/api/self/*`, ritual brief line · **M19 Silent Research + File Tools (Nov 18, ahead of sequence)** — sandboxed read/write/list/create tools across the LLM, executor and approval paths; background research queue with SSRF-guarded fetch, best-effort search, verified vault artifacts, `/api/research/*`, scheduler tick, idle-cycle research, optional Playwright adapter |
 | 🟡 **In development / partial** | AEC continuous capture (playback feed wired; recorder still muted) · openWakeWord "hey mai" model · multi-session profile scoping on chat path · entity web interface (`api/web/state/` only) · Discord relay prototype (`integrations/discord_bot.py`) · Continuity/Presence: idle cycles consume the snapshot but execute no research yet (needs T4) · Partner: no SMTP send, no calendar OAuth sync; pending approvals persist and `create_file` (sandboxed workspace write) is resumable across restarts |
 | 🔜 **Planned next** | **M15** Model Scheduler + TTS bake-off · **M16–M19** custom voice, VRM face, eyes, silent research + file tools · **M24–M25** Discord V1/V2 · **M26** WhatsApp |
 | 🔮 **Future possibilities** | Java/JavaFX client (successor to pywebview) · cloud sync · documentation site · load/chaos testing · plugin marketplace public registry · true streaming STT (needs GPU upgrade) |
@@ -543,3 +543,27 @@ real number, and that risk is not accepted.
 - [[Discord Integration Plan]] — earlier Discord analysis (feeds T6)
 - [[Native OS Bridge Architecture]] — tray/hotkeys/daemon foundation (feeds T3)
 - [[Event Fabric Architecture]] — `state.*` topics (feeds T6 + T8)
+
+## 10. Review check — Nov 17 2026
+
+- Fixed ritual-briefing voice wiring (attach moved to the runtime builder),
+  exported `session_manager` from `run.bootstrap_system()`, and registered
+  scheduled dream L1 maintenance (900 s).
+- Added `api/static/img/favicon.ico`, `.env.example` (all env vars), and
+  declared optional deps (`discord.py`, `kokoro`, `pyautogui`, `pysaml2`).
+- Audit found no broken routes/assets otherwise, no dead event specs, and
+  no orphan modules.
+
+## 11. M19 — Silent Research + File Tools (Nov 18 2026)
+
+- File tools: `read_file` / `list_dir` / `write_file` / `create_file` across the
+  LLM surface, `SafeExecutor` modes and `TaskExecutor`, sandboxed to
+  `data/workspace` (writes) and the vault (reads); outside writes are
+  approval-tier through the partner action engine.
+- Research: background jobs fetch public pages without any browser window,
+  write a structured note to `<vault>/research/`, verify it by reading it back,
+  checkpoint through the Continuity Engine and report through the partner
+  briefing and `/api/research/*`. DuckDuckGo HTML search is best-effort; jobs
+  can always run URL-seeded.
+- Playwright headless browsing is an optional adapter (`MAI_RESEARCH_BROWSER`),
+  not required for the milestone; the package is declared but not installed.

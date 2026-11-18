@@ -2326,3 +2326,100 @@ shut down, and a semantic-event cross-worker test was added.
 
 Full suite **2368 passed**, including all 4 horizontal-scaling tests — no Redis
 exclusions remain.
+
+## Full Review Check — Nov 17 2026
+
+Audit scope: AST import graph (440 modules), 93 API routes vs 83 frontend
+fetch sites, `Settings` / env-var coverage, event-spec publish/subscribe
+sites, builder + scheduler wiring, orphan modules, requirements coverage.
+
+Fixed:
+- **Partner ritual speech wiring** — `app/builders/partner.py` attached the
+  `data.partner.briefing` speaker while `app.kernel` was still `None`
+  (Partner builds before Runtime), so briefings were never spoken. Moved to
+  `app/builders/runtime.py` after kernel construction (idempotent).
+- **`session_manager` export** — `run.bootstrap_system()` now returns it, so
+  `api/server.py` stops getting `None` and `/api/profiles/sessions*` no
+  longer 503.
+- **Dream level 1** — registered on the scheduler (`SCHEDULER_DREAM_LEVEL1_INTERVAL`,
+  900 s); only L2–L5 were scheduled before, so orphan/duplicate/link
+  maintenance never ran automatically.
+- **`favicon.ico`** — added to `api/static/img/` (marketplace.html linked a
+  missing file).
+- **`.env.example`** — documents every env var the code reads (secrets
+  blank, computed paths commented out).
+- **Optional deps** — `discord.py`, `kokoro`, `pyautogui`, `pysaml2` now
+  declared in `requirements.txt`; SAML routes use the correct
+  `saml2.config.Config` import and load a real SP config.
+
+Verified: `tests/test_scheduler.py` (incl. new L1 registration test),
+`tests/test_partner.py` + `tests/test_self_awareness.py` pass; changed
+modules compile.
+
+
+## M19 — Silent Research + File Tools (Nov 18 2026)
+
+T4 core built ahead of the M15 sequence, because the milestone is CPU-only and
+needed by partner idle cycles.
+
+### Phase 1 — file tools (cross-cutting)
+- `execution/file_tools.py` — one sandbox policy (`data/workspace` writes, vault
+  `research/` reads) with path-traversal/absolute/NUL refusal, size caps, and a
+  `create` that refuses to clobber.
+- `execution/handlers.py` — `FileSystemActions.create_file/exists/run_file_write`
+  added next to the existing list/read/write.
+- `execution/task_executor.py` — dispatches `list_dir|read_file|write_file|create_file`;
+  explicit empty paths no longer fall back to the content field.
+- `execution/safe_executor.py` — `safe` mode reads/lists, `advanced`/`admin`
+  write/create; empty path and NUL validation.
+- `agency/tools.py` — LLM tools `read_file`, `list_dir`, `write_file`,
+  `create_file`. In-workspace writes execute; outside writes are parked in the
+  partner approval tier (or refused when no partner exists).
+
+### Phase 2 — research core (no new hard dependencies)
+- `research/` — `models` (job), `fetch` (SSRF-guarded urllib + readability-ish
+  extraction + redirect re-validation), `search` (DuckDuckGo HTML, best-effort),
+  `store` (atomic JSON), `artifacts` (vault Markdown, read-back verified),
+  `engine` (queue, single worker, continuity checkpoints, honest failures),
+  `tools`, optional `browser` (Playwright, headless-only, route-level SSRF).
+- `config/research.py` — depths (quick 2 / standard 4 / deep 6), caps, search
+  endpoint, autonomous gate, tick interval, browser mode.
+- Events: `data.research.{started,source_fetched,finished,failed}` and
+  `state.research.updated`.
+- API: `GET /api/research/status`, `GET /api/research`,
+  `POST /api/research`, `GET /api/research/{id}/status`,
+  `GET /api/research/{id}/report`, `DELETE /api/research/{id}` (auth-gated).
+- Wiring: `app/builders/research.py` (after Partner), boot/validation/application/
+  `run.bootstrap_system`, scheduler `research_tick` (worker fetches; tick drains),
+  partner briefing line, idle cycles start research-shaped backlog items
+  autonomously when presence allows.
+- Vault: new `research/` folder; artifacts are written directly (not through the
+  compiler-owned `MemoryWriter`), then read back before the job is marked done.
+
+### Verification
+- `tests/test_file_tools.py` (10) + `tests/test_research.py` (20) +
+  `tests/test_scheduler.py` research registration: 43 focused tests pass.
+- Playwright remains optional: declared in `requirements.txt`, `MAI_RESEARCH_BROWSER`
+  selects auto/urllib/playwright; installed browser not required for the milestone.
+
+## Optional dependencies installed — Nov 18 2026
+
+Installed into `mai_env` and verified: `discord.py 2.7.1`,
+`kokoro 0.9.4`, `pyautogui 0.9.54` (screen access OK: 1920x1080),
+`pysaml2 7.5.5`, `xmlsec 1.3.18`, `playwright 1.65.2` + Chromium,
+headless shell, FFmpeg. `pip check`: no broken requirements.
+
+- SAML now works end to end for SP-initiated login: `saml_router` was
+  defined but never mounted in `api/server.py` (every route 404'd), and
+  the pysaml2 config had no IdP metadata (SignOnError). Both fixed;
+  IdP metadata is built inline from the provider's `idp_entity_id` /
+  `idp_sso_url` / `idp_x509_cert`. `crypto_backend: XMLSecurity` uses the
+  pip `xmlsec` wheel, so Windows needs no native `xmlsec1.exe`.
+  Verified: `GET /api/auth/saml/login/test` → 307 to the IdP with a
+  `SAMLRequest` and the `saml_request_id` session cookie.
+- Headless research verified through Playwright: `https://example.com`
+  rendered (title/chars) and a research job completed with an artifact.
+- Research tests now pin `browser_mode="urllib"` for fake fetchers and
+  monkeypatch `playwright_available` for the missing-package case, so they
+  no longer depend on whether Playwright happens to be installed.
+- Full suite after installing everything: 2395 passed, 3 skipped.

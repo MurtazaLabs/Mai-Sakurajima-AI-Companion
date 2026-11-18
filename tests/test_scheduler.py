@@ -21,6 +21,25 @@ class TestM6SchedulerWiring:
         names = [t["name"] for t in sched.tasks]
         assert "dream_level5" in names
 
+    def test_dream_level1_registered(self):
+        brain = MagicMock()
+        brain.dream_engine = MagicMock()
+        sched = self._make_with_brain(brain)
+        sched.tasks.clear()
+        sched._register_default_tasks()
+        names = [t["name"] for t in sched.tasks]
+        assert "dream_level1" in names
+
+    def test_research_tick_registered(self):
+        brain = MagicMock()
+        brain.dream_engine = MagicMock()
+        brain.research = MagicMock()
+        sched = self._make_with_brain(brain)
+        sched.tasks.clear()
+        sched._register_default_tasks()
+        names = [t["name"] for t in sched.tasks]
+        assert "research_tick" in names
+
     def test_preference_apply_registered(self):
         brain = MagicMock()
         brain.dream_engine = MagicMock()

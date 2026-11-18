@@ -202,6 +202,86 @@ def register_builtin_tools(registry, brain=None, memory=None, knowledge_retrieve
         )
 
 
+def register_file_tools(registry, file_tools=None, partner=None):
+    """Sandboxed file tools for the LLM surface.
+
+    Reads and in-workspace writes execute directly. A write outside the
+    sandbox is parked in the partner approval tier when available; otherwise it
+    is refused with a clear error (never silently redirected).
+    """
+    if registry is None or file_tools is None:
+        return 0
+
+    def _write(path, content, overwrite=True):
+        if file_tools.writable(path):
+            return file_tools.write(path, content, overwrite=overwrite)
+        if partner is not None:
+            entry = partner.request_file(
+                path, content, reason="file write requested by a tool"
+            )
+            return {
+                "status": "needs_approval",
+                "path": path,
+                "approval": entry,
+                "note": "outside the sandbox — nothing is written until approved",
+            }
+        return {"error": "write_outside_sandbox", "path": path}
+
+    def _read(path, max_chars=20000):
+        return file_tools.read(path, max_chars=max_chars)
+
+    def _list(path="", limit=100):
+        return file_tools.list(path, limit=limit)
+
+    def _create(path, content):
+        return _write(path, content, overwrite=False)
+
+    registry.register(
+        name="read_file",
+        description="Read a UTF-8 text file inside Mai's file sandbox.",
+        handler=lambda **kw: _read(**kw),
+        parameters={
+            "path": {"type": "string", "description": "File path (workspace-relative or absolute inside the sandbox)"},
+            "max_chars": {"type": "number", "description": "Optional character cap"},
+        },
+        category="files",
+    )
+    registry.register(
+        name="list_dir",
+        description="List a directory inside Mai's file sandbox.",
+        handler=lambda **kw: _list(**kw),
+        parameters={
+            "path": {"type": "string", "description": "Directory path (default: workspace root)"},
+            "limit": {"type": "number", "description": "Maximum entries"},
+        },
+        category="files",
+    )
+    registry.register(
+        name="write_file",
+        description="Write a text file. Inside the workspace this is autonomous; "
+                    "outside it becomes an approval request.",
+        handler=lambda **kw: _write(**kw),
+        parameters={
+            "path": {"type": "string", "description": "Target path"},
+            "content": {"type": "string", "description": "Text to write"},
+            "overwrite": {"type": "boolean", "description": "Allow replacing an existing file"},
+        },
+        category="files",
+    )
+    registry.register(
+        name="create_file",
+        description="Create a new text file without clobbering an existing one. "
+                    "Outside the workspace it becomes an approval request.",
+        handler=lambda **kw: _create(**kw),
+        parameters={
+            "path": {"type": "string", "description": "Target path"},
+            "content": {"type": "string", "description": "Text to write"},
+        },
+        category="files",
+    )
+    return 4
+
+
 def _call(obj, method_name, kwargs):
     if obj is None:
         return {"error": f"system_not_available:{method_name}"}

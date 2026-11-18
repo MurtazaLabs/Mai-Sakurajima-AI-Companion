@@ -25,7 +25,7 @@ OBSIDIAN_MAX_FILE_SIZE = 5_000_000
 OBSIDIAN_FOLDERS = [
     "conversation", "relationship", "people", "places", "projects",
     "knowledge", "dreams", "identity", "preferences", "reflections",
-    "statistics", "archive", "important",
+    "statistics", "archive", "important", "research",
     "graph", "maintenance",
 ]
 

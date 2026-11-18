@@ -6,6 +6,7 @@ import traceback
 
 from app.config_loader import Settings
 from config.partner import PARTNER_ENABLED, PARTNER_TICK_INTERVAL
+from config.research import RESEARCH_ENABLED, RESEARCH_TICK_INTERVAL
 from config.self_awareness import SELF_DIAGNOSIS_INTERVAL, SELF_ENABLED
 from core.event_bus import EventBus
 
@@ -386,6 +387,12 @@ class Scheduler:
                 t.start()
 
             self.register_task(
+                "dream_level1",
+                lambda: _dream_wrapper(1),
+                interval=self.dream_level1_interval
+            )
+
+            self.register_task(
                 "dream_level2",
                 lambda: _dream_wrapper(2),
                 interval=self.dream_level2_interval
@@ -535,6 +542,33 @@ class Scheduler:
                 "self_tick",
                 _self_tick,
                 interval=SELF_DIAGNOSIS_INTERVAL
+            )
+
+        # ==================================================
+        # ★ RESEARCH — drain the queue (worker does the fetching)
+        # ==================================================
+
+        if RESEARCH_ENABLED:
+
+            def _research_tick():
+                brain = getattr(self.kernel, "brain", None)
+                engine = getattr(brain, "research", None) if brain else None
+                if engine is None or not hasattr(engine, "tick"):
+                    return
+                try:
+                    result = engine.tick()
+                    if result.get("ran"):
+                        logger.info(
+                            "[Scheduler] research tick: %s",
+                            (result.get("result") or {}).get("status"),
+                        )
+                except Exception as e:
+                    logger.error("[Scheduler] research_tick error: %s", e)
+
+            self.register_task(
+                "research_tick",
+                _research_tick,
+                interval=RESEARCH_TICK_INTERVAL
             )
 
     # ==================================================

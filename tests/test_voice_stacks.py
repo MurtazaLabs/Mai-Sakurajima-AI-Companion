@@ -10,11 +10,9 @@ import types
 from unittest.mock import MagicMock
 
 import numpy as np
-import pytest
 import soundfile as sf
 
 import voice.elevenlabs_stt as stt_mod
-
 
 # ---------------------------------------------------------------------------
 #  ElevenLabs TTS

@@ -12,7 +12,8 @@ EXECUTOR_HISTORY_LIMIT = 1000
 EXECUTOR_TYPING_INTERVAL = 0.02
 EXECUTOR_TYPING_DELAY = 0.5
 EXECUTOR_ALLOWED_ACTIONS = [
-    "open_app", "open_url", "type_text", "run_command", "search", "speak"
+    "open_app", "open_url", "type_text", "run_command", "search", "speak",
+    "list_dir", "read_file", "write_file", "create_file",
 ]
 EXECUTOR_BLOCKED_COMMANDS = [
     "rm -rf", "shutdown", "reboot", "format", "mkfs",

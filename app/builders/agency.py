@@ -8,6 +8,8 @@ from agency.procedural import ProceduralMemory
 from agency.registry import ToolRegistry
 from agency.world import WorldModel
 from app.metadata import tag_service
+from config.paths import ROOT_DIR as _ROOT_DIR
+from execution.file_tools import FileTools
 from execution.safe_executor import SafeExecutor
 from execution.task_executor import TaskExecutor
 
@@ -129,6 +131,13 @@ def build(app):
     app.safe_executor = SafeExecutor(app.executor, mode=executor_mode)
     tag_service(app, "safe_executor", "SafeExecutor", "Agency")
     logger.info("    ✓ Executors")
+
+    vault_root = getattr(app, "vault_root", None) or _ROOT_DIR
+    app.file_tools = FileTools(
+        _ROOT_DIR / "data" / "workspace",
+        extra_read_roots=[vault_root / "research"],
+    )
+    tag_service(app, "file_tools", "FileTools", "Agency")
 
     assert app.tool_registry is not None
     assert app.agent is not None

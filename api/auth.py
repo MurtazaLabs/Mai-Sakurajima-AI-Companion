@@ -9,13 +9,12 @@ for enterprise single sign-on.
 import base64
 import ipaddress
 import logging
-import os
 import re
 import secrets
 import time
 from datetime import datetime, timedelta, timezone
-from typing import Any
 from pathlib import Path
+from typing import Any
 from urllib.parse import urlencode
 
 import bcrypt
@@ -538,6 +537,42 @@ def _set_session_cookie(response: Response, request: Request, name: str,
 
 # ── OIDC/SAML Authentication Endpoints ──────────────────────────────────
 oidc_router = APIRouter(prefix="/api/auth/oidc", tags=["OIDC"])
+_SAML_PROTOCOL = "urn:oasis:names:tc:SAML:2.0:protocol"
+_SAML_METADATA_NS = "urn:oasis:names:tc:SAML:2.0:metadata"
+
+
+def _saml_idp_metadata(provider: SAMLProviderConfig) -> str | None:
+    """Build inline IdP metadata from the configured fields.
+
+    Without it pysaml2 has no SingleSignOnService to negotiate, so
+    ``prepare_for_authenticate`` raised SignOnError.
+    """
+    if not (provider.idp_entity_id and provider.idp_sso_url):
+        return None
+    from xml.sax.saxutils import escape
+
+    from saml2 import BINDING_HTTP_REDIRECT
+
+    cert = "".join((provider.idp_x509_cert or "").split())
+    key_descriptor = (
+        '<md:KeyDescriptor use="signing">'
+        '<ds:KeyInfo xmlns:ds="http://www.w3.org/2000/09/xmldsig#">'
+        f"<ds:X509Data><ds:X509Certificate>{cert}</ds:X509Certificate></ds:X509Data>"
+        "</ds:KeyInfo></md:KeyDescriptor>"
+        if cert
+        else ""
+    )
+    return (
+        f'<md:EntityDescriptor xmlns:md="{_SAML_METADATA_NS}" '
+        f'entityID="{escape(provider.idp_entity_id)}">'
+        f'<md:IDPSSODescriptor protocolSupportEnumeration="{_SAML_PROTOCOL}">'
+        f"{key_descriptor}"
+        f'<md:SingleSignOnService Binding="{BINDING_HTTP_REDIRECT}" '
+        f'Location="{escape(provider.idp_sso_url)}"/>'
+        "</md:IDPSSODescriptor></md:EntityDescriptor>"
+    )
+
+
 saml_router = APIRouter(prefix="/api/auth/saml", tags=["SAML"])
 
 
@@ -664,24 +699,39 @@ async def saml_login(provider_name: str, request: Request, relay_state: str = "/
     relay_target = _safe_redirect_target(relay_state)
     
     # Generate SAML AuthnRequest
-    from saml2 import Saml2Config
+    from saml2 import BINDING_HTTP_POST
     from saml2.client import Saml2Client
+    from saml2.config import Config as Saml2Config
     
+    sp_entity_id = provider.entity_id or (
+        f"{request.base_url}api/auth/saml/metadata"
+    )
+    acs_url = provider.acs_url or (
+        f"{request.base_url}api/auth/saml/acs/{provider_name}"
+    )
+    saml_metadata = _saml_idp_metadata(provider)
     config = Saml2Config()
-    config.entityid = "http://localhost:8000/api/auth/saml/metadata"
+    config.load({
+        "entityid": sp_entity_id,
+        # pysaml2 crypto backend that needs no native xmlsec1.exe (pip xmlsec).
+        "crypto_backend": "XMLSecurity",
+        **({"metadata": {"inline": [saml_metadata]}} if saml_metadata else {}),
+        "service": {
+            "sp": {
+                "endpoints": {
+                    "assertion_consumer_service": [
+                        (acs_url, BINDING_HTTP_POST),
+                    ],
+                },
+            },
+        },
+    })
     config.allow_unknown_attributes = True
-    config.service.sp = {
-        "endpoints": {
-            "assertion_consumer_service": [
-                (f"{request.base_url}api/auth/saml/acs/{provider_name}", "urn:oasis:names:tc:SAML:2.0:bindings:HTTP-POST"),
-            ],
-        }
-    }
     
     client = Saml2Client(config)
     req_id, authn_request = client.prepare_for_authenticate(
         entityid=provider.idp_entity_id,
-        relay_state="/",
+        relay_state=relay_target,
     )
     
     # Store request ID in session
@@ -699,16 +749,40 @@ async def saml_acs(provider_name: str, request: Request, SAMLResponse: str = For
         raise HTTPException(status_code=404, detail=f"SAML provider '{provider_name}' not configured")
     
     # Parse and validate SAML response
-    from saml2 import config as saml_config
-    
-    config = saml_config.Config()
-    # ... configure SP settings from provider ...
-
+    from saml2 import BINDING_HTTP_POST
     from saml2.client import Saml2Client
+    from saml2.config import Config as Saml2Config
+
+    saml_metadata = _saml_idp_metadata(provider)
+    config = Saml2Config()
+    config.load({
+        "crypto_backend": "XMLSecurity",
+        **({"metadata": {"inline": [saml_metadata]}} if saml_metadata else {}),
+        "entityid": provider.entity_id or (
+            f"{request.base_url}api/auth/saml/metadata"
+        ),
+        "service": {
+            "sp": {
+                "endpoints": {
+                    "assertion_consumer_service": [
+                        (
+                            provider.acs_url or (
+                                f"{request.base_url}api/auth/saml/acs/"
+                                f"{provider_name}"
+                            ),
+                            BINDING_HTTP_POST,
+                        ),
+                    ],
+                },
+            },
+        },
+    })
+    config.allow_unknown_attributes = True
 
     client = Saml2Client(config)
     authn_response = client.parse_authn_request_response(
         SAMLResponse,
+        BINDING_HTTP_POST,
         entity_id=provider.idp_entity_id,
     )
     

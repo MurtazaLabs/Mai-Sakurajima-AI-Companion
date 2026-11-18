@@ -18,7 +18,6 @@ import torch
 import voice.stt_kyutai as stt_mod
 from voice.stt_kyutai import KyutaiSTT
 
-
 # ── stubs ────────────────────────────────────────────────────────────────
 
 class _FakeModel:
@@ -166,7 +165,6 @@ def test_load_failure_permanently_falls_back(monkeypatch):
     fake.KyutaiSpeechToTextForConditionalGeneration = _broken_loader
     monkeypatch.setitem(sys.modules, "transformers", fake)
     stub = monkeypatch.setattr(stt_mod, "FasterWhisperSTT", _StubWhisper)
-    from voice.stt import FasterWhisperSTT as _unused
 
     stt = KyutaiSTT()
     assert stt._ensure_model() is False
@@ -222,9 +220,10 @@ def test_stt_backend_default_kyutai(monkeypatch):
 
 def test_stt_backend_env_switch_to_whisper(monkeypatch):
     monkeypatch.setenv("STT_BACKEND", "whisper")
+    import importlib
+
     import config  # noqa: F401  (reload order matters: voice imports paths)
     import config.voice as cv
-    import importlib
     importlib.reload(cv)
     try:
         assert cv.STT_BACKEND == "whisper"
@@ -244,8 +243,8 @@ def test_local_stack_stt_defaults_to_kyutai():
 
 def test_local_stack_stt_honours_whisper_override(monkeypatch):
     from app.config_loader import Settings
-    from voice.stt import FasterWhisperSTT
     from voice.stack_switcher import build_stt
+    from voice.stt import FasterWhisperSTT
 
     monkeypatch.setattr(Settings, "STT_BACKEND", "whisper")
     assert isinstance(build_stt("local"), FasterWhisperSTT)

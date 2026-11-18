@@ -67,14 +67,13 @@ def build(app):
     # tick() for ritual briefings and idle cycles.
     app.brain.partner = app.partner
 
-    # Speak ritual briefings when presence allows. The kernel subscribes to
-    # data.partner.briefing and re-checks presence + conversation phase.
-    kernel = getattr(app, "kernel", None)
-    if kernel is not None and hasattr(kernel, "attach_partner_ritual"):
-        try:
-            kernel.attach_partner_ritual(app.event_bus)
-        except Exception as e:
-            logger.warning("    Ritual briefing voice wiring skipped: %s", e)
+    from agency.tools import register_file_tools
+
+    file_tools_registered = register_file_tools(
+        app.tool_registry, getattr(app, "file_tools", None), app.partner
+    )
+    logger.info("    ✓ Partner file tools (tools=%s)", file_tools_registered)
+
 
     registered = register_partner_tools(app.tool_registry, app.partner)
     logger.info("    ✓ PartnerEngine (tools=%s, mail=%s)", registered, getattr(mail, "name", "?"))

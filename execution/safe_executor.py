@@ -22,9 +22,12 @@ class SafeExecutor:
         self.history = []
         self.min_confidence = EXECUTOR_MIN_CONFIDENCE
         self.permissions = {
-            "safe": {"open_app", "open_url", "search"},
-            "advanced": {"open_app", "open_url", "search", "type_text"},
-            "admin": {"open_app", "open_url", "search", "type_text", "run_command"},
+            "safe": {"open_app", "open_url", "search", "list_dir", "read_file"},
+            "advanced": {"open_app", "open_url", "search", "type_text",
+                        "list_dir", "read_file", "write_file", "create_file"},
+            "admin": {"open_app", "open_url", "search", "type_text",
+                      "run_command", "list_dir", "read_file",
+                      "write_file", "create_file"},
         }
         self.blocked_commands = EXECUTOR_BLOCKED_COMMANDS
         # Optional confirmation gate. Default None = fail-closed: interactive
@@ -94,6 +97,16 @@ class SafeExecutor:
                     return False, f"disallowed_character:{ch!r}"
             if "  " in command:
                 return False, "consecutive_spaces"
+        if action_type in ("list_dir", "read_file", "write_file", "create_file"):
+            path = action.get("path")
+            if path is None:
+                path = action.get("content", "")
+            if not isinstance(path, str) or not path.strip():
+                return False, "empty_path"
+            if len(path) > 500:
+                return False, "path_too_long"
+            if "\x00" in path:
+                return False, "invalid_path"
         return True, "ok"
 
     def _confirm(self, action):

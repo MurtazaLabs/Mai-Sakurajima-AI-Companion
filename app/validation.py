@@ -91,6 +91,16 @@ def _check_partner(app):
     return ok
 
 
+def _check_research(app):
+    try:
+        from config.research import RESEARCH_ENABLED
+    except Exception:
+        RESEARCH_ENABLED = False
+    if RESEARCH_ENABLED and getattr(app, "research", None) is None:
+        logger.error("  ✗ ResearchEngine: MISSING"); return False
+    return True
+
+
 def _check_self_awareness(app):
     ok = True
     if getattr(app, "self_awareness", None) is None:
@@ -125,6 +135,7 @@ VALIDATION_ORDER = [
     ("Cognition",       _check_brain),
     ("Continuity",      _check_continuity),
     ("Partner",         _check_partner),
+    ("Research",        _check_research),
     ("SelfAwareness",   _check_self_awareness),
     ("Voice",           _check_voice),
     ("Runtime",         _check_runtime),

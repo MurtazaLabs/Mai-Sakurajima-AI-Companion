@@ -203,7 +203,7 @@ class Project:
         }
 
     @classmethod
-    def from_dict(cls, data) -> "Project":
+    def from_dict(cls, data) -> Project:
         data = data if isinstance(data, dict) else {}
         return cls(
             name=data.get("name", ""),
@@ -280,7 +280,7 @@ class Commitment:
         }
 
     @classmethod
-    def from_dict(cls, data) -> "Commitment":
+    def from_dict(cls, data) -> Commitment:
         data = data if isinstance(data, dict) else {}
         return cls(
             promise=data.get("promise", ""),
@@ -330,7 +330,7 @@ class Checkpoint:
         }
 
     @classmethod
-    def from_dict(cls, data) -> "Checkpoint":
+    def from_dict(cls, data) -> Checkpoint:
         data = data if isinstance(data, dict) else {}
         return cls(
             task_id=data.get("task_id", ""),

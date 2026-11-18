@@ -341,9 +341,9 @@ class TestCommitments:
             engine.commitments.resolve(commitment.id, "vibes")
 
     def test_check_commitments_publishes_state(self, store_path, goal_manager):
+        from continuity.engine import ContinuityEngine
         from core.event_bus import EventBus
         from core.event_specs import STATE_CONTINUITY_UPDATED, register_event_specs
-        from continuity.engine import ContinuityEngine
 
         bus = EventBus()
         register_event_specs(bus)

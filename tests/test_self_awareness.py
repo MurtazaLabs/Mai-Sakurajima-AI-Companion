@@ -247,7 +247,7 @@ class TestHealthErrorFeeds:
 
     def test_tail_is_bounded_and_truncated_flag_set(self, tmp_path):
         from self_awareness.feeds import HealthErrorFeeds
-        filler = ["2026-11-17 09:00:00 | INFO     | padding %d" % n for n in range(400)]
+        filler = [f"2026-11-17 09:00:00 | INFO     | padding {n}" for n in range(400)]
         path = _log(tmp_path, filler + [_error()])
         errors = HealthErrorFeeds(log_path=path, max_log_bytes=4096).recent_errors()
         assert errors["truncated"] is True
@@ -578,6 +578,7 @@ class TestSelfBoot:
     @staticmethod
     def _stub(monkeypatch, project):
         from types import SimpleNamespace
+
         import app.builders.self_awareness as builder
         from agency.registry import ToolRegistry
         from core.event_bus import EventBus
@@ -609,8 +610,8 @@ class TestSelfBoot:
     def test_partner_briefing_carries_the_self_line(self, monkeypatch, project):
         """The ritual brief picks up the line the builder attached."""
         app = self._stub(monkeypatch, project)
-        from partner.engine import PartnerEngine
         from partner.calendar import IcsCalendar
+        from partner.engine import PartnerEngine
         engine = PartnerEngine(
             store_path=str(project / "partner.json"),
             audit_path=str(project / "partner_actions.jsonl"),

@@ -386,6 +386,7 @@ class FileSystemActions:
     """Safe file system operations restricted to an allowlist of directories."""
 
     MAX_READ_SIZE = 512 * 1024
+    MAX_WRITE_SIZE = 512 * 1024
 
     def __init__(self):
         self._watchers: dict[str, Any] = {}
@@ -437,3 +438,36 @@ class FileSystemActions:
             return _result(True, "file_written", 0)
         except Exception as e:
             return _result(False, str(e), 0)
+
+    def create_file(self, path: str, content: str) -> dict:
+        """Create a new file; refuses to clobber an existing one."""
+        if not _path_allowed(path):
+            return _result(False, "path_not_allowed", 0)
+        try:
+            p = Path(path)
+            if p.exists():
+                return _result(False, "file_exists", 0)
+            text = str(content)
+            if len(text) > self.MAX_WRITE_SIZE:
+                return _result(False, "content_too_large", 0)
+            p.parent.mkdir(parents=True, exist_ok=True)
+            p.write_text(text, encoding="utf-8")
+            return _result(True, "file_created", 0)
+        except Exception as e:
+            return _result(False, str(e), 0)
+
+    def exists(self, path: str) -> dict:
+        if not _path_allowed(path):
+            return _result(False, "path_not_allowed", 0)
+        try:
+            p = Path(path)
+            return _result(p.exists(), p.is_file(), 0)
+        except Exception as e:
+            return _result(False, str(e), 0)
+
+    def run_file_write(self, action_type: str, path: str, content) -> dict:
+        """Dispatch a write/create task without duplicating the branches."""
+        text = "" if content is None else str(content)
+        if action_type == "create_file":
+            return self.create_file(path, text)
+        return self.write_file(path, text)

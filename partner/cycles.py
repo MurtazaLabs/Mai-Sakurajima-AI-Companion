@@ -22,13 +22,17 @@ logger = logging.getLogger(__name__)
 class IdleWorkCycle:
 
     def __init__(self, continuity=None, presence=None, actions=None,
-                 interval: float = 3600.0, max_items: int = 3, event_bus=None):
+                 interval: float = 3600.0, max_items: int = 3, event_bus=None,
+                 research=None):
         self.continuity = continuity
         self.presence = presence
         self.actions = actions
         self.interval = float(interval)
         self.max_items = max(1, int(max_items))
         self.event_bus = event_bus
+        # Optional research engine: research-shaped backlog items start a
+        # real background job instead of only recording a plan.
+        self.research = research
         self._last_run = 0.0
         self._last_summary: dict = {}
 
@@ -94,6 +98,16 @@ class IdleWorkCycle:
         records = []
         for item in items[: self.max_items]:
             task_id = f"{cycle_id}:{item['kind']}:{item['id']}"
+            if self.research is not None and self._is_research_item(item):
+                started = self.research.start(item["title"], autonomous=True)
+                queued = bool(started.get("job"))
+                records.append({
+                    "status": "queued" if queued else "failed",
+                    "action_type": "research",
+                    "item": item,
+                    "result": started,
+                })
+                continue
             record = self.actions.execute(
                 "cycle_plan",
                 description=f"Plan {item['kind']} work: {item['title'][:120]}",
@@ -112,7 +126,9 @@ class IdleWorkCycle:
             "cycle_id": cycle_id,
             "items": items[: self.max_items],
             "records": records,
-            "planned": sum(1 for r in records if r.get("status") == "succeeded"),
+            "planned": sum(
+                1 for r in records if r.get("status") in ("succeeded", "queued")
+            ),
             "failed": sum(1 for r in records if r.get("status") not in ("succeeded", "pending_approval")),
         }
         self._last_summary = summary
@@ -129,6 +145,11 @@ class IdleWorkCycle:
         return summary
 
     # -- internals ---------------------------------------------------
+
+    @staticmethod
+    def _is_research_item(item: dict) -> bool:
+        title = str(item.get("title") or "").lower()
+        return any(word in title for word in ("research", "investigate", "look into"))
 
     def _precondition(self) -> tuple[bool, str]:
         if self.continuity is None or not hasattr(self.continuity, "checkpoints"):
