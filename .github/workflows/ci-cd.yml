@@ -69,7 +69,15 @@ jobs:
 
       - name: Run tests with coverage
         run: |
-          pytest tests/ -v --cov=. --cov-report=xml --cov-report=term-missing --timeout=60 -x
+          set +e
+          pytest tests/ -v --cov=. --cov-report=xml --cov-report=term-missing --timeout=60 -x 2>&1 | tee pytest-output.log
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then
+            # Surface the failure summary as an annotation: job logs require
+            # repository admin rights, check-run annotations do not.
+            python -c "import urllib.parse as u; t = open('pytest-output.log', encoding='utf-8', errors='replace').read(); i = t.find('short test summary info'); t = t[i:] if i >= 0 else t[-3000:]; print('::error title=pytest-failed::' + u.quote(t[:2500], safe=''))"
+          fi
+          exit "$status"
 
       - name: Upload coverage
         uses: codecov/codecov-action@v4
