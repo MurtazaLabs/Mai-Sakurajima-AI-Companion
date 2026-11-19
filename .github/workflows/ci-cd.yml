@@ -209,8 +209,15 @@ jobs:
       - name: Sign image
         if: github.event_name != 'pull_request'
         run: |
+          set +e
           # Sign the immutable digest, not the tag list.
-          cosign sign --yes ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
+          cosign sign --yes ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }} 2>&1 | tee cosign.log
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then
+            # Job logs need repository admin rights; annotate the tail instead.
+            python -c "import urllib.parse as u; t = open('cosign.log', encoding='utf-8', errors='replace').read(); print('::error title=cosign-sign-failed::digest=${{ steps.build.outputs.digest }} ' + u.quote(t[-1800:], safe=''))"
+          fi
+          exit "$status"
 
   # ==========================================
   # STAGE 4: Integration Tests
