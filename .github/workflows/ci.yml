@@ -77,7 +77,9 @@ jobs:
 
   docker:
     name: Docker Build
-    runs-on: windows-latest
+    # The image is Linux (python:3.10-slim); windows-latest runs Docker in
+    # Windows-container mode and cannot pull a Linux base image.
+    runs-on: ubuntu-latest
     needs: [test, typecheck, lint]
     if: github.ref == 'refs/heads/main'
     timeout-minutes: 20
