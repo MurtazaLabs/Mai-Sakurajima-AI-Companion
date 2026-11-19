@@ -12,6 +12,8 @@ import logging
 import re
 from pathlib import Path
 
+from core.path_policy import is_absolute_path
+
 logger = logging.getLogger(__name__)
 
 MAX_READ_CHARS = 200_000
@@ -54,7 +56,7 @@ class FileTools:
         if _BAD_NAME.search(raw):
             return None, "invalid path"
         candidate = Path(raw)
-        if candidate.is_absolute():
+        if is_absolute_path(raw):
             target = candidate
         else:
             if ".." in candidate.parts:

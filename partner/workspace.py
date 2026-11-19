@@ -10,7 +10,9 @@ later.
 from __future__ import annotations
 
 import logging
-from pathlib import Path, PureWindowsPath
+from pathlib import Path
+
+from core.path_policy import is_absolute_path
 
 logger = logging.getLogger(__name__)
 
@@ -34,11 +36,7 @@ class PartnerWorkspace:
         if "\x00" in name:
             return None, "invalid path"
         candidate = Path(name)
-        # ``anchor`` catches POSIX-absolute, UNC and Windows root-relative
-        # ("\\etc\\passwd") forms; ``PureWindowsPath`` also catches drive-letter
-        # paths ("C:/Windows/x.md") on POSIX, where Path() reads them as a plain
-        # relative name.
-        if candidate.anchor or PureWindowsPath(name).drive:
+        if is_absolute_path(name):
             return None, "absolute paths are refused"
         parts = [part for part in candidate.parts if part not in ("", ".")]
         if not parts:

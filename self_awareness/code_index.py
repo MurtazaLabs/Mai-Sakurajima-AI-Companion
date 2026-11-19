@@ -18,6 +18,7 @@ import time
 from pathlib import Path
 
 from core.atomic_document import AtomicDocument
+from core.path_policy import is_absolute_path
 
 logger = logging.getLogger(__name__)
 
@@ -259,7 +260,7 @@ class OwnCodeIndex:
                     return None, "only Python sources can be read"
                 relative = text.replace(".", "/") + ".py"
         candidate = Path(relative)
-        if candidate.is_absolute() or candidate.anchor:
+        if is_absolute_path(relative):
             return None, "absolute paths are refused"
         if any(part == ".." for part in candidate.parts):
             return None, "path traversal is refused"
