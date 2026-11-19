@@ -101,6 +101,10 @@ jobs:
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
+        with:
+          # TruffleHog diffs against the pushed range; a shallow clone cannot
+          # resolve the base commit.
+          fetch-depth: 0
 
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
@@ -124,12 +128,13 @@ jobs:
           pip install bandit
           bandit -r . -f json -o bandit-results.json || true
 
+      # No base/head inputs: pinning base to ``main`` on a push to main makes
+      # BASE and HEAD the same commit, which the action reports as an error.
+      # Left unset, it derives the range from the event (push, PR, schedule).
       - name: Check for secrets
         uses: trufflesecurity/trufflehog@main
         with:
           path: ./
-          base: main
-          head: HEAD
 
   # ==========================================
   # STAGE 3: Build & Push Images
