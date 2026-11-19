@@ -210,8 +210,10 @@ jobs:
         if: github.event_name != 'pull_request'
         run: |
           set +e
-          # Sign the immutable digest, not the tag list.
-          cosign sign --yes ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }} 2>&1 | tee cosign.log
+          # Sign the immutable digest, not the tag list. GHCR paths must be
+          # lowercase, and github.repository keeps its original casing.
+          image="$(printf '%s' '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}' | tr '[:upper:]' '[:lower:]')"
+          cosign sign --yes "${image}@${{ steps.build.outputs.digest }}" 2>&1 | tee cosign.log
           status=${PIPESTATUS[0]}
           if [ "$status" -ne 0 ]; then
             # Job logs need repository admin rights; annotate the tail instead.
