@@ -142,11 +142,15 @@ jobs:
   build:
     name: Build & Push
     runs-on: ubuntu-latest
-    timeout-minutes: 30
+    # The two-architecture build spends ~25 minutes under QEMU emulation;
+    # keep headroom above the 30-minute mark for cold caches.
+    timeout-minutes: 60
     needs: security-scan
     permissions:
       contents: read
       packages: write
+      # Keyless cosign signing exchanges the workflow's OIDC token.
+      id-token: write
     outputs:
       image-tag: ${{ steps.meta.outputs.tags }}
       image-digest: ${{ steps.build.outputs.digest }}
@@ -205,7 +209,8 @@ jobs:
       - name: Sign image
         if: github.event_name != 'pull_request'
         run: |
-          cosign sign --yes ${{ steps.meta.outputs.tags }}
+          # Sign the immutable digest, not the tag list.
+          cosign sign --yes ${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}@${{ steps.build.outputs.digest }}
 
   # ==========================================
   # STAGE 4: Integration Tests
