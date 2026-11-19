@@ -7,7 +7,13 @@ import time
 
 try:
     import sounddevice as sd
+    # sounddevice initialises PortAudio on import and raises PortAudioError when
+    # no audio host/server is reachable (headless CI runners, containers).
+    # Treat that like a missing package so boot and tests degrade instead of
+    # failing at import.
 except ImportError:
+    sd = None
+except Exception:
     sd = None
 import numpy as np
 import soundfile as sf
@@ -92,7 +98,7 @@ class StreamPlayer:
         if sd is None:
             with self._lock:
                 self.state = "unavailable"
-            logger.warning("StreamPlayer unavailable: sounddevice is not installed")
+            logger.warning("StreamPlayer unavailable: sounddevice is not available")
             return
 
         while not self.stop_flag.is_set():
