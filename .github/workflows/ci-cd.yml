@@ -73,9 +73,9 @@ jobs:
           pytest tests/ -v --cov=. --cov-report=xml --cov-report=term-missing --timeout=60 -x 2>&1 | tee pytest-output.log
           status=${PIPESTATUS[0]}
           if [ "$status" -ne 0 ]; then
-            # Surface the failure summary as an annotation: job logs require
-            # repository admin rights, check-run annotations do not.
-            python -c "import urllib.parse as u; t = open('pytest-output.log', encoding='utf-8', errors='replace').read(); i = t.find('short test summary info'); t = t[i:] if i >= 0 else t[-3000:]; print('::error title=pytest-failed::' + u.quote(t[:2500], safe=''))"
+            # Job logs need repository admin rights; the annotation does not.
+            python scripts/ci_annotate_failure.py --title pytest-failed \
+              --from-marker "short test summary info" pytest-output.log
           fi
           exit "$status"
 
@@ -216,8 +216,8 @@ jobs:
           cosign sign --yes "${image}@${{ steps.build.outputs.digest }}" 2>&1 | tee cosign.log
           status=${PIPESTATUS[0]}
           if [ "$status" -ne 0 ]; then
-            # Job logs need repository admin rights; annotate the tail instead.
-            python -c "import urllib.parse as u; t = open('cosign.log', encoding='utf-8', errors='replace').read(); print('::error title=cosign-sign-failed::digest=${{ steps.build.outputs.digest }} ' + u.quote(t[-1800:], safe=''))"
+            python scripts/ci_annotate_failure.py --title cosign-sign-failed \
+              --prefix "digest=${{ steps.build.outputs.digest }} " --tail 1800 cosign.log
           fi
           exit "$status"
 
@@ -230,43 +230,54 @@ jobs:
     timeout-minutes: 30
     needs: build
     # The PR build is intentionally not pushed, so there is no image to pull.
-    # Opt-in: `docker-compose.test.yml`, `tests/integration/` and `tests/contract/`
-    # do not exist yet, so this stage is skipped until it has something to run
-    # (set the RUN_INTEGRATION_TESTS repository variable to enable it).
+    # Opt-in: the stage boots the real image, so enable it with the
+    # RUN_INTEGRATION_TESTS repository variable.
     if: github.event_name != 'pull_request' && vars.RUN_INTEGRATION_TESTS == 'true'
+    env:
+      MAI_TEST_URL: http://127.0.0.1:8000
+      # Matches API_AUTH_TOKEN in docker-compose.test.yml.
+      MAI_TEST_TOKEN: ci-integration-token
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
 
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.10'
+
+      - name: Install test dependencies
+        run: pip install pytest pytest-timeout
+
+      - name: Resolve image reference
+        run: |
+          # The build publishes by digest; GHCR paths must be lowercase.
+          image="$(printf '%s' '${{ env.REGISTRY }}/${{ env.IMAGE_NAME }}' | tr '[:upper:]' '[:lower:]')@${{ needs.build.outputs.image-digest }}"
+          echo "MAI_TEST_IMAGE=$image" >> "$GITHUB_ENV"
+
       - name: Pull test image
-        run: docker pull ${{ needs.build.outputs.image-tag }}
+        run: docker pull "$MAI_TEST_IMAGE"
 
       - name: Start test stack
         run: |
-          docker-compose -f docker-compose.test.yml up -d
-          sleep 30
-
-      - name: Run health checks
-        run: |
-          for i in {1..30}; do
-            if curl -f http://localhost:8000/api/health; then
-              echo "Health check passed"
-              break
-            fi
-            sleep 2
-          done
+          set +e
+          docker compose -f docker-compose.test.yml up -d --wait --wait-timeout 240 2>&1 | tee compose-up.log
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then
+            docker compose -f docker-compose.test.yml logs --no-color | tail -50
+            python scripts/ci_annotate_failure.py --title integration-stack-failed compose-up.log
+          fi
+          exit "$status"
 
       - name: Run API tests
-        run: |
-          pytest tests/integration/ -v --timeout=60
+        run: pytest tests/integration/ -v --timeout=60
 
       - name: Run contract tests
-        run: |
-          pytest tests/contract/ -v --timeout=60
+        run: pytest tests/contract/ -v --timeout=60
 
       - name: Cleanup
         if: always()
-        run: docker-compose -f docker-compose.test.yml down -v
+        run: docker compose -f docker-compose.test.yml down -v
 
   # ==========================================
   # STAGE 5: Staging Deployment (Blue-Green)

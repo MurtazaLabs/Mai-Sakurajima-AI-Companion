@@ -93,8 +93,7 @@ jobs:
           docker build -t mai-ai:latest . 2>&1 | tee docker-build.log
           status=${PIPESTATUS[0]}
           if [ "$status" -ne 0 ]; then
-            # Job logs need repository admin rights; annotate the tail instead.
-            python -c "import urllib.parse as u; t = open('docker-build.log', encoding='utf-8', errors='replace').read(); print('::error title=docker-build-failed::' + u.quote(t[-2500:], safe=''))"
+            python scripts/ci_annotate_failure.py --title docker-build-failed docker-build.log
           fi
           exit "$status"
         shell: bash
