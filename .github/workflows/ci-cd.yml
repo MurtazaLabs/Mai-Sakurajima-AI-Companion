@@ -216,7 +216,10 @@ jobs:
     timeout-minutes: 30
     needs: build
     # The PR build is intentionally not pushed, so there is no image to pull.
-    if: github.event_name != 'pull_request'
+    # Opt-in: `docker-compose.test.yml`, `tests/integration/` and `tests/contract/`
+    # do not exist yet, so this stage is skipped until it has something to run
+    # (set the RUN_INTEGRATION_TESTS repository variable to enable it).
+    if: github.event_name != 'pull_request' && vars.RUN_INTEGRATION_TESTS == 'true'
     steps:
       - name: Checkout code
         uses: actions/checkout@v4
@@ -259,7 +262,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 20
     needs: integration-tests
-    if: github.ref == 'refs/heads/develop' || github.event_name == 'workflow_dispatch'
+    # Opt-in: deploying needs a real staging host and credentials, which this
+    # repository does not carry (set DEPLOY_ENABLED=true to enable it).
+    if: vars.DEPLOY_ENABLED == 'true' && (github.ref == 'refs/heads/develop' || github.event_name == 'workflow_dispatch')
     environment: staging
     steps:
       - name: Checkout code
@@ -286,7 +291,9 @@ jobs:
     runs-on: ubuntu-latest
     timeout-minutes: 30
     needs: integration-tests
-    if: github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch'
+    # Opt-in for the same reason as staging: set DEPLOY_ENABLED=true once a
+    # production host, environment and secrets exist.
+    if: vars.DEPLOY_ENABLED == 'true' && (github.ref == 'refs/heads/main' || github.event_name == 'workflow_dispatch')
     environment: production
     steps:
       - name: Checkout code

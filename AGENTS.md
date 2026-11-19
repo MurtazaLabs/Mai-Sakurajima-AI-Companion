@@ -2423,3 +2423,32 @@ headless shell, FFmpeg. `pip check`: no broken requirements.
   monkeypatch `playwright_available` for the missing-package case, so they
   no longer depend on whether Playwright happens to be installed.
 - Full suite after installing everything: 2395 passed, 3 skipped.
+
+## CI: why it was red, and what runs now — Nov 19 2026
+
+Two workflows gate `main`: `ci.yml` (Windows: ruff, mypy, full pytest, Docker build) and
+`ci-cd.yml` (Ubuntu: ruff, mypy, pytest with coverage, Trivy/Bandit/TruffleHog, multi-arch
+image build).
+
+- **Dependencies**: `tokenizers==0.22.1` — `transformers==4.57.6` requires `>=0.22.0,<0.23`,
+  so the old `0.21.4` pin made `pip install -r requirements-ci.txt` fail outright.
+- **Mypy**: the 55 errors are fixed; `mypy .` is clean (tests are excluded by config).
+  Use `builtins.list` where a public `list()` method shadows the builtin.
+- **Headless audio**: `voice/stream_player.py` treats a PortAudio init failure at import like a
+  missing package, so boot and the suite run on runners/containers with no audio server.
+  sounddevice initialises PortAudio on import and raises `PortAudioError`, not `ImportError`.
+- **Path policy**: `core/path_policy.is_absolute_path()` is the single absolute-path test for
+  the partner workspace, the own-code index and `execution/file_tools`. `Path()` alone reads
+  `C:/Windows/x.md` as a *relative* name on POSIX, so those sandboxes only refused it on Windows.
+- **Docker build** runs on `ubuntu-latest`: `windows-latest` Docker is in Windows-container mode
+  and cannot pull `python:3.10-slim` ("no matching manifest").
+- **TruffleHog** gets no `base`/`head` inputs: pinning `base: main` makes BASE and HEAD the same
+  commit on every push to main, so the step exited 1 without scanning. The job checks out with
+  `fetch-depth: 0` so the action can resolve the event's commit range.
+- **Opt-in stages**: integration tests and both deploy jobs are gated on the repository
+  variables `RUN_INTEGRATION_TESTS` / `DEPLOY_ENABLED` (default off) because
+  `docker-compose.test.yml`, `tests/integration/`, `tests/contract/` and the staging/production
+  hosts do not exist in this repository.
+- **Reading CI**: job logs need repository admin, so the pytest and Docker steps emit an
+  `::error` annotation with the failure tail; annotations and job statuses are visible on the
+  public job page without the (60/hour) anonymous API quota.
