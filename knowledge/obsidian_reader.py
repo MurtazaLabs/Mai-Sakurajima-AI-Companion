@@ -301,13 +301,14 @@ class ObsidianReader:
             sorted(groups.get(c, {}).values(), key=lambda e: e[0], reverse=True)
             for c in self._PROFILE_CATEGORIES
         ]
-        lines, total, idx = [], 0, 0
+        lines: list[str] = []
+        total, idx = 0, 0
         while len(lines) < self._PROFILE_MAX_LINES:
             added = False
-            for bucket in buckets:
-                if idx >= len(bucket):
+            for bucket_items in buckets:
+                if idx >= len(bucket_items):
                     continue
-                text = bucket[idx][1]
+                text = bucket_items[idx][1]
                 if total + len(text) > self._PROFILE_MAX_CHARS:
                     continue
                 lines.append(f"- {text}")

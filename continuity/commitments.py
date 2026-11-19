@@ -9,6 +9,7 @@ repeating them every turn — or, worse, forgetting them.
 """
 from __future__ import annotations
 
+import builtins
 import logging
 import threading
 import time
@@ -149,7 +150,7 @@ class CommitmentsLedger:
             raw = self._store.read()["commitments"].get(commitment_id)
         return Commitment.from_dict(raw) if raw else None
 
-    def list(self, status=None) -> list[Commitment]:
+    def list(self, status=None) -> builtins.list[Commitment]:
         with self._lock:
             items = [
                 Commitment.from_dict(raw)
@@ -160,11 +161,11 @@ class CommitmentsLedger:
         items.sort(key=lambda c: (c.status != "open", c.due_at or float("inf"), -c.created_at))
         return items
 
-    def due(self, now=None) -> list[Commitment]:
+    def due(self, now=None) -> builtins.list[Commitment]:
         now = time.time() if now is None else float(now)
         return [c for c in self.list(status="open") if c.is_overdue(now)]
 
-    def unsurfaced(self) -> list[Commitment]:
+    def unsurfaced(self) -> builtins.list[Commitment]:
         return [c for c in self.list(status="missed") if not c.surfaced]
 
     def mark_surfaced(self, commitment_ids) -> int:

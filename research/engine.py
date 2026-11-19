@@ -1,6 +1,7 @@
 """Research engine — queue, worker, verified artifacts, honest failures."""
 from __future__ import annotations
 
+import builtins
 import logging
 import threading
 import time
@@ -54,7 +55,7 @@ class ResearchEngine:
         self.browser_fetcher = browser_fetcher
         self._stop = threading.Event()
         self._wake = threading.Event()
-        self._thread = None
+        self._thread: threading.Thread | None = None
         self.resumed = self.resume_interrupted()
         if worker:
             self.start_worker()
@@ -293,7 +294,7 @@ class ResearchEngine:
             "resumed": self.resumed,
         }
 
-    def list(self, limit: int = 20) -> list[dict]:
+    def list(self, limit: int = 20) -> builtins.list[dict]:
         limit = max(1, min(int(limit or 20), 100))
         return [job.summary() for job in self.store.all()[:limit]]
 
@@ -380,7 +381,7 @@ class ResearchEngine:
 
     # -- internals ----------------------------------------------------
 
-    def _ready(self) -> list[ResearchJob]:
+    def _ready(self) -> builtins.list[ResearchJob]:
         return [job for job in self.store.all() if job.status == DONE and not job.reported]
 
     def _autonomous_block(self) -> str:

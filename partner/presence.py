@@ -21,6 +21,7 @@ import threading
 import time
 from dataclasses import dataclass, field
 from datetime import datetime
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -37,7 +38,7 @@ INTERRUPTION_KINDS = (
 
 # Per-activity interruption policy: which interruption classes may reach the
 # user, and how long to wait between two of them.
-INTERRUPTION_POLICY = {
+INTERRUPTION_POLICY: dict[str, dict[str, Any]] = {
     "coding": {"allowed": {"urgent", "commitment_missed"}, "cooldown": 900.0},
     "focus": {"allowed": {"urgent"}, "cooldown": 1800.0},
     "working": {"allowed": {"urgent", "commitment_missed", "commitment_due"}, "cooldown": 600.0},

@@ -9,6 +9,7 @@ from __future__ import annotations
 
 import logging
 import urllib.parse
+from typing import Any
 
 from core.net_safety import require_public_target
 from research.fetch import extract_text
@@ -59,7 +60,7 @@ def fetch_with_browser(url: str, timeout: float = 20.0,
     context = None
     try:
         with sync_playwright() as playwright:
-            launch = {"headless": True}
+            launch: dict[str, Any] = {"headless": True}
             if profile_dir is not None:
                 context = playwright.chromium.launch_persistent_context(
                     str(profile_dir), **launch

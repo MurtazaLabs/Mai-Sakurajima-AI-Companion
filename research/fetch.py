@@ -6,6 +6,7 @@ import re
 import urllib.error
 import urllib.request
 from html.parser import HTMLParser
+from typing import Any
 
 from core.net_safety import require_public_target
 
@@ -126,8 +127,8 @@ def extract_text(html: str) -> tuple[str, str]:
 
 def fetch_text(url: str, timeout: float = 15.0, max_chars: int = MAX_TEXT_CHARS) -> dict:
     """Fetch one public URL and return extracted text. Never raises."""
-    result = {"url": url, "final_url": url, "title": "", "text": "", "chars": 0,
-              "truncated": False, "error": ""}
+    result: dict[str, Any] = {"url": url, "final_url": url, "title": "", "text": "",
+                              "chars": 0, "truncated": False, "error": ""}
     try:
         require_public_target(url)
         opener = build_opener()

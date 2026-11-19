@@ -243,9 +243,9 @@ class OwnCodeIndex:
         if text in entries:
             relative = text
         else:
-            for candidate, entry in entries.items():
+            for source_path, entry in entries.items():
                 if entry.get("module") == text:
-                    relative = candidate
+                    relative = source_path
                     break
         if not relative:
             looks_like_path = text.endswith(".py") or "/" in text or "\\" in text

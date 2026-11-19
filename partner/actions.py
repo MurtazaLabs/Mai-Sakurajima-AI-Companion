@@ -19,6 +19,8 @@ import logging
 import threading
 import time
 import uuid
+from collections.abc import Callable
+from typing import Any
 
 logger = logging.getLogger(__name__)
 
@@ -100,8 +102,8 @@ class VerifiedActionEngine:
         self._on_change = on_change
         self._store = store
         self._lock = threading.RLock()
-        self._verifiers: dict[str, object] = {}
-        self._factories: dict[str, object] = {}
+        self._verifiers: dict[str, Callable[..., Any]] = {}
+        self._factories: dict[str, Callable[..., Any]] = {}
         self._pending: dict[str, dict] = {}
         if self._store is not None:
             self._restore_pending()
@@ -343,7 +345,7 @@ class VerifiedActionEngine:
         if callable(pending.get("executor")):
             return pending["executor"], pending.get("precondition"), ""
         with self._lock:
-            factory = self._factories.get(pending.get("action_type"))
+            factory = self._factories.get(str(pending.get("action_type") or ""))
         if factory is None:
             error = "no_executor_after_restart" if pending.get("restored") else "no_executor"
             return None, None, error

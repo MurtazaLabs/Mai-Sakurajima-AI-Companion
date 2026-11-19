@@ -113,6 +113,7 @@ class TaskExecutor:
 
         content = task.get("content")
         path = task.get("path") if task.get("path") is not None else content
+        path = "" if path is None else str(path)
 
         task_id = task.get("id")
 
