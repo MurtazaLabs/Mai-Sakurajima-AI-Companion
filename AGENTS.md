@@ -2445,10 +2445,15 @@ image build).
 - **TruffleHog** gets no `base`/`head` inputs: pinning `base: main` makes BASE and HEAD the same
   commit on every push to main, so the step exited 1 without scanning. The job checks out with
   `fetch-depth: 0` so the action can resolve the event's commit range.
-- **Opt-in stages**: integration tests and both deploy jobs are gated on the repository
-  variables `RUN_INTEGRATION_TESTS` / `DEPLOY_ENABLED` (default off) because
-  `docker-compose.test.yml`, `tests/integration/`, `tests/contract/` and the staging/production
-  hosts do not exist in this repository.
-- **Reading CI**: job logs need repository admin, so the pytest and Docker steps emit an
-  `::error` annotation with the failure tail; annotations and job statuses are visible on the
-  public job page without the (60/hour) anonymous API quota.
+- **Opt-in stages**: both deploy jobs are gated on `DEPLOY_ENABLED` (default off) because no
+  staging/production host or secrets exist in this repository. The integration stage is gated on
+  `RUN_INTEGRATION_TESTS`: `docker-compose.test.yml` boots the built image by digest with auth on
+  (`API_AUTH_TOKEN=ci-integration-token`), then `tests/integration/` (liveness, 401 path, state
+  snapshot, UI) and `tests/contract/` (OpenAPI routes, payload shapes) run against it. Both
+  suites skip when nothing answers at `MAI_TEST_URL` (default `http://127.0.0.1:8000`), so a plain
+  `pytest` run needs no Docker.
+- **Reading CI**: job logs need repository admin, so the steps that must fail loudly (pytest,
+  Docker build, cosign) pipe output to a file and call `scripts/ci_annotate_failure.py`, which
+  emits an `::error` annotation with the tail (and, for pytest, from `short test summary info`).
+  Annotations and job statuses are visible on the public job page without the (60/hour) anonymous
+  API quota.

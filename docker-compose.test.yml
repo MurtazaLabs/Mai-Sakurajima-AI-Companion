@@ -1,0 +1,49 @@
+# Mai AI — CI integration stack.
+#
+# Boots the image the pipeline just built and exposes the HTTP surface the tests
+# in tests/integration/ and tests/contract/ exercise. Deliberately minimal: no
+# host bind-mounts (a runner has no .env, vault or model cache), one disposable
+# volume for /app/data, and auth ON with a fixed token so the unauthenticated
+# and authenticated paths are both real.
+#
+# Started by .github/workflows/ci-cd.yml (integration-tests, gated on the
+# RUN_INTEGRATION_TESTS repository variable):
+#   docker compose -f docker-compose.test.yml up -d --wait
+#
+# Locally, any built image works:
+#   MAI_TEST_IMAGE=mai-ai:latest docker compose -f docker-compose.test.yml up -d --wait
+services:
+  mai-ai:
+    image: ${MAI_TEST_IMAGE:-mai-ai:latest}
+    ports:
+      - "8000:8000"
+    environment:
+      - API_HOST=0.0.0.0
+      - API_REQUIRE_AUTH=true
+      # Matches MAI_TEST_TOKEN in the workflow; the smoke test asserts that the
+      # same route answers 401 without it.
+      - API_AUTH_TOKEN=ci-integration-token
+      - LOG_LEVEL=INFO
+    volumes:
+      - mai-test-data:/app/data
+      - mai-test-cache:/app/cache
+    healthcheck:
+      # "healthy" means the API finished booting: /api/health answers 200 with
+      # ready=false while it is still starting, so the body is checked too.
+      test:
+        - CMD
+        - python
+        - -c
+        - |
+          import json, urllib.request
+          body = urllib.request.urlopen("http://127.0.0.1:8000/api/health", timeout=3).read()
+          raise SystemExit(0 if json.loads(body).get("ready") else 1)
+      interval: 5s
+      timeout: 5s
+      retries: 24
+      start_period: 30s
+    restart: "no"
+
+volumes:
+  mai-test-data:
+  mai-test-cache:
