@@ -20,6 +20,8 @@ except ImportError:
     print("PyInstaller not installed. Run: pip install pyinstaller")
     sys.exit(1)
 
+APP_NAME = "mai-daemon"
+
 PROJECT_ROOT = Path(__file__).resolve().parent.parent
 DIST_DIR = PROJECT_ROOT / "dist"
 BUILD_DIR = PROJECT_ROOT / "build"
@@ -80,7 +82,7 @@ def main():
         shutil.rmtree(BUILD_DIR)
 
     args = [
-        "--name=mai-daemon",
+        f"--name={APP_NAME}",
         "--noconsole",
         "--clean",
         "--noconfirm",
@@ -102,8 +104,9 @@ def main():
     print(f"[Build] PyInstaller args: {' '.join(args)}")
     pyi.run(args)
 
-    print(f"[Build] Done. Binary at {DIST_DIR / 'mai-daemon' / 'run_daemon.exe'}")
-    print(f"[Build] Run: {DIST_DIR / 'mai-daemon' / 'run_daemon.exe'}")
+    binary = DIST_DIR / APP_NAME / f"{APP_NAME}.exe"
+    print(f"[Build] Done. Binary at {binary}")
+    print(f"[Build] Run: {binary}")
 
 
 if __name__ == "__main__":

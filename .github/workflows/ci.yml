@@ -75,6 +75,94 @@ jobs:
       - name: Run ruff
         run: ruff check .
 
+  package-windows:
+    name: Windows Packaging
+    # Verifies the Windows shipping path: the PyInstaller bundle from
+    # scripts/build_daemon.py, then the Inno Setup installer in
+    # scripts/installer.iss. PyInstaller analysis of the whole app is slow and
+    # Windows minutes bill at 2x, so pull requests only run it when the
+    # RUN_WINDOWS_PACKAGING repository variable is set to true; pushes to main
+    # always run it so the shipped path cannot silently rot.
+    runs-on: windows-latest
+    needs: [test, typecheck, lint]
+    if: (github.ref == 'refs/heads/main') || (vars.RUN_WINDOWS_PACKAGING == 'true')
+    timeout-minutes: 45
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: "3.10"
+          cache: pip
+
+      - name: Install dependencies
+        # requirements-ci.txt includes requirements.txt, which already pins
+        # pyinstaller, pywebview, pystray, pywin32, plyer and pyperclip.
+        run: |
+          python -m pip install --upgrade pip
+          pip install -r requirements-ci.txt
+          python -m pip show pyinstaller pywebview pystray
+
+      - name: Locate Inno Setup compiler
+        shell: pwsh
+        run: |
+          $candidates = @(
+            "${env:ProgramFiles(x86)}\Inno Setup 6\ISCC.exe",
+            "$env:ProgramFiles\Inno Setup 6\ISCC.exe"
+          )
+          $iscc = $candidates | Where-Object { Test-Path $_ } | Select-Object -First 1
+          if (-not $iscc) {
+            throw "ISCC.exe not found: the runner image no longer ships Inno Setup 6."
+          }
+          "ISCC_PATH=$iscc" | Out-File -FilePath $env:GITHUB_ENV -Append -Encoding utf8
+          Write-Host "Using $iscc"
+
+      - name: Build daemon bundle
+        shell: bash
+        timeout-minutes: 35
+        run: |
+          set +e
+          python scripts/build_daemon.py 2>&1 | tee pyinstaller-build.log
+          status=${PIPESTATUS[0]}
+          if [ "$status" -ne 0 ]; then
+            python scripts/ci_annotate_failure.py --title pyinstaller-build-failed pyinstaller-build.log
+          fi
+          exit "$status"
+
+      - name: Verify bundle contents
+        shell: pwsh
+        run: |
+          $exe = "dist\mai-daemon\mai-daemon.exe"
+          if (-not (Test-Path $exe)) { throw "PyInstaller did not produce $exe" }
+          # --add-data must ship the web UI, otherwise the daemon boots with an
+          # empty static mount (PyInstaller 6 nests data under _internal).
+          $ui = Get-ChildItem -Path "dist\mai-daemon" -Recurse -Filter index.html -ErrorAction SilentlyContinue |
+            Where-Object { ($_.FullName -replace '\\', '/') -like "*api/static/index.html" }
+          if (-not $ui) { throw "api/static was not bundled into dist\mai-daemon" }
+          $mb = [math]::Round((Get-ChildItem "dist\mai-daemon" -Recurse -File | Measure-Object Length -Sum).Sum / 1MB, 1)
+          Write-Host "Bundle OK: $exe ($mb MB), UI at $($ui[0].FullName)"
+
+      - name: Compile installer
+        shell: pwsh
+        timeout-minutes: 10
+        run: |
+          & $env:ISCC_PATH scripts\installer.iss 2>&1 | Tee-Object -FilePath installer-build.log
+          $code = $LASTEXITCODE
+          if ($code -ne 0) {
+            python scripts/ci_annotate_failure.py --title inno-setup-failed installer-build.log
+            exit $code
+          }
+
+      - name: Verify installer
+        shell: pwsh
+        run: |
+          $setup = @(Get-ChildItem -Path "dist" -Filter "MaiAI-Setup-*.exe" -File)
+          if ($setup.Count -eq 0) { throw "Inno Setup produced no dist\MaiAI-Setup-*.exe" }
+          $mb = [math]::Round(($setup | Measure-Object Length -Sum).Sum / 1MB, 1)
+          Write-Host "Installer OK: $($setup[0].Name) ($mb MB)"
+
   docker:
     name: Docker Build
     # The image is Linux (python:3.10-slim); windows-latest runs Docker in

@@ -2426,9 +2426,9 @@ headless shell, FFmpeg. `pip check`: no broken requirements.
 
 ## CI: why it was red, and what runs now — Nov 19 2026
 
-Two workflows gate `main`: `ci.yml` (Windows: ruff, mypy, full pytest, Docker build) and
-`ci-cd.yml` (Ubuntu: ruff, mypy, pytest with coverage, Trivy/Bandit/TruffleHog, multi-arch
-image build).
+Two workflows gate `main`: `ci.yml` (Windows: ruff, mypy, full pytest, PyInstaller + Inno Setup
+packaging, Docker build) and `ci-cd.yml` (Ubuntu: ruff, mypy, pytest with coverage,
+Trivy/Bandit/TruffleHog, multi-arch image build).
 
 - **Dependencies**: `tokenizers==0.22.1` — `transformers==4.57.6` requires `>=0.22.0,<0.23`,
   so the old `0.21.4` pin made `pip install -r requirements-ci.txt` fail outright.
@@ -2452,6 +2452,19 @@ image build).
   snapshot, UI) and `tests/contract/` (OpenAPI routes, payload shapes) run against it. Both
   suites skip when nothing answers at `MAI_TEST_URL` (default `http://127.0.0.1:8000`), so a plain
   `pytest` run needs no Docker.
+- **Windows packaging** (`package-windows` in `ci.yml`): the daemon and installer were only
+  ever built by hand, so the shipping path is now compiled on `windows-latest`. It runs on every
+  push to `main` and on pull requests only when `RUN_WINDOWS_PACKAGING` is `true` (PyInstaller
+  analysis of the whole app is slow and Windows minutes bill at 2x). It installs
+  `requirements-ci.txt` — which already pins `pyinstaller`, `pywebview`, `pystray`, `pywin32`,
+  `plyer`, `pyperclip` — resolves the runner's preinstalled Inno Setup 6 `ISCC.exe` from
+  Program Files, runs `scripts/build_daemon.py`, asserts `dist/mai-daemon/mai-daemon.exe` exists
+  and that `--add-data` shipped `api/static` into the bundle (PyInstaller 6 nests it under
+  `_internal`), then compiles `scripts/installer.iss` and asserts a `dist/MaiAI-Setup-*.exe`
+  was produced. Both builds log to a file and call `scripts/ci_annotate_failure.py` on failure,
+  so a red packaging job is readable without repository admin. `scripts/build_daemon.py`
+  reports `dist/mai-daemon/mai-daemon.exe` (it previously printed `run_daemon.exe`, which no
+  build stage produces).
 - **Reading CI**: job logs need repository admin, so the steps that must fail loudly (pytest,
   Docker build, cosign) pipe output to a file and call `scripts/ci_annotate_failure.py`, which
   emits an `::error` annotation with the tail (and, for pytest, from `short test summary info`).
